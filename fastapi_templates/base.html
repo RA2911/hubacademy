@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f766e">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/images/hub_academy_logo.jpg">
+    <title>{% block title %}Hub Academy{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/marketplace.css">
+</head>
+<body class="market-shell">
+<nav class="market-nav">
+    <a class="market-brand" href="/">
+        <img src="/static/images/hub_academy_logo.jpg" alt="Hub Academy">
+        <span>Hub Academy</span>
+    </a>
+    <div class="market-links">
+        <a href="/courses">Browse</a>
+        <a href="/#paths">Paths</a>
+        <a href="/#pricing">Plans</a>
+        <a href="/#featured">Featured</a>
+    </div>
+    <div class="market-nav-actions">
+        {% if current_user %}
+            <a class="market-btn" href="/learn/dashboard">My Learning</a>
+            <button class="market-btn install-app-btn" type="button" hidden>Install App</button>
+            <a class="market-btn" href="/logout">Logout</a>
+        {% else %}
+            <a class="market-btn" href="/login">Login</a>
+            <a class="market-btn primary" href="/register">Create Account</a>
+        {% endif %}
+    </div>
+</nav>
+
+{% block content %}{% endblock %}
+
+<div class="ai-guide" id="ai-guide">
+    <button class="ai-guide-avatar" type="button" aria-label="Open learning guide"><span>HA</span></button>
+    <section class="ai-guide-panel" aria-live="polite">
+        <div class="ai-guide-head">
+            <strong>Hub Guide</strong>
+            <button type="button" class="ai-guide-close" aria-label="Close">×</button>
+        </div>
+        <div class="ai-guide-body" id="ai-guide-body">
+            <p>Tell me your goal. I will suggest a course, path, or plan.</p>
+        </div>
+        <form class="ai-guide-form" id="ai-guide-form">
+            <input type="text" id="ai-guide-input" placeholder="What should I learn next?">
+            <button type="submit">Ask</button>
+        </form>
+    </section>
+</div>
+
+<script>
+(function () {
+    const widget = document.getElementById('ai-guide');
+    const avatar = widget && widget.querySelector('.ai-guide-avatar');
+    const close = widget && widget.querySelector('.ai-guide-close');
+    const form = document.getElementById('ai-guide-form');
+    const input = document.getElementById('ai-guide-input');
+    const body = document.getElementById('ai-guide-body');
+    if (!widget || !avatar || !form) return;
+    avatar.addEventListener('click', () => widget.classList.toggle('open'));
+    close.addEventListener('click', () => widget.classList.remove('open'));
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const question = input.value.trim();
+        if (!question) return;
+        body.innerHTML += `<p class="me">${question}</p><p>Thinking...</p>`;
+        input.value = '';
+        try {
+            const response = await fetch('/assistant', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question})
+            });
+            const data = await response.json();
+            body.lastElementChild.textContent = data.answer || 'I could not answer that yet.';
+        } catch (error) {
+            body.lastElementChild.textContent = 'I am offline right now. Browse courses or choose a plan to continue.';
+        }
+        body.scrollTop = body.scrollHeight;
+    });
+})();
+</script>
+<script>
+(function () {
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+        });
+    }
+    let deferredPrompt = null;
+    const installButton = document.querySelector('.install-app-btn');
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredPrompt = event;
+        if (installButton) installButton.hidden = false;
+    });
+    if (installButton) {
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            installButton.hidden = true;
+        });
+    }
+})();
+</script>
+</body>
+</html>

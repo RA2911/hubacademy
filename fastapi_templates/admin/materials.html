@@ -1,0 +1,80 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Materials - {{ lesson.title }}{% endblock %}
+{% block admin_content %}
+<div class="detail-grid">
+<section class="detail-block">
+    <h2>Upload File to R2</h2>
+    <form id="r2-upload-form" class="auth-public-card">
+        <label>Type
+            <select name="material_type"><option value="slide">Slide</option><option value="article">Article</option><option value="case_study">Case Study</option><option value="video">Video</option><option value="toolkit">Toolkit</option></select>
+        </label>
+        <label>File<input type="file" name="file"></label>
+        <button class="market-btn primary" type="submit">Upload to R2</button>
+        <p id="upload-status"></p>
+    </form>
+    <h2>Add External Link</h2>
+    <form method="POST" action="/admin/lessons/{{ lesson.id }}/materials/link" class="auth-public-card">
+        <label>Type<input name="material_type" value="video"></label>
+        <label>External URL<input name="video_url" required></label>
+        <label>External title<input name="video_name"></label>
+        <button class="market-btn primary" type="submit">Add Link</button>
+    </form>
+</section>
+<section class="detail-block">
+    <h2>Materials</h2>
+    {% for material in materials %}
+    <div class="module-row"><span>{{ loop.index }}</span><div><strong>{{ material.file_name or material.video_name or material.material_type }}</strong><p>{{ material.material_type }} / {{ material.storage_provider or 'r2' }} {% if material.object_key or material.video_url %}/ <a href="/materials/{{ material.id }}/download">Open</a>{% endif %}</p><form method="POST" action="/admin/materials/{{ material.id }}/delete"><button class="market-btn" type="submit">Delete</button></form></div></div>
+    {% endfor %}
+</section>
+</div>
+<script>
+const form = document.getElementById('r2-upload-form');
+const statusEl = document.getElementById('upload-status');
+form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const file = form.file.files[0];
+    if (!file) {
+        statusEl.textContent = 'Choose a file first.';
+        return;
+    }
+    statusEl.textContent = 'Requesting secure upload URL...';
+    const presign = await fetch('/admin/lessons/{{ lesson.id }}/materials/presign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({filename: file.name, content_type: file.type || 'application/octet-stream'})
+    });
+    const signed = await presign.json();
+    if (!presign.ok) {
+        statusEl.textContent = signed.error || 'Could not create upload URL.';
+        return;
+    }
+    statusEl.textContent = 'Uploading directly to Cloudflare R2...';
+    const upload = await fetch(signed.upload_url, {
+        method: 'PUT',
+        headers: {'Content-Type': signed.content_type},
+        body: file
+    });
+    if (!upload.ok) {
+        statusEl.textContent = 'R2 upload failed.';
+        return;
+    }
+    statusEl.textContent = 'Saving metadata...';
+    const complete = await fetch('/admin/lessons/{{ lesson.id }}/materials/complete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            material_type: form.material_type.value,
+            file_name: file.name,
+            object_key: signed.object_key,
+            content_type: signed.content_type,
+            size_bytes: file.size
+        })
+    });
+    if (!complete.ok) {
+        statusEl.textContent = 'Uploaded, but metadata save failed.';
+        return;
+    }
+    window.location.reload();
+});
+</script>
+{% endblock %}

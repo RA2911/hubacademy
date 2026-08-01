@@ -1,0 +1,14 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Dashboard{% endblock %}
+{% block admin_content %}
+<div class="outcome-grid">
+    <div><h3>{{ stats.programs }}</h3><p>Programs</p></div>
+    <div><h3>{{ stats.courses }}</h3><p>Courses</p></div>
+    <div><h3>{{ stats.students }}</h3><p>Students</p></div>
+    <div><h3>{{ stats.enrollments }}</h3><p>Enrollments</p></div>
+</div>
+<div class="detail-block">
+    <h2>Recent Courses</h2>
+    <div class="course-grid">{% for course in recent_courses %}{% include 'course_card.html' %}{% endfor %}</div>
+</div>
+{% endblock %}

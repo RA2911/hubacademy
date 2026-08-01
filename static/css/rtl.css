@@ -1,0 +1,39 @@
+/* Right-to-left (Arabic) adjustments for the learner-facing pages.
+   dir="rtl" on <html> mirrors most layout automatically; this file sets the
+   Arabic font and corrects the few elements that use hard-coded directions. */
+
+body.rtl,
+body.rtl input,
+body.rtl textarea,
+body.rtl select,
+body.rtl button {
+    font-family: 'Tajawal', 'Cairo', 'Outfit', 'Segoe UI', sans-serif;
+}
+body.rtl h1, body.rtl h2, body.rtl h3, body.rtl h4, body.rtl h5,
+body.rtl .section-title, body.rtl .page-header h1 {
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+}
+
+/* General right alignment for text blocks */
+body.rtl { text-align: right; }
+
+/* Icons that sat to the LEFT of text should sit to the RIGHT in Arabic.
+   Flex rows are mirrored automatically by dir=rtl; nudge common gaps/margins. */
+body.rtl .nav-link i,
+body.rtl .lnav-btn i { margin-left: 0; }
+
+/* Progress bars / journey fills grow from the right */
+body.rtl .jp-bar span,
+body.rtl .prog-bar span,
+body.rtl .pt-bar span { margin-left: auto; margin-right: 0; }
+
+/* Prev/next guided navigation: keep visual arrows pointing sensibly */
+body.rtl .lesson-nav { direction: rtl; }
+
+/* Cards / lists inherit RTL from dir; ensure numeric badges stay upright */
+body.rtl .lesson-number,
+body.rtl .jn,
+body.rtl .lesson-num { direction: ltr; }
+
+/* Keep the AI-chat send row mirrored cleanly */
+body.rtl .chat-input-row { direction: rtl; }

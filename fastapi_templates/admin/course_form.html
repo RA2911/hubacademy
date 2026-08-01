@@ -1,0 +1,44 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}{{ 'Edit Course' if course else 'New Course' }}{% endblock %}
+{% block admin_content %}
+<section class="detail-block">
+<form method="POST" action="/admin/courses" class="auth-public-card">
+    <input type="hidden" name="course_id" value="{{ course.id if course else 0 }}">
+    <label>Program
+        <select name="program_id" required>
+            {% for program in programs %}<option value="{{ program.id }}" {% if course and course.program_id == program.id %}selected{% endif %}>{{ program.name }}</option>{% endfor %}
+        </select>
+    </label>
+    <label>Title<input name="title" required value="{{ course.title if course else '' }}"></label>
+    <label>Description<input name="description" value="{{ course.description if course else '' }}"></label>
+    <label>Sales Copy<input name="sales_copy" value="{{ course.sales_copy if course else '' }}"></label>
+    <label>Slug<input name="slug" value="{{ course.slug if course else '' }}"></label>
+    <label>Thumbnail URL<input name="thumbnail_url" value="{{ course.thumbnail_url if course else '' }}"></label>
+    <label>Level<input name="level" value="{{ course.level if course else '' }}"></label>
+    <label>Expertise Area
+        <select name="expertise_area">
+            <option value="">No certificate area</option>
+            {% for area in expertise_areas %}
+            <option value="{{ area.name }}" {% if course and course.expertise_area == area.name %}selected{% endif %}>{{ area.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Certificate Level
+        <select name="certificate_level">
+            <option value="0" {% if not course or not course.certificate_level %}selected{% endif %}>No level</option>
+            <option value="1" {% if course and course.certificate_level == 1 %}selected{% endif %}>Level 1 - 15 hours</option>
+            <option value="2" {% if course and course.certificate_level == 2 %}selected{% endif %}>Level 2 - 15 hours</option>
+            <option value="3" {% if course and course.certificate_level == 3 %}selected{% endif %}>Level 3 - 15 hours</option>
+        </select>
+    </label>
+    <label>Learning Hours<input name="learning_hours" type="number" min="0" value="{{ course.learning_hours if course else 0 }}"></label>
+    <label>Price<input name="price" type="number" step="0.01" value="{{ '%.2f'|format((course.price_cents or 0) / 100) if course else '0.00' }}"></label>
+    <label>Currency<input name="currency" maxlength="3" value="{{ course.currency if course else 'USD' }}"></label>
+    <label>Number of lessons<input name="num_lessons" type="number" min="0" value="{{ course.num_lessons if course else 0 }}"></label>
+    <label><input type="checkbox" name="is_published" value="1" {% if course and course.is_published %}checked{% endif %}> Published</label>
+    <label><input type="checkbox" name="is_featured" value="1" {% if course and course.is_featured %}checked{% endif %}> Featured</label>
+    <label><input type="checkbox" name="allow_free_enrollment" value="1" {% if course and course.allow_free_enrollment %}checked{% endif %}> Free enrollment</label>
+    <button class="market-btn primary" type="submit">Save Course</button>
+</form>
+</section>
+{% endblock %}

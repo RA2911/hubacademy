@@ -1,0 +1,21 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Courses{% endblock %}
+{% block admin_content %}
+<a class="market-btn primary" href="/admin/courses/new">New Course</a>
+<div class="course-grid premium-grid" style="margin-top:20px">
+{% for course in courses %}
+<article class="course-card">
+    <div class="course-card-body">
+        <div class="course-meta"><span>{{ course.level or 'Self-paced' }}</span><span>{{ course_price(course) }}</span><span>{{ 'Published' if course.is_published else 'Draft' }}</span></div>
+        <h3>{{ course.title }}</h3>
+        <p>{{ course.description or course.sales_copy or '' }}</p>
+        <div class="card-bottom">
+            <a class="market-btn" href="/admin/courses/{{ course.id }}/edit">Edit</a>
+            <a class="market-btn" href="/admin/courses/{{ course.id }}/lessons">Lessons</a>
+            <a class="market-btn" href="/courses/{{ course_slug(course) }}">Public</a>
+        </div>
+    </div>
+</article>
+{% endfor %}
+</div>
+{% endblock %}

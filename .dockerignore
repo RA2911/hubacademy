@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+instance/
+media/
+.env
+.env.*
+.git/
+.venv/
+venv/
+Digital Maturity/build/
+*.zip

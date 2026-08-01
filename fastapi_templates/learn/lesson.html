@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}{{ lesson.title }} - Hub Academy{% endblock %}
+{% block content %}
+<section class="session-shell" data-lesson-id="{{ lesson.id }}">
+    <header class="session-hero">
+        <div>
+            <span class="eyebrow">Module {{ lesson_module_number(lesson) }} / Session {{ lesson_session_number(lesson) }}</span>
+            <h1>{{ lesson.title }}</h1>
+            <p>{{ lesson.description or 'Complete the three steps in order: learn, practice, then validate.' }}</p>
+        </div>
+        <div class="session-status">
+            <strong>{{ 'Validated' if progress.is_completed else 'In progress' }}</strong>
+            <span>{{ lesson_duration_minutes(lesson) }} minute session</span>
+        </div>
+    </header>
+
+    <div class="session-layout">
+        <main class="session-main">
+            {% for step in steps %}
+            <article class="session-step {% if step.complete %}complete{% elif step.unlocked %}active{% else %}locked{% endif %}" data-step="{{ step.number }}">
+                <div class="step-orbit"><span>{{ step.number }}</span></div>
+                <div class="step-content">
+                    <span class="eyebrow">{{ step.label }}</span>
+                    <h2>{{ step.title }}</h2>
+                    {% if step.number == 1 %}
+                    <p>Study the session material. Watch the video, read the resource, or review the simulation instructions before moving forward.</p>
+                    <div class="material-stack">
+                        {% for material in materials %}
+                        <a class="material-pill" href="/materials/{{ material.id }}/download" target="_blank">
+                            <i class="fas fa-file-lines"></i>
+                            <span>{{ material.file_name or material.video_name or material.material_type }}</span>
+                        </a>
+                        {% else %}
+                        <div class="material-pill muted"><i class="fas fa-circle-info"></i><span>No material added yet. Admin can attach videos, practices, simulations, or documents.</span></div>
+                        {% endfor %}
+                    </div>
+                    {% elif step.number == 2 %}
+                    <p>Apply what you learned. Complete the practice activity, simulation, reflection, or business use-case exercise for this session.</p>
+                    <div class="practice-box">Practice area ready for the next design phase: activity instructions, embedded simulation, worksheet, or scenario.</div>
+                    {% else %}
+                    <p>Validate the session. Confirm that you completed the learning material and practice activity before unlocking the next session.</p>
+                    <div class="practice-box">Evaluation area ready for quiz, checklist, rubric, or AI-reviewed answer.</div>
+                    {% endif %}
+                    <button class="market-btn primary step-complete" type="button" {% if not step.unlocked or step.complete %}disabled{% endif %}>
+                        {% if step.complete %}Completed{% elif step.unlocked %}Complete Step {{ step.number }}{% else %}Locked{% endif %}
+                    </button>
+                </div>
+            </article>
+            {% endfor %}
+        </main>
+        <aside class="session-side">
+            <div class="journey-progress-card">
+                <strong>{{ '3/3' if progress.is_completed else ((1 if progress.content_viewed else 0) + (1 if progress.revise_viewed else 0) + (1 if progress.quiz_completed else 0)) ~ '/3' }}</strong>
+                <span>steps complete</span>
+                <div class="journey-meter"><i style="width: {{ 100 if progress.is_completed else (((1 if progress.content_viewed else 0) + (1 if progress.revise_viewed else 0) + (1 if progress.quiz_completed else 0)) * 33) }}%"></i></div>
+            </div>
+            <nav class="session-nav">
+                <a class="market-btn" href="/learn/course/{{ lesson.course_id }}">Back to Journey</a>
+                {% if previous_lesson %}<a class="market-btn" href="/learn/lesson/{{ previous_lesson.id }}">Previous</a>{% endif %}
+                {% if next_lesson %}
+                <a class="market-btn primary next-session-link {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/lesson/{{ next_lesson.id }}{% else %}#{% endif %}">Next Session</a>
+                {% else %}
+                <a class="market-btn primary next-session-link {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/course/{{ lesson.course_id }}{% else %}#{% endif %}">Finish Course</a>
+                {% endif %}
+            </nav>
+        </aside>
+    </div>
+</section>
+
+<script>
+(function () {
+    const shell = document.querySelector('.session-shell');
+    if (!shell) return;
+    const lessonId = shell.dataset.lessonId;
+    shell.querySelectorAll('.step-complete').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const step = button.closest('.session-step');
+            const stepNumber = step.dataset.step;
+            button.disabled = true;
+            button.textContent = 'Saving...';
+            try {
+                const response = await fetch(`/learn/lesson/${lessonId}/step/${stepNumber}/complete`, {method: 'POST'});
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Could not save progress');
+                window.location.reload();
+            } catch (error) {
+                button.disabled = false;
+                button.textContent = error.message;
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

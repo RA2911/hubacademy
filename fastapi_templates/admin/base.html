@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="cinema-band">
+    <div class="band-head">
+        <div><span class="eyebrow">Admin</span><h2>{% block admin_title %}Dashboard{% endblock %}</h2></div>
+        <div class="market-nav-actions">
+            <a class="market-btn dark" href="/admin/dashboard">Dashboard</a>
+            <a class="market-btn dark" href="/admin/programs">Programs</a>
+            <a class="market-btn dark" href="/admin/courses">Courses</a>
+            <a class="market-btn dark" href="/admin/companies">Companies</a>
+            <a class="market-btn dark" href="/admin/students">Students</a>
+            <a class="market-btn dark" href="/admin/enrollments">Enrollments</a>
+            <a class="market-btn dark" href="/admin/progression">Progression</a>
+            <a class="market-btn dark" href="/admin/settings">Settings</a>
+            <a class="market-btn" href="/admin/logout">Logout</a>
+        </div>
+    </div>
+    {% block admin_content %}{% endblock %}
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Login - Hub Academy{% endblock %}
+{% block content %}
+<main class="auth-public">
+    <section class="market-panel auth-public-card">
+        <h1>Login</h1>
+        <p>Access your courses, progress, certificates, and learning dashboard.</p>
+        <form method="POST" action="/login">
+            <input type="hidden" name="next" value="{{ next_page }}">
+            <label>Username or email<input type="text" name="username" required autocomplete="username"></label>
+            <label>Password<input type="password" name="password" required autocomplete="current-password"></label>
+            <button class="market-btn primary" type="submit">Login</button>
+        </form>
+        <p>New learner? <a href="/register?next={{ next_page }}">Create an account</a></p>
+    </section>
+</main>
+{% endblock %}

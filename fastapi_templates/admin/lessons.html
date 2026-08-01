@@ -1,0 +1,17 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Lessons - {{ course.title }}{% endblock %}
+{% block admin_content %}
+<section class="detail-block">
+{% for lesson in lessons %}
+<form class="module-row" method="POST" action="/admin/lessons/{{ lesson.id }}">
+    <span>{{ '%02d'|format(lesson.lesson_number) }}</span>
+    <div>
+        <label>Title<input name="title" value="{{ lesson.title }}" required></label>
+        <label>Description<input name="description" value="{{ lesson.description or '' }}"></label>
+        <button class="market-btn primary" type="submit">Save</button>
+        <a class="market-btn" href="/admin/lessons/{{ lesson.id }}/materials">Materials</a>
+    </div>
+</form>
+{% endfor %}
+</section>
+{% endblock %}

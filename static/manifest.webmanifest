@@ -1,0 +1,25 @@
+{
+  "name": "Hub Academy",
+  "short_name": "Hub Academy",
+  "description": "Install Hub Academy and continue your synchronized learning journey across desktop and mobile.",
+  "start_url": "/learn/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/images/hub_academy_logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/hub_academy_logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

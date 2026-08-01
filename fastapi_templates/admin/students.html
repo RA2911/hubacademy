@@ -1,0 +1,8 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Students{% endblock %}
+{% block admin_content %}
+<div class="detail-grid">
+<section class="detail-block"><h2>Add Student</h2><form method="POST" action="/admin/students" class="auth-public-card"><label>Name<input name="full_name" required></label><label>Email<input name="email" required></label><label>Username<input name="username"></label><label>Password<input name="password"></label><label>Company<select name="company_id"><option value="0">None</option>{% for company in companies %}<option value="{{ company.id }}">{{ company.name }}</option>{% endfor %}</select></label><button class="market-btn primary">Save</button></form></section>
+<section class="detail-block"><h2>Students</h2>{% for student in students %}<div class="module-row"><span>{{ loop.index }}</span><div><strong>{{ student.full_name }}</strong><p>{{ student.email }} / {{ student.company.name if student.company else 'No company' }}</p></div></div>{% endfor %}</section>
+</div>
+{% endblock %}

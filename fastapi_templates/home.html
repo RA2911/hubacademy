@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Hub Academy - Cinematic Online Learning{% endblock %}
+{% block content %}
+{% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
+<section class="cinema-hero">
+    <div class="hero-media">
+        {% if hero_course and hero_course.thumbnail_url %}
+            <img src="{{ hero_course.thumbnail_url }}" alt="{{ hero_course.title }}">
+        {% else %}
+            <img src="/static/images/login_bg.jpg" alt="Hub Academy learning experience">
+        {% endif %}
+    </div>
+    <div class="hero-shade"></div>
+    <div class="hero-content">
+        <div class="eyebrow">Premium online learning marketplace</div>
+        <h1>Master practical skills with cinematic courses, expert pathways, and an AI learning guide.</h1>
+        <p>Explore business, AI, digital, leadership, innovation, analytics, and professional skills. Subscribe for full access or buy individual courses when you need one sharp outcome.</p>
+        <form class="hero-search" action="/courses" method="GET">
+            <i class="fas fa-search"></i>
+            <input name="q" type="search" placeholder="Search AI, leadership, digital transformation...">
+            <button type="submit">Search</button>
+        </form>
+        <div class="hero-actions">
+            <a class="market-btn primary glow" href="/courses">Browse Courses</a>
+            <a class="market-btn ghost-dark" href="#pricing">See Plans</a>
+            {% if hero_course %}<a class="market-btn ghost-dark" href="/courses/{{ course_slug(hero_course) }}">Watch Featured</a>{% endif %}
+        </div>
+        <div class="hero-stats">
+            <span><b>{{ courses|length }}+</b> courses ready</span>
+            <span><b>AI</b> course concierge</span>
+            <span><b>2 ways</b> subscribe or buy</span>
+        </div>
+    </div>
+</section>
+
+<section class="cinema-band">
+    <div class="band-head">
+        <div><span class="eyebrow">Explore by area</span><h2>Find your next capability fast.</h2></div>
+        <a class="market-btn dark" href="/courses">All Courses</a>
+    </div>
+    <div class="category-strip">
+        {% for category in categories %}
+        <a class="category-tile" href="{{ category.href }}">
+            <span>{{ category.name }}</span>
+            <small>{{ category.count if category.count is not none else 'Explore' }}{% if category.count is not none %} courses{% endif %}</small>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="cinema-band" id="featured">
+    <div class="band-head">
+        <div><span class="eyebrow">Featured now</span><h2>High-impact courses worth starting today.</h2></div>
+        <a class="market-btn dark" href="/courses">Browse Library</a>
+    </div>
+    <div class="cinema-row">
+        {% for course in (featured if featured else courses) %}
+            {% include 'course_card.html' %}
+        {% else %}
+            <div class="empty-cinema">Publish courses to populate this row.</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="pathways" id="paths">
+    <div class="band-head">
+        <div><span class="eyebrow">Learning paths</span><h2>Go beyond single courses.</h2></div>
+        <a class="market-btn dark" href="/courses">Start a Path</a>
+    </div>
+    <div class="path-grid">
+        <article><span>01</span><h3>AI-Ready Professional</h3><p>Build fluency in AI concepts, practical use cases, prompt workflows, and responsible adoption.</p><a href="/courses">Start path</a></article>
+        <article><span>02</span><h3>Digital Business Builder</h3><p>Learn transformation strategy, process redesign, customer experience, and digital operating models.</p><a href="/courses">Start path</a></article>
+        <article><span>03</span><h3>Modern Leader</h3><p>Sharpen decision-making, communication, team leadership, innovation habits, and execution discipline.</p><a href="/courses">Start path</a></article>
+    </div>
+</section>
+
+<section class="pricing" id="pricing">
+    <div class="pricing-copy">
+        <span class="eyebrow">Flexible access</span>
+        <h2>Subscribe for the full academy, or buy exactly the course you need.</h2>
+        <p>Use subscriptions for broad capability building. Use individual purchases for focused training and one-off skills.</p>
+        <a class="market-btn primary glow" href="/courses">Compare Courses</a>
+    </div>
+    <div class="plan-grid">
+        {% for plan in plans %}
+        <article class="plan-card {% if plan.name == 'Annual' %}featured-plan{% endif %}">
+            <small>{{ 'Best value' if plan.name == 'Annual' else 'Flexible' }}</small>
+            <h3>{{ plan.name }}</h3>
+            <div class="plan-price">${{ plan.price }}<span>/{{ plan.period }}</span></div>
+            <ul>{% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}</ul>
+            {% if current_user %}
+            <form method="POST" action="/subscribe/{{ plan.name|lower }}"><button class="market-btn primary" type="submit">Start {{ plan.name }}</button></form>
+            {% else %}
+            <a class="market-btn primary" href="/register?next=/#pricing">Start {{ plan.name }}</a>
+            {% endif %}
+        </article>
+        {% endfor %}
+        <article class="plan-card single-course">
+            <small>No commitment</small><h3>Pay Per Course</h3><div class="plan-price">From course price</div>
+            <ul><li>Lifetime course access</li><li>Course certificate where enabled</li><li>Progress tracking</li><li>Good for focused learning</li></ul>
+            <a class="market-btn primary" href="/courses">Choose Course</a>
+        </article>
+    </div>
+</section>
+
+<section class="outcomes">
+    <div><span class="eyebrow">Built for completion</span><h2>Courses are not just videos.</h2></div>
+    <div class="outcome-grid">
+        <div><i class="fas fa-route"></i><h3>Guided modules</h3><p>Structured progression keeps learners moving.</p></div>
+        <div><i class="fas fa-brain"></i><h3>AI study support</h3><p>The assistant helps learners choose courses and stay oriented.</p></div>
+        <div><i class="fas fa-chart-line"></i><h3>Progress reports</h3><p>Dashboards, quizzes, time tracking, and completion records.</p></div>
+        <div><i class="fas fa-award"></i><h3>Certificates</h3><p>Reward completion and create a reason to finish.</p></div>
+    </div>
+    <a class="market-btn primary glow" href="/register">Join Hub Academy</a>
+</section>
+{% endblock %}

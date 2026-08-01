@@ -1,0 +1,10 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Settings{% endblock %}
+{% block admin_content %}
+<section class="detail-block">
+<form method="POST" action="/admin/settings" class="auth-public-card">
+    <label>OpenAI API Key<input name="openai_api_key" value="{{ settings.get('openai_api_key', '') }}"></label>
+    <button class="market-btn primary">Save Settings</button>
+</form>
+</section>
+{% endblock %}

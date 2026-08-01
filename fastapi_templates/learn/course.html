@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}{{ course.title }} - My Learning{% endblock %}
+{% block content %}
+<section class="journey-shell">
+    <header class="journey-hero">
+        <div>
+            <span class="eyebrow">{{ course.expertise_area or 'Learning Journey' }}</span>
+            <h1>{{ course.title }}</h1>
+            <p>{{ course.description or 'Move through each session step by step. Every session unlocks the next one when validated.' }}</p>
+        </div>
+        <div class="journey-progress-card">
+            <strong>{{ journey.pct }}%</strong>
+            <span>{{ journey.completed_sessions }}/{{ journey.total_sessions }} sessions complete</span>
+            <div class="journey-meter"><i style="width: {{ journey.pct }}%"></i></div>
+            <small>{{ course.learning_hours or 15 }} learning hours{% if course.certificate_level in [1, 2, 3] %} toward Level {{ course.certificate_level }}{% endif %}</small>
+        </div>
+    </header>
+
+    <section class="journey-map" aria-label="Course journey">
+        {% for module in journey.modules %}
+        {% set module_done = namespace(count=0) %}
+        {% for session in module.sessions %}
+            {% if session.progress and session.progress.is_completed %}{% set module_done.count = module_done.count + 1 %}{% endif %}
+        {% endfor %}
+        <article class="module-stage">
+            <div class="module-stage-head">
+                <span>Module {{ module.number }}</span>
+                <strong>{{ module_done.count }}/{{ module.sessions|length }} sessions</strong>
+            </div>
+            <div class="session-ladder">
+                {% for session in module.sessions %}
+                {% set lesson = session.lesson %}
+                {% set is_done = session.progress and session.progress.is_completed %}
+                <a class="session-node {% if is_done %}done{% elif session.unlocked %}open{% else %}locked{% endif %}" href="{% if session.unlocked %}/learn/lesson/{{ lesson.id }}{% else %}#{% endif %}" {% if not session.unlocked %}aria-disabled="true"{% endif %}>
+                    <span class="session-index">{{ module.number }}.{{ session.session_number }}</span>
+                    <div>
+                        <strong>{{ lesson.title }}</strong>
+                        <small>{{ session.duration_minutes }} min{% if is_done %} - validated{% elif session.unlocked %} - ready{% else %} - locked{% endif %}</small>
+                    </div>
+                    <i class="fas {% if is_done %}fa-check{% elif session.unlocked %}fa-arrow-right{% else %}fa-lock{% endif %}"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </article>
+        {% else %}
+        <div class="empty-cinema"><h3>No sessions yet.</h3><p>Add 15 sessions to create the 3 module learning journey.</p></div>
+        {% endfor %}
+    </section>
+</section>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Programs{% endblock %}
+{% block admin_content %}
+<div class="detail-grid">
+    <section class="detail-block">
+        <h2>Create Program</h2>
+        <form method="POST" action="/admin/programs" class="auth-public-card">
+            <label>Name<input name="name" required></label>
+            <label>Description<input name="description"></label>
+            <button class="market-btn primary" type="submit">Save Program</button>
+        </form>
+    </section>
+    <section class="detail-block">
+        <h2>Programs</h2>
+        {% for program in programs %}
+        <div class="module-row"><span>{{ loop.index }}</span><div><strong>{{ program.name }}</strong><p>{{ program.description or '' }}</p><form method="POST" action="/admin/programs/{{ program.id }}/delete"><button class="market-btn" type="submit">Delete</button></form></div></div>
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}

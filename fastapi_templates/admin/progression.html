@@ -1,0 +1,9 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Progression{% endblock %}
+{% block admin_content %}
+<section class="detail-block">
+{% for row in rows %}
+<div class="module-row"><span>{{ row.pct }}%</span><div><strong>{{ row.enrollment.student.full_name }}</strong><p>{{ row.enrollment.course.title }} / {{ row.done }} of {{ row.total }} lessons complete</p></div></div>
+{% endfor %}
+</section>
+{% endblock %}
