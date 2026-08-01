@@ -1,20 +1,26 @@
 {% extends 'base.html' %}
 {% block content %}
-<section class="cinema-band">
-    <div class="band-head">
-        <div><span class="eyebrow">Admin</span><h2>{% block admin_title %}Dashboard{% endblock %}</h2></div>
-        <div class="market-nav-actions">
-            <a class="market-btn dark" href="/admin/dashboard">Dashboard</a>
-            <a class="market-btn dark" href="/admin/programs">Programs</a>
-            <a class="market-btn dark" href="/admin/courses">Courses</a>
-            <a class="market-btn dark" href="/admin/companies">Companies</a>
-            <a class="market-btn dark" href="/admin/students">Students</a>
-            <a class="market-btn dark" href="/admin/enrollments">Enrollments</a>
-            <a class="market-btn dark" href="/admin/progression">Progression</a>
-            <a class="market-btn dark" href="/admin/settings">Settings</a>
-            <a class="market-btn" href="/admin/logout">Logout</a>
+<main class="admin-shell">
+    <aside class="admin-sidebar">
+        <strong>Admin</strong>
+        <a href="/admin/dashboard">Dashboard</a>
+        <a href="/admin/programs">Programs</a>
+        <a href="/admin/courses">Courses</a>
+        <a href="/admin/companies">Companies</a>
+        <a href="/admin/students">Students</a>
+        <a href="/admin/enrollments">Enrollments</a>
+        <a href="/admin/progression">Progression</a>
+        <a href="/admin/settings">Settings</a>
+        <a href="/admin/logout">Logout</a>
+    </aside>
+    <section class="admin-content">
+        <div class="admin-head">
+            <div>
+                <span class="eyebrow">Management</span>
+                <h1>{% block admin_title %}Dashboard{% endblock %}</h1>
+            </div>
         </div>
-    </div>
-    {% block admin_content %}{% endblock %}
-</section>
+        {% block admin_content %}{% endblock %}
+    </section>
+</main>
 {% endblock %}

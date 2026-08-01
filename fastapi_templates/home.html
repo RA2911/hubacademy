@@ -1,116 +1,89 @@
 {% extends 'base.html' %}
-{% block title %}Hub Academy - Cinematic Online Learning{% endblock %}
+{% block title %}Hub Academy - Progressive Professional Learning{% endblock %}
 {% block content %}
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
-<section class="cinema-hero">
-    <div class="hero-media">
-        {% if hero_course and hero_course.thumbnail_url %}
-            <img src="{{ hero_course.thumbnail_url }}" alt="{{ hero_course.title }}">
-        {% else %}
-            <img src="/static/images/login_bg.jpg" alt="Hub Academy learning experience">
-        {% endif %}
-    </div>
-    <div class="hero-shade"></div>
-    <div class="hero-content">
-        <div class="eyebrow">Premium online learning marketplace</div>
-        <h1>Master practical skills with cinematic courses, expert pathways, and an AI learning guide.</h1>
-        <p>Explore business, AI, digital, leadership, innovation, analytics, and professional skills. Subscribe for full access or buy individual courses when you need one sharp outcome.</p>
-        <form class="hero-search" action="/courses" method="GET">
-            <i class="fas fa-search"></i>
-            <input name="q" type="search" placeholder="Search AI, leadership, digital transformation...">
-            <button type="submit">Search</button>
-        </form>
-        <div class="hero-actions">
-            <a class="market-btn primary glow" href="/courses">Browse Courses</a>
-            <a class="market-btn ghost-dark" href="#pricing">See Plans</a>
-            {% if hero_course %}<a class="market-btn ghost-dark" href="/courses/{{ course_slug(hero_course) }}">Watch Featured</a>{% endif %}
+<main>
+    <section class="hero">
+        <div class="hero-copy">
+            <span class="eyebrow">Professional learning platform</span>
+            <h1>Build high-demand skills through guided levels, practical sessions, and verifiable certificates.</h1>
+            <p>Choose an expertise area, complete structured 15-hour levels, and progress from Level 1 to Level 3 before earning a Master Certificate.</p>
+            <form class="searchbar" action="/courses" method="GET">
+                <i class="fas fa-search"></i>
+                <input name="q" type="search" placeholder="Search AI agents, cybersecurity, analytics...">
+                <button type="submit">Search</button>
+            </form>
+            <div class="hero-actions">
+                <a class="btn primary" href="/courses">Explore Courses</a>
+                <a class="btn secondary" href="#certification">View Certificate Pathway</a>
+            </div>
         </div>
-        <div class="hero-stats">
-            <span><b>{{ courses|length }}+</b> courses ready</span>
-            <span><b>AI</b> course concierge</span>
-            <span><b>2 ways</b> subscribe or buy</span>
+        <aside class="hero-panel">
+            <div class="level-card active"><span>Level 1</span><strong>15 hours</strong><small>Foundations</small></div>
+            <div class="level-card"><span>Level 2</span><strong>15 hours</strong><small>Builder</small></div>
+            <div class="level-card"><span>Level 3</span><strong>15 hours</strong><small>Specialist</small></div>
+            <div class="master-card"><i class="fas fa-award"></i><div><strong>Master Certificate</strong><small>Earned after all 3 levels</small></div></div>
+        </aside>
+    </section>
+
+    <section class="section" id="expertise">
+        <div class="section-head">
+            <div>
+                <span class="eyebrow">Expertise areas</span>
+                <h2>Organized around market-relevant capabilities.</h2>
+            </div>
+            <a class="btn secondary" href="/courses">Browse Library</a>
         </div>
-    </div>
-</section>
+        <div class="expertise-grid">
+            {% for category in categories %}
+            <a class="expertise-card" href="{{ category.href }}">
+                <i class="fas fa-layer-group"></i>
+                <strong>{{ category.name }}</strong>
+                <span>{{ category.count if category.count is not none else 'Explore' }}{% if category.count is not none %} courses{% endif %}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
 
-<section class="cinema-band">
-    <div class="band-head">
-        <div><span class="eyebrow">Explore by area</span><h2>Find your next capability fast.</h2></div>
-        <a class="market-btn dark" href="/courses">All Courses</a>
-    </div>
-    <div class="category-strip">
-        {% for category in categories %}
-        <a class="category-tile" href="{{ category.href }}">
-            <span>{{ category.name }}</span>
-            <small>{{ category.count if category.count is not none else 'Explore' }}{% if category.count is not none %} courses{% endif %}</small>
-        </a>
-        {% endfor %}
-    </div>
-</section>
+    <section class="section certification-section" id="certification">
+        <div class="section-head">
+            <div>
+                <span class="eyebrow">Certification pathway</span>
+                <h2>Every level is clear, measurable, and progressive.</h2>
+            </div>
+        </div>
+        <div class="cert-path">
+            <article><span>01</span><h3>Level 1 Certificate</h3><p>15 hours split into 3 modules, 5 sessions per module, and 3 guided steps per session.</p></article>
+            <article><span>02</span><h3>Level 2 Certificate</h3><p>Practical tools, simulations, applied exercises, and validation before progressing.</p></article>
+            <article><span>03</span><h3>Level 3 Certificate</h3><p>Advanced practice and evaluation for job-ready capability.</p></article>
+            <article class="master"><span>04</span><h3>Master Certificate</h3><p>Awarded after Levels 1, 2, and 3 are completed in the expertise area.</p></article>
+        </div>
+    </section>
 
-<section class="cinema-band" id="featured">
-    <div class="band-head">
-        <div><span class="eyebrow">Featured now</span><h2>High-impact courses worth starting today.</h2></div>
-        <a class="market-btn dark" href="/courses">Browse Library</a>
-    </div>
-    <div class="cinema-row">
-        {% for course in (featured if featured else courses) %}
-            {% include 'course_card.html' %}
-        {% else %}
-            <div class="empty-cinema">Publish courses to populate this row.</div>
-        {% endfor %}
-    </div>
-</section>
-
-<section class="pathways" id="paths">
-    <div class="band-head">
-        <div><span class="eyebrow">Learning paths</span><h2>Go beyond single courses.</h2></div>
-        <a class="market-btn dark" href="/courses">Start a Path</a>
-    </div>
-    <div class="path-grid">
-        <article><span>01</span><h3>AI-Ready Professional</h3><p>Build fluency in AI concepts, practical use cases, prompt workflows, and responsible adoption.</p><a href="/courses">Start path</a></article>
-        <article><span>02</span><h3>Digital Business Builder</h3><p>Learn transformation strategy, process redesign, customer experience, and digital operating models.</p><a href="/courses">Start path</a></article>
-        <article><span>03</span><h3>Modern Leader</h3><p>Sharpen decision-making, communication, team leadership, innovation habits, and execution discipline.</p><a href="/courses">Start path</a></article>
-    </div>
-</section>
-
-<section class="pricing" id="pricing">
-    <div class="pricing-copy">
-        <span class="eyebrow">Flexible access</span>
-        <h2>Subscribe for the full academy, or buy exactly the course you need.</h2>
-        <p>Use subscriptions for broad capability building. Use individual purchases for focused training and one-off skills.</p>
-        <a class="market-btn primary glow" href="/courses">Compare Courses</a>
-    </div>
-    <div class="plan-grid">
-        {% for plan in plans %}
-        <article class="plan-card {% if plan.name == 'Annual' %}featured-plan{% endif %}">
-            <small>{{ 'Best value' if plan.name == 'Annual' else 'Flexible' }}</small>
-            <h3>{{ plan.name }}</h3>
-            <div class="plan-price">${{ plan.price }}<span>/{{ plan.period }}</span></div>
-            <ul>{% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}</ul>
-            {% if current_user %}
-            <form method="POST" action="/subscribe/{{ plan.name|lower }}"><button class="market-btn primary" type="submit">Start {{ plan.name }}</button></form>
+    <section class="section" id="featured">
+        <div class="section-head">
+            <div>
+                <span class="eyebrow">Featured courses</span>
+                <h2>Start with a structured course.</h2>
+            </div>
+            <a class="btn secondary" href="/courses">All Courses</a>
+        </div>
+        <div class="course-grid">
+            {% for course in (featured if featured else courses) %}
+                {% include 'course_card.html' %}
             {% else %}
-            <a class="market-btn primary" href="/register?next=/#pricing">Start {{ plan.name }}</a>
-            {% endif %}
-        </article>
-        {% endfor %}
-        <article class="plan-card single-course">
-            <small>No commitment</small><h3>Pay Per Course</h3><div class="plan-price">From course price</div>
-            <ul><li>Lifetime course access</li><li>Course certificate where enabled</li><li>Progress tracking</li><li>Good for focused learning</li></ul>
-            <a class="market-btn primary" href="/courses">Choose Course</a>
-        </article>
-    </div>
-</section>
+                <div class="empty-state">Publish courses to populate this section.</div>
+            {% endfor %}
+        </div>
+    </section>
 
-<section class="outcomes">
-    <div><span class="eyebrow">Built for completion</span><h2>Courses are not just videos.</h2></div>
-    <div class="outcome-grid">
-        <div><i class="fas fa-route"></i><h3>Guided modules</h3><p>Structured progression keeps learners moving.</p></div>
-        <div><i class="fas fa-brain"></i><h3>AI study support</h3><p>The assistant helps learners choose courses and stay oriented.</p></div>
-        <div><i class="fas fa-chart-line"></i><h3>Progress reports</h3><p>Dashboards, quizzes, time tracking, and completion records.</p></div>
-        <div><i class="fas fa-award"></i><h3>Certificates</h3><p>Reward completion and create a reason to finish.</p></div>
-    </div>
-    <a class="market-btn primary glow" href="/register">Join Hub Academy</a>
-</section>
+    <section class="section compact-section">
+        <div class="outcome-panel">
+            <div><i class="fas fa-route"></i><strong>Progressive journey</strong><span>Locked sessions keep learning focused.</span></div>
+            <div><i class="fas fa-mobile-screen"></i><strong>Installable app</strong><span>Desktop and mobile stay synchronized.</span></div>
+            <div><i class="fas fa-message"></i><strong>AI guide</strong><span>Visitors can ask for course and level guidance.</span></div>
+            <div><i class="fas fa-certificate"></i><strong>Certificates</strong><span>Level certificates lead to mastery.</span></div>
+        </div>
+    </section>
+</main>
 {% endblock %}

@@ -1,28 +1,27 @@
-<article class="course-card premium-card">
-    <a class="course-poster" href="/courses/{{ course_slug(course) }}">
+<article class="course-card">
+    <a class="course-thumb" href="/courses/{{ course_slug(course) }}">
         {% if course.thumbnail_url %}
             <img src="{{ course.thumbnail_url }}" alt="{{ course.title }}">
         {% else %}
             <img src="/static/images/hub_academy_logo.jpg" alt="{{ course.title }}">
         {% endif %}
-        <span class="poster-play"><i class="fas fa-play"></i></span>
-        {% if course.is_featured %}<span class="badge-float">Featured</span>{% endif %}
+        {% if course.is_featured %}<span class="floating-badge">Featured</span>{% endif %}
     </a>
-    <div class="course-card-body">
-        <div class="course-meta">
+    <div class="course-body">
+        <div class="meta-row">
             <span>{{ course.expertise_area or course.level or 'Self-paced' }}</span>
-            <span>{{ course.lessons|length }} modules</span>
             {% if course.certificate_level in [1, 2, 3] %}<span>Level {{ course.certificate_level }}</span>{% endif %}
-            {% if (course.price_cents or 0) == 0 or course.allow_free_enrollment %}<span>Free</span>{% endif %}
         </div>
         <h3>{{ course.title }}</h3>
         <p>{{ (course.sales_copy or course.description or 'A practical online course from Hub Academy.')[:150] }}</p>
-        {% if course.certificate_level in [1, 2, 3] %}
-        <p>{{ certificate_badge(course) }}. Completion counts toward the Master Certificate.</p>
-        {% endif %}
+        <div class="course-facts">
+            <span><i class="fas fa-book-open"></i>{{ course.lessons|length }} sessions</span>
+            <span><i class="fas fa-clock"></i>{{ course.learning_hours or 15 }}h</span>
+            <span><i class="fas fa-certificate"></i>{{ 'Certificate' if course.certificate_level in [1, 2, 3] else 'Course' }}</span>
+        </div>
         <div class="card-bottom">
-            <div class="course-price">{{ course_price(course) }}</div>
-            <a class="market-btn primary" href="/courses/{{ course_slug(course) }}">Start</a>
+            <strong>{{ course_price(course) }}</strong>
+            <a class="btn primary" href="/courses/{{ course_slug(course) }}">View Course</a>
         </div>
     </div>
 </article>

@@ -9,30 +9,30 @@
     <title>{% block title %}Hub Academy{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/css/marketplace.css">
 </head>
-<body class="market-shell">
-<nav class="market-nav">
-    <a class="market-brand" href="/">
+<body class="app-shell">
+<nav class="topbar">
+    <a class="brand" href="/">
         <img src="/static/images/hub_academy_logo.jpg" alt="Hub Academy">
         <span>Hub Academy</span>
     </a>
-    <div class="market-links">
-        <a href="/courses">Browse</a>
-        <a href="/#paths">Paths</a>
-        <a href="/#pricing">Plans</a>
+    <div class="nav-links">
+        <a href="/courses">Courses</a>
+        <a href="/#expertise">Expertise</a>
+        <a href="/#certification">Certificates</a>
         <a href="/#featured">Featured</a>
     </div>
-    <div class="market-nav-actions">
+    <div class="nav-actions">
         {% if current_user %}
-            <a class="market-btn" href="/learn/dashboard">My Learning</a>
-            <button class="market-btn install-app-btn" type="button" hidden>Install App</button>
-            <a class="market-btn" href="/logout">Logout</a>
+            <a class="btn secondary" href="/learn/dashboard">My Learning</a>
+            <button class="btn secondary install-app-btn" type="button" hidden>Install App</button>
+            <a class="btn ghost" href="/logout">Logout</a>
         {% else %}
-            <a class="market-btn" href="/login">Login</a>
-            <a class="market-btn primary" href="/register">Create Account</a>
+            <a class="btn ghost" href="/login">Login</a>
+            <a class="btn primary" href="/register">Create Account</a>
         {% endif %}
     </div>
 </nav>
@@ -40,14 +40,17 @@
 {% block content %}{% endblock %}
 
 <div class="ai-guide" id="ai-guide">
-    <button class="ai-guide-avatar" type="button" aria-label="Open learning guide"><span>HA</span></button>
+    <button class="ai-guide-avatar" type="button" aria-label="Open learning guide"><i class="fas fa-message"></i></button>
     <section class="ai-guide-panel" aria-live="polite">
         <div class="ai-guide-head">
-            <strong>Hub Guide</strong>
-            <button type="button" class="ai-guide-close" aria-label="Close">×</button>
+            <div>
+                <strong>Learning Guide</strong>
+                <small>Courses, levels, certificates</small>
+            </div>
+            <button type="button" class="ai-guide-close" aria-label="Close">x</button>
         </div>
         <div class="ai-guide-body" id="ai-guide-body">
-            <p>Tell me your goal. I will suggest a course, path, or plan.</p>
+            <p>Ask which expertise area or certificate level is right for you.</p>
         </div>
         <form class="ai-guide-form" id="ai-guide-form">
             <input type="text" id="ai-guide-input" placeholder="What should I learn next?">
@@ -82,7 +85,7 @@
             const data = await response.json();
             body.lastElementChild.textContent = data.answer || 'I could not answer that yet.';
         } catch (error) {
-            body.lastElementChild.textContent = 'I am offline right now. Browse courses or choose a plan to continue.';
+            body.lastElementChild.textContent = 'The guide is unavailable right now.';
         }
         body.scrollTop = body.scrollHeight;
     });

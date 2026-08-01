@@ -1,40 +1,46 @@
 {% extends 'base.html' %}
 {% block title %}Course Library - Hub Academy{% endblock %}
 {% block content %}
-<header class="library-hero">
-    <span class="eyebrow">Course library</span>
-    <h1>Search hundreds of premium courses by skill, level, and outcome.</h1>
-    <form class="hero-search compact" method="GET" action="/courses">
-        <i class="fas fa-search"></i>
-        <input name="q" type="search" value="{{ q or '' }}" placeholder="Search courses, skills, topics...">
-        <select name="level">
-            <option value="">All levels</option>
-            {% for level in levels %}<option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>{{ level }}</option>{% endfor %}
-        </select>
-        <button type="submit">Find Courses</button>
-    </form>
-    <div class="library-actions"><a class="market-btn primary glow" href="#library">Explore Results</a><a class="market-btn ghost-dark" href="/#pricing">View Plans</a></div>
-</header>
+<main>
+    <header class="page-hero">
+        <span class="eyebrow">Course library</span>
+        <h1>Find courses by expertise, level, and outcome.</h1>
+        <form class="searchbar wide" method="GET" action="/courses">
+            <i class="fas fa-search"></i>
+            <input name="q" type="search" value="{{ q or '' }}" placeholder="Search courses, skills, topics...">
+            <select name="level">
+                <option value="">All levels</option>
+                {% for level in levels %}<option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>{{ level }}</option>{% endfor %}
+            </select>
+            <button type="submit">Find Courses</button>
+        </form>
+    </header>
 
-<section class="cinema-band slim">
-    <div class="category-strip">
-        {% for category in categories %}
-        <a class="category-tile" href="{{ category.href }}"><span>{{ category.name }}</span><small>{{ category.count if category.count is not none else 'Explore' }}{% if category.count is not none %} courses{% endif %}</small></a>
-        {% endfor %}
-    </div>
-</section>
+    <section class="section slim">
+        <div class="expertise-strip">
+            {% for category in categories %}
+            <a href="{{ category.href }}" class="{% if selected_expertise == category.name %}active{% endif %}">
+                {{ category.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
 
-<section class="cinema-band" id="library">
-    <div class="band-head">
-        <div><span class="eyebrow">{{ courses|length }} result{{ '' if courses|length == 1 else 's' }}</span><h2>{{ 'Search results' if q else 'All courses' }}</h2></div>
-        <a class="market-btn dark" href="/#pricing">Subscribe & Save</a>
-    </div>
-    <div class="course-grid premium-grid">
-        {% for course in courses %}
-            {% include 'course_card.html' %}
-        {% else %}
-            <div class="empty-cinema"><h3>No courses found.</h3><p>Try a broader search or clear filters.</p><a class="market-btn primary" href="/courses">Clear Search</a></div>
-        {% endfor %}
-    </div>
-</section>
+    <section class="section" id="library">
+        <div class="section-head">
+            <div>
+                <span class="eyebrow">{{ courses|length }} result{{ '' if courses|length == 1 else 's' }}</span>
+                <h2>{{ 'Search results' if q else 'All courses' }}</h2>
+            </div>
+            <a class="btn secondary" href="/courses">Clear filters</a>
+        </div>
+        <div class="course-grid">
+            {% for course in courses %}
+                {% include 'course_card.html' %}
+            {% else %}
+                <div class="empty-state"><h3>No courses found.</h3><p>Try a broader search or clear filters.</p><a class="btn primary" href="/courses">Clear Search</a></div>
+            {% endfor %}
+        </div>
+    </section>
+</main>
 {% endblock %}

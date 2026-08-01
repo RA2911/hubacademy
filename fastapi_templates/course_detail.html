@@ -1,57 +1,70 @@
 {% extends 'base.html' %}
 {% block title %}{{ course.title }} - Hub Academy{% endblock %}
 {% block content %}
-<main class="detail-cinema">
+<main>
     <section class="detail-hero">
         <div class="detail-copy">
-            <span class="eyebrow">{{ course.program.name if course.program else 'Hub Academy Original' }}</span>
+            <span class="eyebrow">{{ course.expertise_area or (course.program.name if course.program else 'Hub Academy') }}</span>
             <h1>{{ course.title }}</h1>
-            <p>{{ course.sales_copy or course.description or 'A practical course built around structured modules, quizzes, AI study tools and progress tracking.' }}</p>
-            <div class="course-meta bright"><span>{{ course.expertise_area or course.level or 'Self-paced' }}</span><span>{{ lessons|length }} modules</span><span>{{ course_price(course) }}</span><span>{{ certificate_badge(course) }}</span></div>
+            <p>{{ course.sales_copy or course.description or 'A practical course built around structured sessions, practice, validation, and progress tracking.' }}</p>
+            <div class="meta-pills">
+                <span>{{ lessons|length }} sessions</span>
+                <span>{{ course.learning_hours or 15 }} hours</span>
+                <span>{{ course_price(course) }}</span>
+                <span>{{ certificate_badge(course) }}</span>
+            </div>
             <div class="hero-actions">
                 {% if enrolled %}
-                    <a class="market-btn primary glow" href="/learn/course/{{ course.id }}">Continue Learning</a>
+                    <a class="btn primary" href="/learn/course/{{ course.id }}">Continue Learning</a>
                 {% elif current_user %}
-                    <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="market-btn primary glow" type="submit">{{ 'Enroll Free' if (course.price_cents or 0) == 0 or course.allow_free_enrollment else 'Buy This Course' }}</button></form>
-                    <a class="market-btn ghost-dark" href="/#pricing">Subscribe Instead</a>
+                    <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn primary" type="submit">{{ 'Enroll Free' if (course.price_cents or 0) == 0 or course.allow_free_enrollment else 'Buy This Course' }}</button></form>
                 {% else %}
-                    <a class="market-btn primary glow" href="/register?next=/courses/{{ course_slug(course) }}">Create Account to Start</a>
-                    <a class="market-btn ghost-dark" href="/#pricing">Compare Plans</a>
+                    <a class="btn primary" href="/register?next=/courses/{{ course_slug(course) }}">Create Account to Start</a>
+                    <a class="btn secondary" href="/login?next=/courses/{{ course_slug(course) }}">Login</a>
                 {% endif %}
             </div>
         </div>
-        <div class="detail-poster">
+        <div class="detail-media">
             {% if course.thumbnail_url %}<img src="{{ course.thumbnail_url }}" alt="{{ course.title }}">{% else %}<img src="/static/images/hub_academy_logo.jpg" alt="{{ course.title }}">{% endif %}
-            <span class="poster-play big"><i class="fas fa-play"></i></span>
         </div>
     </section>
-    <section class="detail-grid">
+
+    <section class="detail-layout">
         <div class="detail-main">
-            <div class="detail-block"><span class="eyebrow">Outcomes</span><h2>What you will be able to do</h2><p>{{ course.description or 'Apply the course concepts in practical business situations, complete guided modules, pass readiness checks, and track measurable progress.' }}</p></div>
+            <article class="panel">
+                <span class="eyebrow">Outcome</span>
+                <h2>What learners will build</h2>
+                <p>{{ course.description or 'Learners complete guided content, practical activities, validation checks, and measurable progress toward certification.' }}</p>
+            </article>
             {% if course.certificate_level in [1, 2, 3] %}
-            <div class="detail-block"><span class="eyebrow">Certificate Pathway</span><h2>Counts toward Level {{ course.certificate_level }}</h2><p>This course contributes {{ course.learning_hours or 0 }} learning hours toward the {{ course.expertise_area }} Level {{ course.certificate_level }} Certificate. Each level requires 15 hours across videos, practices, simulations, and evaluation. Completing Levels 1, 2, and 3 earns the Master Certificate.</p></div>
+            <article class="panel">
+                <span class="eyebrow">Certificate pathway</span>
+                <h2>Counts toward Level {{ course.certificate_level }}</h2>
+                <p>This course contributes {{ course.learning_hours or 0 }} hours toward the {{ course.expertise_area }} Level {{ course.certificate_level }} Certificate. Completing Levels 1, 2, and 3 earns the Master Certificate.</p>
+            </article>
             {% endif %}
-            <div class="detail-block">
-                <span class="eyebrow">Curriculum</span><h2>{{ lessons|length }} modules</h2>
-                <div class="module-list">
+            <article class="panel">
+                <span class="eyebrow">Curriculum</span>
+                <h2>{{ lessons|length }} sessions</h2>
+                <div class="session-list">
                     {% for lesson in lessons %}
-                    <div class="module-row"><span>{{ '%02d'|format(loop.index) }}</span><div><strong>{{ lesson.title }}</strong><p>{{ lesson.description or 'Guided lesson with materials, study tools and readiness checks.' }}</p></div></div>
+                    <div class="session-row"><span>{{ '%02d'|format(loop.index) }}</span><div><strong>{{ lesson.title }}</strong><p>{{ lesson.description or 'Guided session with learning, practice, and validation.' }}</p></div></div>
                     {% else %}
-                    <div class="module-row"><span>01</span><div><strong>Modules coming soon</strong><p>This course is being prepared.</p></div></div>
+                    <div class="session-row"><span>01</span><div><strong>Sessions coming soon</strong><p>This course is being prepared.</p></div></div>
                     {% endfor %}
                 </div>
-            </div>
+            </article>
         </div>
-        <aside class="sticky-buy">
-            <div class="market-panel checkout-box dark-box">
-                <span class="eyebrow">Access options</span><h2>{{ course_price(course) }}</h2>
-                <p>Buy this course once, or subscribe for access to the full Hub Academy library.</p>
+        <aside class="side-panel">
+            <div class="panel sticky">
+                <span class="eyebrow">Access</span>
+                <h2>{{ course_price(course) }}</h2>
+                <p>Start this course and progress through sessions in order.</p>
                 {% if current_user %}
-                <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="market-btn primary" type="submit">{{ 'Enroll Free' if (course.price_cents or 0) == 0 or course.allow_free_enrollment else 'Buy Course' }}</button></form>
+                <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn primary full" type="submit">{{ 'Enroll Free' if (course.price_cents or 0) == 0 or course.allow_free_enrollment else 'Buy Course' }}</button></form>
                 {% else %}
-                <a class="market-btn primary" href="/register?next=/courses/{{ course_slug(course) }}">Join to Buy</a>
+                <a class="btn primary full" href="/register?next=/courses/{{ course_slug(course) }}">Join to Start</a>
                 {% endif %}
-                <a class="market-btn ghost-dark" href="/#pricing">View Subscription</a>
             </div>
         </aside>
     </section>
