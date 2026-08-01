@@ -41,6 +41,14 @@ OPENAI_VOICE = os.environ.get('OPENAI_VOICE', 'alloy')
 DID_API_KEY = os.environ.get('DID_API_KEY', '')
 DID_SOURCE_IMAGE_URL = os.environ.get('DID_SOURCE_IMAGE_URL', '')
 
+MAIL_SERVER = os.environ.get('MAIL_SERVER', '')
+MAIL_PORT = int(os.environ.get('MAIL_PORT', '587'))
+MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
+MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'false').lower() in ('1', 'true', 'yes', 'on')
+MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')
+MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
+MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
+
 
 def validate_production():
     if os.environ.get('APP_ENV') == 'production' or os.environ.get('ENV') == 'production':

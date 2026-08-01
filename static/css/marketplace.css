@@ -450,6 +450,11 @@ a {
     line-height: 1.6;
 }
 
+.form-error {
+    color: #b42318;
+    font-weight: 700;
+}
+
 .cert-path .master {
     background: #eef2ff;
     border-color: #c7d2fe;

@@ -1,7 +1,12 @@
+import hashlib
+import logging
 import os
 import re
+import secrets
+import smtplib
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
+from email.message import EmailMessage
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -14,7 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import fastapi_config as cfg
 from fastapi_auth import admin_from_request, hash_password, username_from_email, verify_password
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
-                        Program, Purchase, Settings, Student, db_session as next_db_session,
+                        PasswordResetToken, Program, Purchase, Settings, Student, db_session as next_db_session,
                         ensure_schema, get_db)
 from fastapi_storage import guess_content_type, object_key, presigned_download_url, presigned_upload_url, r2_enabled
 
@@ -24,6 +29,7 @@ MODULES_PER_LEVEL = 3
 SESSIONS_PER_MODULE = 5
 SESSION_DURATION_MINUTES = 60
 MASTER_CERTIFICATE_LEVEL = 4
+PASSWORD_RESET_TOKEN_MINUTES = 60
 
 EXPERTISE_AREAS = [
     {'name': 'AI Agents & Generative AI', 'slug': 'ai-agents-generative-ai'},
@@ -54,6 +60,7 @@ app.add_middleware(
 app.mount('/static', StaticFiles(directory=os.path.join(cfg.BASE_DIR, 'static')), name='static')
 
 templates = Jinja2Templates(directory=os.path.join(cfg.BASE_DIR, 'fastapi_templates'))
+logger = logging.getLogger(__name__)
 
 
 @app.on_event('startup')
@@ -261,6 +268,47 @@ def enroll_student(db: Session, student_id: int, course_id: int):
         db.add(Enrollment(student_id=student_id, course_id=course_id, is_active=True))
 
 
+def token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+
+def mail_configured() -> bool:
+    return all([cfg.MAIL_SERVER, cfg.MAIL_USERNAME, cfg.MAIL_PASSWORD, cfg.MAIL_DEFAULT_SENDER])
+
+
+def send_email(to_email: str, subject: str, text_body: str):
+    if not mail_configured():
+        raise RuntimeError('Mail is not configured.')
+    message = EmailMessage()
+    message['Subject'] = subject
+    message['From'] = cfg.MAIL_DEFAULT_SENDER
+    message['To'] = to_email
+    message.set_content(text_body)
+
+    if cfg.MAIL_USE_SSL:
+        with smtplib.SMTP_SSL(cfg.MAIL_SERVER, cfg.MAIL_PORT, timeout=20) as smtp:
+            smtp.login(cfg.MAIL_USERNAME, cfg.MAIL_PASSWORD)
+            smtp.send_message(message)
+        return
+
+    with smtplib.SMTP(cfg.MAIL_SERVER, cfg.MAIL_PORT, timeout=20) as smtp:
+        if cfg.MAIL_USE_TLS:
+            smtp.starttls()
+        smtp.login(cfg.MAIL_USERNAME, cfg.MAIL_PASSWORD)
+        smtp.send_message(message)
+
+
+def create_password_reset(db: Session, student: Student) -> str:
+    token = secrets.token_urlsafe(32)
+    reset = PasswordResetToken(
+        student_id=student.id,
+        token_hash=token_hash(token),
+        expires_at=datetime.utcnow() + timedelta(minutes=PASSWORD_RESET_TOKEN_MINUTES),
+    )
+    db.add(reset)
+    return token
+
+
 def course_is_completed(db: Session, student_id: int, course: Course):
     lessons = db.query(Lesson.id).filter_by(course_id=course.id).all()
     lesson_ids = [row[0] for row in lessons]
@@ -431,6 +479,63 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     student.last_login = datetime.utcnow()
     db.commit()
     return RedirectResponse(next, status_code=303)
+
+
+@app.get('/forgot-password', response_class=HTMLResponse)
+def forgot_password_page(request: Request):
+    with next_db_session() as db:
+        return template(request, 'forgot_password.html', db, {})
+
+
+@app.post('/forgot-password')
+def forgot_password(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
+    student = db.query(Student).filter_by(email=email.strip().lower(), is_active=True).first()
+    if student and mail_configured():
+        token = create_password_reset(db, student)
+        db.commit()
+        reset_url = f"{cfg.PUBLIC_BASE_URL.rstrip('/')}/reset-password/{token}"
+        try:
+            send_email(
+                student.email,
+                'Reset your Hub Academy password',
+                (
+                    f"Hello {student.full_name},\n\n"
+                    "Use the link below to reset your Hub Academy password. "
+                    f"This link expires in {PASSWORD_RESET_TOKEN_MINUTES} minutes.\n\n"
+                    f"{reset_url}\n\n"
+                    "If you did not request this, you can ignore this email."
+                ),
+            )
+        except Exception as exc:
+            logger.exception('Password reset email failed: %s', exc)
+    elif student:
+        logger.error('Password reset requested but mail is not configured.')
+    return template(request, 'forgot_password_sent.html', db, {})
+
+
+@app.get('/reset-password/{token}', response_class=HTMLResponse)
+def reset_password_page(token: str, request: Request):
+    with next_db_session() as db:
+        reset = db.query(PasswordResetToken).filter_by(token_hash=token_hash(token), used_at=None).first()
+        valid = bool(reset and reset.expires_at > datetime.utcnow())
+        return template(request, 'reset_password.html', db, {'token': token if valid else '', 'valid': valid})
+
+
+@app.post('/reset-password/{token}')
+def reset_password(token: str, request: Request, password: str = Form(...), confirm_password: str = Form(...), db: Session = Depends(get_db)):
+    reset = db.query(PasswordResetToken).filter_by(token_hash=token_hash(token), used_at=None).first()
+    if not reset or reset.expires_at <= datetime.utcnow():
+        return template(request, 'reset_password.html', db, {'token': '', 'valid': False})
+    if len(password) < 10 or password != confirm_password:
+        return template(request, 'reset_password.html', db, {'token': token, 'valid': True, 'error': 'Passwords must match and be at least 10 characters.'})
+
+    student = db.get(Student, reset.student_id)
+    if not student or not student.is_active:
+        return template(request, 'reset_password.html', db, {'token': '', 'valid': False})
+    student.password_hash = hash_password(password)
+    reset.used_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse('/login', status_code=303)
 
 
 @app.get('/logout')
