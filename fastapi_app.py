@@ -94,6 +94,23 @@ def healthz():
     return {'ok': True}
 
 
+@app.get('/_build-check')
+def build_check():
+    lesson_template = os.path.join(cfg.BASE_DIR, 'fastapi_templates', 'learn', 'lesson.html')
+    try:
+        with open(lesson_template, 'r', encoding='utf-8') as handle:
+            text = handle.read()
+    except OSError:
+        text = ''
+    return {
+        'commit_marker': 'aef1119-fa5ca6e',
+        'lesson_workspace': 'lesson-workspace' in text,
+        'ai_tools': 'AI Tools & Applications' in text,
+        'self_evaluation': 'Self-Evaluation' in text,
+        'service_worker_v2': True,
+    }
+
+
 @app.get('/manifest.webmanifest')
 def pwa_manifest():
     return FileResponse(os.path.join(cfg.BASE_DIR, 'static', 'manifest.webmanifest'), media_type='application/manifest+json')
