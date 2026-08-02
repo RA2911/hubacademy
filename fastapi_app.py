@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import os
+import posixpath
 import re
 import secrets
 import smtplib
@@ -9,7 +10,7 @@ from datetime import datetime, timedelta
 from email.message import EmailMessage
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, or_
@@ -21,7 +22,8 @@ from fastapi_auth import admin_from_request, hash_password, username_from_email,
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
                         PasswordResetToken, Program, Purchase, Settings, Student, db_session as next_db_session,
                         ensure_schema, get_db)
-from fastapi_storage import guess_content_type, object_key, presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj
+from fastapi_storage import (guess_content_type, object_bytes, object_key, package_object_key,
+                             presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
 
 
 CERTIFICATE_LEVEL_HOURS = 15
@@ -280,6 +282,26 @@ def enroll_student(db: Session, student_id: int, course_id: int):
         enrollment.is_active = True
     else:
         db.add(Enrollment(student_id=student_id, course_id=course_id, is_active=True))
+
+
+def material_access_allowed(material: LessonMaterial, request: Request, db: Session) -> bool:
+    admin = admin_from_request(request, db)
+    if admin:
+        return True
+    student = student_from_request(request, db)
+    if student and material.lesson:
+        return db.query(Enrollment).filter_by(
+            student_id=student.id,
+            course_id=material.lesson.course_id,
+            is_active=True,
+        ).first() is not None
+    return False
+
+
+def html_material(material: LessonMaterial) -> bool:
+    name = (material.file_name or '').lower()
+    content_type = (material.content_type or '').lower()
+    return name.endswith(('.html', '.htm')) or content_type.startswith('text/html')
 
 
 def token_hash(token: str) -> str:
@@ -1046,6 +1068,7 @@ async def admin_presign_material_upload(lesson_id: int, request: Request, db: Se
 
 @app.post('/admin/lessons/{lesson_id}/materials/upload')
 async def admin_upload_material_to_r2(lesson_id: int, request: Request, material_type: str = Form('other'),
+                                      relative_path: str = Form(''), package_id: str = Form(''),
                                       file: UploadFile = File(...), db: Session = Depends(get_db)):
     require_admin(request, db)
     lesson = db.get(Lesson, lesson_id)
@@ -1059,7 +1082,11 @@ async def admin_upload_material_to_r2(lesson_id: int, request: Request, material
 
     clean_type = (material_type or 'other').strip() or 'other'
     content_type = file.content_type or guess_content_type(filename)
-    key = object_key(filename, lesson_id=lesson_id, material_type=clean_type)
+    clean_relative_path = (relative_path or filename).strip() or filename
+    if package_id:
+        key = package_object_key(clean_relative_path, lesson_id=lesson_id, material_type=clean_type, package_id=package_id)
+    else:
+        key = object_key(filename, lesson_id=lesson_id, material_type=clean_type)
 
     try:
         file.file.seek(0)
@@ -1135,19 +1162,41 @@ def material_download(material_id: int, request: Request, db: Session = Depends(
     material = db.get(LessonMaterial, material_id)
     if not material:
         raise HTTPException(status_code=404)
-    student = student_from_request(request, db)
-    admin = admin_from_request(request, db)
-    allowed = bool(admin)
-    if student and material.lesson:
-        allowed = db.query(Enrollment).filter_by(student_id=student.id, course_id=material.lesson.course_id, is_active=True).first() is not None
-    if not allowed:
+    if not material_access_allowed(material, request, db):
         return RedirectResponse(f'/login?next=/materials/{material_id}/download', status_code=303)
     if material.storage_provider == 'external' and material.video_url:
         return RedirectResponse(material.video_url, status_code=303)
     key = material.object_key or material.file_path
     if not key:
         raise HTTPException(status_code=404)
+    if html_material(material):
+        try:
+            html = object_bytes(key).decode('utf-8')
+        except UnicodeDecodeError:
+            html = object_bytes(key).decode('utf-8', errors='replace')
+        except Exception as exc:
+            logger.exception('R2 HTML material load failed: %s', exc)
+            raise HTTPException(status_code=502)
+        return HTMLResponse(html)
     return RedirectResponse(presigned_download_url(key, material.file_name), status_code=303)
+
+
+@app.get('/materials/{material_id}/{asset_path:path}')
+def material_asset(material_id: int, asset_path: str, request: Request, db: Session = Depends(get_db)):
+    material = db.get(LessonMaterial, material_id)
+    if not material:
+        raise HTTPException(status_code=404)
+    if not material_access_allowed(material, request, db):
+        return RedirectResponse(f'/login?next=/materials/{material_id}/download', status_code=303)
+    if not html_material(material):
+        raise HTTPException(status_code=404)
+    base_key = posixpath.dirname(material.object_key or material.file_path or '')
+    normalized_asset = posixpath.normpath(asset_path.replace('\\', '/')).lstrip('/')
+    if normalized_asset.startswith('../') or normalized_asset == '..':
+        raise HTTPException(status_code=404)
+    key = posixpath.join(base_key, normalized_asset)
+    filename = posixpath.basename(normalized_asset)
+    return RedirectResponse(presigned_download_url(key, filename), status_code=303)
 
 
 @app.get('/admin/companies')

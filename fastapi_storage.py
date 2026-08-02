@@ -1,4 +1,5 @@
 import mimetypes
+import posixpath
 import uuid
 from datetime import datetime
 
@@ -35,6 +36,18 @@ def object_key(filename, lesson_id=None, material_type=None):
     return f'{prefix}/{date}/{uuid.uuid4().hex}_{safe}'
 
 
+def package_object_key(relative_path, lesson_id, material_type, package_id):
+    parts = []
+    for part in (relative_path or '').replace('\\', '/').split('/'):
+        safe = ''.join(ch if ch.isalnum() or ch in '.-_' else '-' for ch in part).strip('-')
+        if safe and safe not in ('.', '..'):
+            parts.append(safe)
+    filename = '/'.join(parts) or 'file'
+    safe_type = ''.join(ch if ch.isalnum() or ch in '-_' else '-' for ch in (material_type or 'other')).strip('-') or 'other'
+    safe_package = ''.join(ch if ch.isalnum() or ch in '-_' else '-' for ch in (package_id or uuid.uuid4().hex)).strip('-')
+    return posixpath.join(f'lessons/{lesson_id}', safe_type, safe_package, filename)
+
+
 def guess_content_type(filename, fallback='application/octet-stream'):
     return mimetypes.guess_type(filename)[0] or fallback
 
@@ -54,6 +67,12 @@ def presigned_download_url(key, filename=None):
     if filename:
         params['ResponseContentDisposition'] = f'inline; filename="{filename}"'
     return client.generate_presigned_url('get_object', Params=params, ExpiresIn=cfg.R2_PRESIGN_EXPIRES_SECONDS)
+
+
+def object_bytes(key):
+    client = r2_client()
+    response = client.get_object(Bucket=cfg.R2_BUCKET, Key=key)
+    return response['Body'].read()
 
 
 def upload_fileobj(key, fileobj, content_type):
