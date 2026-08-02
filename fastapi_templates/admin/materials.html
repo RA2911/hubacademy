@@ -39,6 +39,26 @@
     </section>
 
     <section class="detail-block">
+        <div class="band-head compact">
+            <div>
+                <span class="eyebrow">Module {{ current_module_number }}</span>
+                <h2>Session Objectives</h2>
+            </div>
+        </div>
+        <form method="POST" action="/admin/lessons/{{ lesson.id }}/objectives" class="session-objective-form">
+            {% for session_number in range(1, sessions_per_module + 1) %}
+            {% set item = objective_by_session.get(session_number) %}
+            <div class="objective-row">
+                <strong>{{ current_module_number }}.{{ session_number }}</strong>
+                <label>Session title<input name="title_{{ session_number }}" value="{{ item.title if item else '' }}" placeholder="Optional short title"></label>
+                <label>Objective<textarea name="objective_{{ session_number }}" rows="2" placeholder="Write the learner objective for this session">{{ item.objective if item else '' }}</textarea></label>
+            </div>
+            {% endfor %}
+            <button class="market-btn primary" type="submit">Save Objectives</button>
+        </form>
+    </section>
+
+    <section class="detail-block">
         <h2>Add External Link</h2>
         <form method="POST" action="/admin/lessons/{{ lesson.id }}/materials/link" class="auth-public-card external-link-form">
             <label>Type

@@ -21,8 +21,8 @@ from starlette.middleware.sessions import SessionMiddleware
 import fastapi_config as cfg
 from fastapi_auth import admin_from_request, hash_password, username_from_email, verify_password
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
-                        PasswordResetToken, Program, Purchase, Quiz, QuizAttempt, Settings, Student, db_session as next_db_session,
-                        ensure_schema, get_db)
+                        PasswordResetToken, Program, Purchase, Quiz, QuizAttempt, SessionObjective, Settings, Student,
+                        db_session as next_db_session, ensure_schema, get_db)
 from fastapi_storage import (guess_content_type, list_objects, object_bytes, object_key, package_object_key,
                              presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
 
@@ -261,7 +261,8 @@ def material_unit_number(material):
     return None
 
 
-def module_session_groups(materials, module_number):
+def module_session_groups(materials, module_number, objective_map=None):
+    objective_map = objective_map or {}
     sessions = {}
     fallback_counts = {'session': 0, 'video': 0, 'simulation': 0, 'application': 0, 'case': 0}
 
@@ -269,7 +270,7 @@ def module_session_groups(materials, module_number):
         sessions.setdefault(unit, {
             'unit': unit,
             'label': f'{module_number}.{unit}',
-            'objective': module_session_objective(module_number, unit),
+            'objective': objective_map.get((module_number, unit)) or 'Review the session resources, apply the activity, and prepare for the module evaluation.',
             'session': [],
             'video': [],
             'simulation': [],
@@ -303,48 +304,13 @@ def module_session_groups(materials, module_number):
     return [sessions[key] for key in sorted(sessions)]
 
 
-def module_session_objective(module_number, unit):
-    objectives = {
-        1: {
-            1: 'Explain digital maturity in plain, practical terms and connect it to everyday business decisions.',
-            2: 'Understand digital maturity as a staged journey, not a simple yes/no status.',
-            3: 'Recognise everyday signs of digital maturity across bookings, bookkeeping, service, and operations.',
-            4: 'Connect digital maturity with growth, lower cost, and a better customer experience.',
-            5: 'Identify and challenge common myths that prevent small businesses from starting their digital journey.',
-        },
-        2: {
-            1: 'Take an honest snapshot of the digital habits already used in the business.',
-            2: 'Assess operations, customers, payments, data, and records as the core areas of readiness.',
-            3: 'Use a simple scorecard to turn observations into a clear maturity baseline.',
-            4: 'Identify the strongest digital practices and the most important gaps to close.',
-            5: 'Read the maturity score calmly and turn it into a practical starting point.',
-        },
-        3: {
-            1: 'Understand how online presence helps customers find, trust, and contact the business.',
-            2: 'Recognise how cloud and SaaS tools support daily work without servers or technical setup.',
-            3: 'Identify how digital payments improve speed, safety, and customer convenience.',
-            4: 'Understand the value of paperless records for storing, finding, and protecting information.',
-            5: 'Spot simple automation opportunities that reduce repetitive manual work.',
-        },
-        4: {
-            1: 'Spot practical quick wins that can be started with limited time, money, or technical skill.',
-            2: 'Prioritise improvement ideas by comparing effort, impact, and business urgency.',
-            3: 'Plan safe first steps that reduce risk while building confidence.',
-            4: 'Avoid common early mistakes when choosing tools or changing workflows.',
-            5: 'Select a small number of actions that can create visible progress quickly.',
-        },
-        5: {
-            1: 'Turn the maturity assessment into a focused digital improvement roadmap.',
-            2: 'Set clear goals and simple KPIs that match business priorities.',
-            3: 'Sequence digital actions across the next 90 days in a realistic order.',
-            4: 'Assign ownership and review points so the roadmap stays active.',
-            5: 'Prepare a practical plan that can be shared, reviewed, and improved over time.',
-        },
+def session_objective_map(db: Session, course_id: int):
+    rows = db.query(SessionObjective).filter_by(course_id=course_id).all()
+    return {
+        (row.module_number, row.session_number): row.objective
+        for row in rows
+        if row.objective
     }
-    return objectives.get(module_number, {}).get(
-        unit,
-        'Focus on the key concept, supporting resource, application, case, and evaluation activity for this session.'
-    )
 
 
 def module_nav_for_lessons(db: Session, student_id: int, lessons, current_lesson_id: int):
@@ -1119,7 +1085,7 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
     grouped_materials = group_lesson_materials(materials)
     current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson.id), lesson_session_number(lesson))
     module_groups = module_material_groups(materials, current_module_number)
-    module_sessions = module_session_groups(materials, current_module_number)
+    module_sessions = module_session_groups(materials, current_module_number, session_objective_map(db, lesson.course_id))
     module_nav = module_nav_for_lessons(db, student.id, lessons, lesson.id)
     quiz_attempts = db.query(QuizAttempt).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(
         QuizAttempt.student_id == student.id,
@@ -1552,6 +1518,10 @@ def admin_materials(lesson_id: int, request: Request, db: Session = Depends(get_
     admin = require_admin(request, db)
     lesson = db.get(Lesson, lesson_id)
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson_id).order_by(LessonMaterial.upload_order).all()
+    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all() if lesson else []
+    current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson_id), lesson_session_number(lesson)) if lesson else 1
+    objective_rows = db.query(SessionObjective).filter_by(course_id=lesson.course_id, module_number=current_module_number).all() if lesson else []
+    objective_by_session = {row.session_number: row for row in objective_rows}
     grouped = {key: [] for key, _label in MATERIAL_TYPE_OPTIONS}
     for material in materials:
         grouped.setdefault(material.material_type or 'other', []).append(material)
@@ -1562,7 +1532,45 @@ def admin_materials(lesson_id: int, request: Request, db: Session = Depends(get_
         'grouped_materials': grouped,
         'material_type_options': MATERIAL_TYPE_OPTIONS,
         'r2_ready': r2_enabled(),
+        'current_module_number': current_module_number,
+        'objective_by_session': objective_by_session,
+        'sessions_per_module': SESSIONS_PER_MODULE,
     })
+
+
+@app.post('/admin/lessons/{lesson_id}/objectives')
+async def admin_save_session_objectives(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404)
+    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
+    current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson_id), lesson_session_number(lesson))
+    form = await request.form()
+    for session_number in range(1, SESSIONS_PER_MODULE + 1):
+        title = (form.get(f'title_{session_number}') or '').strip()
+        objective = (form.get(f'objective_{session_number}') or '').strip()
+        existing = db.query(SessionObjective).filter_by(
+            course_id=lesson.course_id,
+            module_number=current_module_number,
+            session_number=session_number,
+        ).first()
+        if not title and not objective:
+            if existing:
+                db.delete(existing)
+            continue
+        if not existing:
+            existing = SessionObjective(
+                course_id=lesson.course_id,
+                module_number=current_module_number,
+                session_number=session_number,
+            )
+            db.add(existing)
+        existing.title = title or None
+        existing.objective = objective or None
+        existing.source = 'admin'
+    db.commit()
+    return RedirectResponse(f'/admin/lessons/{lesson.id}/materials', status_code=303)
 
 
 @app.post('/admin/lessons/{lesson_id}/materials/link')

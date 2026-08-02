@@ -577,6 +577,37 @@ a {
     color: #b42318;
 }
 
+.session-objective-form {
+    display: grid;
+    gap: 14px;
+}
+
+.objective-row {
+    display: grid;
+    grid-template-columns: 72px minmax(180px, 260px) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.objective-row > strong {
+    min-height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: var(--primary);
+    color: #fff;
+}
+
+.objective-row textarea {
+    min-height: 70px;
+    padding-top: 10px;
+    resize: vertical;
+}
+
 .external-link-form {
     max-width: 720px;
 }
@@ -2006,6 +2037,14 @@ a {
 
     .session-resource-grid {
         grid-template-columns: 1fr;
+    }
+
+    .objective-row {
+        grid-template-columns: 1fr;
+    }
+
+    .objective-row > strong {
+        width: 72px;
     }
 }
 

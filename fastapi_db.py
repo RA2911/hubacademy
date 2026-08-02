@@ -100,6 +100,23 @@ class LessonMaterial(Base):
     lesson = relationship('Lesson', backref='materials')
 
 
+class SessionObjective(Base):
+    __tablename__ = 'session_objectives'
+
+    id = Column(Integer, primary_key=True)
+    course_id = Column(Integer, ForeignKey('courses.id'), nullable=False, index=True)
+    module_number = Column(Integer, nullable=False, index=True)
+    session_number = Column(Integer, nullable=False, index=True)
+    title = Column(String(200))
+    objective = Column(Text)
+    source = Column(String(80), default='admin')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('course_id', 'module_number', 'session_number', name='unique_session_objective'),)
+
+    course = relationship('Course')
+
+
 class Company(Base):
     __tablename__ = 'companies'
 
