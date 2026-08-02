@@ -1,80 +1,149 @@
 {% extends 'admin/base.html' %}
 {% block admin_title %}Materials - {{ lesson.title }}{% endblock %}
 {% block admin_content %}
-<div class="detail-grid">
-<section class="detail-block">
-    <h2>Upload File to R2</h2>
-    <form id="r2-upload-form" class="auth-public-card">
-        <label>Type
-            <select name="material_type"><option value="slide">Slide</option><option value="article">Article</option><option value="case_study">Case Study</option><option value="video">Video</option><option value="toolkit">Toolkit</option></select>
-        </label>
-        <label>File<input type="file" name="file"></label>
-        <button class="market-btn primary" type="submit">Upload to R2</button>
-        <p id="upload-status"></p>
-    </form>
-    <h2>Add External Link</h2>
-    <form method="POST" action="/admin/lessons/{{ lesson.id }}/materials/link" class="auth-public-card">
-        <label>Type<input name="material_type" value="video"></label>
-        <label>External URL<input name="video_url" required></label>
-        <label>External title<input name="video_name"></label>
-        <button class="market-btn primary" type="submit">Add Link</button>
-    </form>
-</section>
-<section class="detail-block">
-    <h2>Materials</h2>
-    {% for material in materials %}
-    <div class="module-row"><span>{{ loop.index }}</span><div><strong>{{ material.file_name or material.video_name or material.material_type }}</strong><p>{{ material.material_type }} / {{ material.storage_provider or 'r2' }} {% if material.object_key or material.video_url %}/ <a href="/materials/{{ material.id }}/download">Open</a>{% endif %}</p><form method="POST" action="/admin/materials/{{ material.id }}/delete"><button class="market-btn" type="submit">Delete</button></form></div></div>
-    {% endfor %}
-</section>
+<div class="materials-manager" data-lesson-id="{{ lesson.id }}">
+    <section class="detail-block">
+        <div class="band-head compact">
+            <div>
+                <span class="eyebrow">R2 Uploads</span>
+                <h2>Course Material Manager</h2>
+            </div>
+            <span class="status-pill {{ 'ok' if r2_ready else 'bad' }}">{{ 'R2 ready' if r2_ready else 'R2 not configured' }}</span>
+        </div>
+
+        <div class="upload-type-grid">
+            {% for type_key, type_label in material_type_options %}
+            <article class="upload-panel" data-type="{{ type_key }}">
+                <div class="upload-panel-head">
+                    <strong>{{ type_label }}</strong>
+                    <span>{{ grouped_materials.get(type_key, [])|length }} saved</span>
+                </div>
+                <input class="material-file-input" type="file" multiple>
+                <div class="upload-actions">
+                    <button class="market-btn primary queue-upload" type="button" {% if not r2_ready %}disabled{% endif %}>Upload selected</button>
+                    <button class="market-btn clear-selection" type="button">Clear</button>
+                </div>
+                <ul class="upload-queue"></ul>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="detail-block">
+        <h2>Add External Link</h2>
+        <form method="POST" action="/admin/lessons/{{ lesson.id }}/materials/link" class="auth-public-card external-link-form">
+            <label>Type
+                <select name="material_type">
+                    {% for type_key, type_label in material_type_options %}
+                    <option value="{{ type_key }}" {% if type_key == 'video' %}selected{% endif %}>{{ type_label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>External URL<input name="video_url" required></label>
+            <label>External title<input name="video_name"></label>
+            <button class="market-btn primary" type="submit">Add Link</button>
+        </form>
+    </section>
+
+    <section class="detail-block">
+        <h2>Saved Materials</h2>
+        {% for type_key, type_label in material_type_options %}
+        <div class="saved-group">
+            <h3>{{ type_label }}</h3>
+            {% for material in grouped_materials.get(type_key, []) %}
+            <div class="module-row material-row">
+                <span>{{ loop.index }}</span>
+                <div>
+                    <strong>{{ material.file_name or material.video_name or material.material_type }}</strong>
+                    <p>
+                        {{ material.material_type }} / {{ material.storage_provider or 'r2' }}
+                        {% if material.size_bytes %}/ {{ '%.1f'|format(material.size_bytes / 1048576) }} MB{% endif %}
+                        {% if material.object_key or material.video_url %}/ <a href="/materials/{{ material.id }}/download" target="_blank">Open</a>{% endif %}
+                    </p>
+                    {% if material.object_key %}<small>{{ material.object_key }}</small>{% endif %}
+                </div>
+                <form method="POST" action="/admin/materials/{{ material.id }}/delete">
+                    <button class="market-btn" type="submit">Delete</button>
+                </form>
+            </div>
+            {% else %}
+            <p class="muted-line">No files saved in this group.</p>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </section>
 </div>
+
 <script>
-const form = document.getElementById('r2-upload-form');
-const statusEl = document.getElementById('upload-status');
-form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const file = form.file.files[0];
-    if (!file) {
-        statusEl.textContent = 'Choose a file first.';
-        return;
+(function () {
+    const manager = document.querySelector('.materials-manager');
+    if (!manager) return;
+    const lessonId = manager.dataset.lessonId;
+
+    function formatSize(bytes) {
+        if (!bytes) return '0 MB';
+        return `${(bytes / 1048576).toFixed(1)} MB`;
     }
-    statusEl.textContent = 'Requesting secure upload URL...';
-    const presign = await fetch('/admin/lessons/{{ lesson.id }}/materials/presign', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({filename: file.name, content_type: file.type || 'application/octet-stream'})
+
+    function renderQueue(panel) {
+        const queue = panel.querySelector('.upload-queue');
+        const input = panel.querySelector('.material-file-input');
+        queue.innerHTML = '';
+        Array.from(input.files || []).forEach((file, index) => {
+            const item = document.createElement('li');
+            item.dataset.index = index;
+            item.innerHTML = `<span>${file.name}</span><small>${formatSize(file.size)}</small><b>Waiting</b>`;
+            queue.appendChild(item);
+        });
+    }
+
+    async function uploadFile(panel, file, item) {
+        const data = new FormData();
+        data.append('material_type', panel.dataset.type);
+        data.append('file', file);
+        item.querySelector('b').textContent = 'Uploading...';
+        const response = await fetch(`/admin/lessons/${lessonId}/materials/upload`, {
+            method: 'POST',
+            body: data
+        });
+        let result = {};
+        try {
+            result = await response.json();
+        } catch (error) {
+            result = {};
+        }
+        if (!response.ok || !result.ok) {
+            throw new Error(result.error || `Upload failed with HTTP ${response.status}`);
+        }
+        item.querySelector('b').textContent = 'Saved';
+        item.classList.add('done');
+    }
+
+    manager.querySelectorAll('.upload-panel').forEach((panel) => {
+        const input = panel.querySelector('.material-file-input');
+        const uploadButton = panel.querySelector('.queue-upload');
+        const clearButton = panel.querySelector('.clear-selection');
+        input.addEventListener('change', () => renderQueue(panel));
+        clearButton.addEventListener('click', () => {
+            input.value = '';
+            renderQueue(panel);
+        });
+        uploadButton.addEventListener('click', async () => {
+            const files = Array.from(input.files || []);
+            const rows = Array.from(panel.querySelectorAll('.upload-queue li'));
+            if (!files.length) return;
+            uploadButton.disabled = true;
+            for (let i = 0; i < files.length; i += 1) {
+                try {
+                    await uploadFile(panel, files[i], rows[i]);
+                } catch (error) {
+                    rows[i].querySelector('b').textContent = error.message;
+                    rows[i].classList.add('failed');
+                }
+            }
+            window.location.reload();
+        });
     });
-    const signed = await presign.json();
-    if (!presign.ok) {
-        statusEl.textContent = signed.error || 'Could not create upload URL.';
-        return;
-    }
-    statusEl.textContent = 'Uploading directly to Cloudflare R2...';
-    const upload = await fetch(signed.upload_url, {
-        method: 'PUT',
-        headers: {'Content-Type': signed.content_type},
-        body: file
-    });
-    if (!upload.ok) {
-        statusEl.textContent = 'R2 upload failed.';
-        return;
-    }
-    statusEl.textContent = 'Saving metadata...';
-    const complete = await fetch('/admin/lessons/{{ lesson.id }}/materials/complete', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            material_type: form.material_type.value,
-            file_name: file.name,
-            object_key: signed.object_key,
-            content_type: signed.content_type,
-            size_bytes: file.size
-        })
-    });
-    if (!complete.ok) {
-        statusEl.textContent = 'Uploaded, but metadata save failed.';
-        return;
-    }
-    window.location.reload();
-});
+})();
 </script>
 {% endblock %}

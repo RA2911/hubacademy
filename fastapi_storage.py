@@ -24,10 +24,14 @@ def r2_client():
     )
 
 
-def object_key(filename, lesson_id=None):
+def object_key(filename, lesson_id=None, material_type=None):
     safe = ''.join(ch if ch.isalnum() or ch in '.-_' else '-' for ch in filename).strip('-') or 'file'
     date = datetime.utcnow().strftime('%Y/%m/%d')
     prefix = f'lessons/{lesson_id}' if lesson_id else 'uploads'
+    if material_type:
+        safe_type = ''.join(ch if ch.isalnum() or ch in '-_' else '-' for ch in material_type).strip('-')
+        if safe_type:
+            prefix = f'{prefix}/{safe_type}'
     return f'{prefix}/{date}/{uuid.uuid4().hex}_{safe}'
 
 
@@ -50,3 +54,13 @@ def presigned_download_url(key, filename=None):
     if filename:
         params['ResponseContentDisposition'] = f'inline; filename="{filename}"'
     return client.generate_presigned_url('get_object', Params=params, ExpiresIn=cfg.R2_PRESIGN_EXPIRES_SECONDS)
+
+
+def upload_fileobj(key, fileobj, content_type):
+    client = r2_client()
+    client.upload_fileobj(
+        fileobj,
+        cfg.R2_BUCKET,
+        key,
+        ExtraArgs={'ContentType': content_type or 'application/octet-stream'},
+    )

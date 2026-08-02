@@ -455,6 +455,136 @@ a {
     font-weight: 700;
 }
 
+.band-head.compact {
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.status-pill {
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: .82rem;
+    font-weight: 800;
+}
+
+.status-pill.ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-pill.bad {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.upload-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.upload-panel {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fff;
+    padding: 14px;
+}
+
+.upload-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.upload-panel-head span {
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+.material-file-input {
+    width: 100%;
+    border: 1px dashed #b7c6d6;
+    border-radius: 8px;
+    padding: 10px;
+    background: #f8fafc;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.upload-queue {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+    display: grid;
+    gap: 8px;
+}
+
+.upload-queue li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.upload-queue li span {
+    overflow-wrap: anywhere;
+    font-weight: 700;
+}
+
+.upload-queue li small {
+    color: var(--muted);
+}
+
+.upload-queue li b {
+    grid-column: 1 / -1;
+    color: #475569;
+    font-size: .85rem;
+}
+
+.upload-queue li.done b {
+    color: #15803d;
+}
+
+.upload-queue li.failed b {
+    color: #b42318;
+}
+
+.external-link-form {
+    max-width: 720px;
+}
+
+.saved-group {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    margin-top: 16px;
+}
+
+.saved-group h3 {
+    margin: 0 0 10px;
+}
+
+.material-row {
+    align-items: start;
+}
+
+.material-row small {
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.muted-line {
+    color: var(--muted);
+    margin: 0;
+}
+
 .cert-path .master {
     background: #eef2ff;
     border-color: #c7d2fe;

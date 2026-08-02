@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -21,7 +21,7 @@ from fastapi_auth import admin_from_request, hash_password, username_from_email,
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
                         PasswordResetToken, Program, Purchase, Settings, Student, db_session as next_db_session,
                         ensure_schema, get_db)
-from fastapi_storage import guess_content_type, object_key, presigned_download_url, presigned_upload_url, r2_enabled
+from fastapi_storage import guess_content_type, object_key, presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj
 
 
 CERTIFICATE_LEVEL_HOURS = 15
@@ -30,6 +30,20 @@ SESSIONS_PER_MODULE = 5
 SESSION_DURATION_MINUTES = 60
 MASTER_CERTIFICATE_LEVEL = 4
 PASSWORD_RESET_TOKEN_MINUTES = 60
+
+MATERIAL_TYPE_OPTIONS = [
+    ('slide', 'Slides / PPT / PDF'),
+    ('html', 'HTML lessons / interactive slides'),
+    ('video', 'Videos'),
+    ('case_application', 'Case applications'),
+    ('toolkit', 'Toolkits'),
+    ('toolkit_asset', 'Toolkit Excel/assets'),
+    ('simulation', 'Simulations'),
+    ('syllabus', 'Syllabus'),
+    ('clo', 'CLO / CBO'),
+    ('article', 'Articles / readings'),
+    ('other', 'Other material'),
+]
 
 EXPERTISE_AREAS = [
     {'name': 'AI Agents & Generative AI', 'slug': 'ai-agents-generative-ai'},
@@ -979,7 +993,17 @@ def admin_materials(lesson_id: int, request: Request, db: Session = Depends(get_
     admin = require_admin(request, db)
     lesson = db.get(Lesson, lesson_id)
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson_id).order_by(LessonMaterial.upload_order).all()
-    return template(request, 'admin/materials.html', db, {'admin': admin, 'lesson': lesson, 'materials': materials})
+    grouped = {key: [] for key, _label in MATERIAL_TYPE_OPTIONS}
+    for material in materials:
+        grouped.setdefault(material.material_type or 'other', []).append(material)
+    return template(request, 'admin/materials.html', db, {
+        'admin': admin,
+        'lesson': lesson,
+        'materials': materials,
+        'grouped_materials': grouped,
+        'material_type_options': MATERIAL_TYPE_OPTIONS,
+        'r2_ready': r2_enabled(),
+    })
 
 
 @app.post('/admin/lessons/{lesson_id}/materials/link')
@@ -1010,12 +1034,65 @@ async def admin_presign_material_upload(lesson_id: int, request: Request, db: Se
     content_type = (data.get('content_type') or guess_content_type(filename)).strip()
     if not filename:
         return JSONResponse({'error': 'filename is required'}, status_code=400)
-    key = object_key(filename, lesson_id=lesson_id)
+    material_type = (data.get('material_type') or 'other').strip()
+    key = object_key(filename, lesson_id=lesson_id, material_type=material_type)
     return {
         'upload_url': presigned_upload_url(key, content_type),
         'object_key': key,
         'content_type': content_type,
         'expires_in': cfg.R2_PRESIGN_EXPIRES_SECONDS,
+    }
+
+
+@app.post('/admin/lessons/{lesson_id}/materials/upload')
+async def admin_upload_material_to_r2(lesson_id: int, request: Request, material_type: str = Form('other'),
+                                      file: UploadFile = File(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404)
+    if not r2_enabled():
+        return JSONResponse({'error': 'Cloudflare R2 is not configured.'}, status_code=400)
+    filename = (file.filename or '').strip()
+    if not filename:
+        return JSONResponse({'error': 'filename is required'}, status_code=400)
+
+    clean_type = (material_type or 'other').strip() or 'other'
+    content_type = file.content_type or guess_content_type(filename)
+    key = object_key(filename, lesson_id=lesson_id, material_type=clean_type)
+
+    try:
+        file.file.seek(0)
+        upload_fileobj(key, file.file, content_type)
+        size_bytes = file.file.tell()
+    except Exception as exc:
+        logger.exception('R2 material upload failed: %s', exc)
+        return JSONResponse({'error': 'R2 upload failed. Check R2 credentials and bucket permissions.'}, status_code=502)
+    finally:
+        await file.close()
+
+    max_order = db.query(func.max(LessonMaterial.upload_order)).filter_by(lesson_id=lesson_id).scalar() or 0
+    material = LessonMaterial(
+        lesson_id=lesson_id,
+        material_type=clean_type,
+        file_name=filename,
+        file_path=key,
+        object_key=key,
+        content_type=content_type,
+        size_bytes=size_bytes,
+        storage_provider='r2',
+        upload_order=max_order + 1,
+    )
+    db.add(material)
+    db.commit()
+    db.refresh(material)
+    return {
+        'ok': True,
+        'material_id': material.id,
+        'file_name': material.file_name,
+        'material_type': material.material_type,
+        'object_key': material.object_key,
+        'size_bytes': material.size_bytes,
     }
 
 
