@@ -236,6 +236,72 @@ def module_material_groups(materials, module_number):
     return groups
 
 
+def material_unit_number(material):
+    text = ' '.join([
+        material.file_name or '',
+        material.video_name or '',
+        material.object_key or '',
+        material.file_path or '',
+    ])
+    patterns = [
+        r'(?:module|session|simulation|sim|vol|application|case)[-_ ]*0*(\d+)',
+        r'[_-]0*(\d+)[_-](?:ar[_-])?audio',
+        r'[_-]0*(\d+)[_-][a-z]',
+        r'[_-]0*(\d+)\.',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            try:
+                number = int(match.group(1))
+                if number > 0:
+                    return number
+            except ValueError:
+                continue
+    return None
+
+
+def module_session_groups(materials, module_number):
+    sessions = {}
+    fallback_counts = {'session': 0, 'video': 0, 'simulation': 0, 'application': 0, 'case': 0}
+
+    def session_entry(unit):
+        sessions.setdefault(unit, {
+            'unit': unit,
+            'label': f'{module_number}.{unit}',
+            'session': [],
+            'video': [],
+            'simulation': [],
+            'application': [],
+            'case': [],
+        })
+        return sessions[unit]
+
+    for material in materials:
+        material_type = material.material_type or 'other'
+        if material_type == 'toolkit_asset':
+            continue
+        if material_type in ('html', 'slide'):
+            bucket = 'session'
+        elif material_type == 'video':
+            bucket = 'video'
+        elif material_type == 'simulation':
+            bucket = 'simulation'
+        elif material_type == 'toolkit' and html_material(material):
+            bucket = 'application'
+        elif material_type in ('case_application', 'case_study'):
+            bucket = 'case'
+        else:
+            continue
+        unit = material_unit_number(material)
+        if not unit:
+            fallback_counts[bucket] += 1
+            unit = fallback_counts[bucket]
+        session_entry(unit)[bucket].append(material)
+
+    return [sessions[key] for key in sorted(sessions)]
+
+
 def module_nav_for_lessons(db: Session, student_id: int, lessons, current_lesson_id: int):
     items = []
     previous_progress = None
@@ -1008,6 +1074,7 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
     grouped_materials = group_lesson_materials(materials)
     current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson.id), lesson_session_number(lesson))
     module_groups = module_material_groups(materials, current_module_number)
+    module_sessions = module_session_groups(materials, current_module_number)
     module_nav = module_nav_for_lessons(db, student.id, lessons, lesson.id)
     quiz_attempts = db.query(QuizAttempt).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(
         QuizAttempt.student_id == student.id,
@@ -1029,6 +1096,7 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
         'materials': materials,
         'grouped_materials': grouped_materials,
         'module_groups': module_groups,
+        'module_sessions': module_sessions,
         'module_nav': module_nav,
         'current_module_number': current_module_number,
         'progress': progress,

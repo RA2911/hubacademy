@@ -31,94 +31,51 @@
             <h2>{{ lesson.title }}</h2>
         </div>
 
-        <div class="module-sections">
-            <section class="module-section session-material">
-                <div class="module-section-head">
-                    <i class="fas fa-desktop"></i>
-                    <div><h3>Session {{ current_module_number }}</h3><p>HTML lesson or presentation.</p></div>
+        <div class="module-session-list">
+            {% for session in module_sessions %}
+            <section class="module-session-card">
+                <div class="module-session-head">
+                    <span>{{ session.label }}</span>
+                    <h3>Session {{ session.label }}</h3>
                 </div>
-                <div class="module-resource-row">
-                    {% for item in module_groups.sessions %}
-                    {% set material = item.material %}
-                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                        <strong>{{ item.label }}</strong>
-                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
+                <div class="session-resource-grid">
+                    {% for material in session.session %}
+                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Session {{ session.label }}">
+                        <i class="fas fa-desktop"></i><strong>Session {{ session.label }}</strong>
                     </button>
-                    {% else %}
-                    <p class="studio-empty">No session HTML has been added.</p>
+                    {% endfor %}
+                    {% for material in session.video %}
+                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Video {{ session.label }}">
+                        <i class="fas fa-circle-play"></i><strong>Video {{ session.label }}</strong>
+                    </button>
+                    {% endfor %}
+                    {% for material in session.simulation %}
+                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Simulation {{ session.label }}">
+                        <i class="fas fa-vial"></i><strong>Simulation {{ session.label }}</strong>
+                    </button>
+                    {% endfor %}
+                    {% for material in session.application %}
+                    <button class="module-launch application-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Application {{ session.label }}">
+                        <i class="fas fa-briefcase"></i><strong>Application {{ session.label }}</strong>
+                    </button>
+                    {% endfor %}
+                    {% for material in session.case %}
+                    <button class="module-launch case-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Case {{ session.label }}">
+                        <i class="fas fa-clipboard-check"></i><strong>Case {{ session.label }}</strong>
+                    </button>
                     {% endfor %}
                 </div>
             </section>
-
-            <section class="module-section video-material">
-                <div class="module-section-head">
-                    <i class="fas fa-circle-play"></i>
-                    <div><h3>Video {{ current_module_number }}</h3><p>Module video resource.</p></div>
-                </div>
-                <div class="module-resource-row">
-                    {% for item in module_groups.videos %}
-                    {% set material = item.material %}
-                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                        <strong>{{ item.label }}</strong>
-                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
-                    </button>
-                    {% else %}
-                    <p class="studio-empty">No video has been added.</p>
-                    {% endfor %}
-                </div>
+            {% else %}
+            <section class="module-session-card">
+                <p class="studio-empty">No visible session resources have been added for this module.</p>
             </section>
+            {% endfor %}
 
-            <section class="module-section simulation-material">
-                <div class="module-section-head">
-                    <i class="fas fa-vial"></i>
-                    <div><h3>Simulation {{ current_module_number }}</h3><p>Interactive simulation or lab.</p></div>
-                </div>
-                <div class="module-resource-row">
-                    {% for item in module_groups.simulations %}
-                    {% set material = item.material %}
-                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                        <strong>{{ item.label }}</strong>
-                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
-                    </button>
-                    {% else %}
-                    <p class="studio-empty">No simulation has been added.</p>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <section class="module-section application-material">
-                <div class="module-section-head">
-                    <i class="fas fa-briefcase"></i>
-                    <div><h3>Application {{ current_module_number }}</h3><p>Main toolkit HTML only. Supporting Excel/assets stay hidden but remain linked.</p></div>
-                </div>
-                <div class="module-resource-row">
-                    {% for item in module_groups.applications %}
-                    {% set material = item.material %}
-                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                        <strong>{{ item.label }}</strong>
-                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
-                    </button>
-                    {% else %}
-                    <p class="studio-empty">No application HTML has been added.</p>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <section class="module-section evaluation-material">
+            <section class="module-section evaluation-material module-evaluation">
                 <div class="module-section-head">
                     <i class="fas fa-clipboard-check"></i>
-                    <div><h3>Evaluation</h3><p>Case application and AI quiz for Module {{ current_module_number }}.</p></div>
-                </div>
-                <div class="module-resource-row">
-                    {% for item in module_groups.cases %}
-                    {% set material = item.material %}
-                    <button class="module-launch case-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                        <strong>{{ item.label }}</strong>
-                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
-                    </button>
-                    {% else %}
-                    <p class="studio-empty">No case application has been added.</p>
-                    {% endfor %}
+                    <div><h3>Module Evaluation</h3><p>Pass the AI quiz to complete Module {{ current_module_number }} and unlock the next module.</p></div>
                 </div>
                 <div class="module-quiz">
                     <div class="assessment-actions">
