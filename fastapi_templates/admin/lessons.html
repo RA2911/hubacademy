@@ -19,6 +19,12 @@
     <ul id="bulk-import-log" class="upload-queue"></ul>
 </section>
 
+{% if blocked_extras %}
+<section class="detail-block">
+    <p class="sync-result">Extra old lesson rows still contain content and were not removed: {{ blocked_extras|join(', ') }}</p>
+</section>
+{% endif %}
+
 <section class="detail-block">
 {% for lesson in lessons %}
 <form class="module-row" method="POST" action="/admin/lessons/{{ lesson.id }}">

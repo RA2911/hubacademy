@@ -161,6 +161,41 @@ def lesson_duration_minutes(lesson):
     return lesson.duration_minutes or SESSION_DURATION_MINUTES
 
 
+def lesson_has_content(db: Session, lesson_id: int) -> bool:
+    return bool(
+        db.query(LessonMaterial).filter_by(lesson_id=lesson_id).count()
+        or db.query(LessonProgress).filter_by(lesson_id=lesson_id).count()
+        or db.query(Quiz).filter_by(lesson_id=lesson_id).count()
+    )
+
+
+def normalize_course_modules(db: Session, course: Course, module_count: int = MODULES_PER_LEVEL):
+    lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
+    for number in range(len(lessons) + 1, module_count + 1):
+        lesson = Lesson(course_id=course.id, lesson_number=number, created_at=datetime.utcnow())
+        db.add(lesson)
+        lessons.append(lesson)
+    blocked_extras = []
+    for index, lesson in enumerate(lessons, start=1):
+        if index <= module_count:
+            lesson.lesson_number = index
+            lesson.module_number = index
+            lesson.session_number = 1
+            lesson.duration_minutes = SESSION_DURATION_MINUTES
+            if re.match(r'^Module\s+\d+(\s*[-–]\s*Session\s+\d+)?$', lesson.title or '', flags=re.IGNORECASE):
+                lesson.title = f'Module {index}'
+            elif not (lesson.title or '').strip():
+                lesson.title = f'Module {index}'
+        elif lesson_has_content(db, lesson.id):
+            blocked_extras.append(lesson.title or f'Lesson {lesson.lesson_number}')
+        else:
+            db.delete(lesson)
+    if blocked_extras:
+        return blocked_extras
+    course.num_lessons = module_count
+    return []
+
+
 def material_display_label(material, index):
     material_type = material.material_type or 'other'
     if material_type in ('html', 'slide'):
@@ -340,7 +375,7 @@ def session_objective_map(db: Session, course_id: int):
 
 
 def current_module_number_for_lesson(db: Session, lesson: Lesson) -> int:
-    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
+    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).limit(lesson.course.num_lessons or MODULES_PER_LEVEL).all()
     return next((index for index, item in enumerate(lessons, start=1) if item.id == lesson.id), lesson_session_number(lesson))
 
 
@@ -561,7 +596,7 @@ def session_unlocked(previous_progress):
 
 
 def journey_for_course(db: Session, course: Course, student_id: int):
-    lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
+    lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).limit(course.num_lessons or MODULES_PER_LEVEL).all()
     progress = {p.lesson_id: p for p in db.query(LessonProgress).filter(
         LessonProgress.student_id == student_id,
         LessonProgress.lesson_id.in_([lesson.id for lesson in lessons] or [0])
@@ -1539,7 +1574,9 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     course.certificate_level = certificate_level if certificate_level in (0, 1, 2, 3) else 0
     if course.certificate_level and not learning_hours:
         learning_hours = CERTIFICATE_LEVEL_HOURS
-    if course.certificate_level and not num_lessons:
+    if course.certificate_level:
+        num_lessons = MODULES_PER_LEVEL
+    elif not num_lessons:
         num_lessons = MODULES_PER_LEVEL
     course.num_lessons = num_lessons
     course.learning_hours = max(0, learning_hours or 0)
@@ -1549,16 +1586,13 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     if not course_id:
         db.add(course)
         db.flush()
-    existing = db.query(Lesson).filter_by(course_id=course.id).count()
-    for number in range(existing + 1, num_lessons + 1):
-        db.add(Lesson(
-            course_id=course.id,
-            lesson_number=number,
-            module_number=number,
-            session_number=1,
-            duration_minutes=SESSION_DURATION_MINUTES,
-            title=f'Module {number}',
-        ))
+    blocked_extras = normalize_course_modules(db, course, num_lessons)
+    if blocked_extras:
+        db.rollback()
+        return JSONResponse({
+            'error': 'Extra lesson rows contain content and could not be removed automatically.',
+            'extras': blocked_extras,
+        }, status_code=409)
     db.commit()
     return RedirectResponse('/admin/courses', status_code=303)
 
@@ -1632,8 +1666,18 @@ async def admin_prepare_course_bulk_import(course_id: int, request: Request, db:
 def admin_lessons(course_id: int, request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
     course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    blocked_extras = normalize_course_modules(db, course, MODULES_PER_LEVEL)
+    if not blocked_extras:
+        db.commit()
     lessons = db.query(Lesson).filter_by(course_id=course_id).order_by(Lesson.lesson_number).all()
-    return template(request, 'admin/lessons.html', db, {'admin': admin, 'course': course, 'lessons': lessons})
+    return template(request, 'admin/lessons.html', db, {
+        'admin': admin,
+        'course': course,
+        'lessons': lessons[:MODULES_PER_LEVEL],
+        'blocked_extras': blocked_extras,
+    })
 
 
 @app.post('/admin/lessons/{lesson_id}')
