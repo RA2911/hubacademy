@@ -33,35 +33,38 @@
 
         <div class="module-session-list">
             {% for session in module_sessions %}
-            <section class="module-session-card">
+            <section class="module-session-card session-color-{{ ((loop.index - 1) % 5) + 1 }}" data-session="{{ session.label }}">
                 <div class="module-session-head">
                     <span>{{ session.label }}</span>
-                    <h3>Session {{ session.label }}</h3>
+                    <div>
+                        <h3>Session {{ session.label }}</h3>
+                        <p>Complete the learning item, video, simulation, application, and case for this session.</p>
+                    </div>
                 </div>
                 <div class="session-resource-grid">
                     {% for material in session.session %}
-                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Session {{ session.label }}">
-                        <i class="fas fa-desktop"></i><strong>Session {{ session.label }}</strong>
+                    <button class="module-launch" type="button" data-key="session-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Session {{ session.label }}">
+                        <i class="fas fa-desktop"></i><strong>Session {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.video %}
-                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Video {{ session.label }}">
-                        <i class="fas fa-circle-play"></i><strong>Video {{ session.label }}</strong>
+                    <button class="module-launch" type="button" data-key="video-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Video {{ session.label }}">
+                        <i class="fas fa-circle-play"></i><strong>Video {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.simulation %}
-                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Simulation {{ session.label }}">
-                        <i class="fas fa-vial"></i><strong>Simulation {{ session.label }}</strong>
+                    <button class="module-launch" type="button" data-key="simulation-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Simulation {{ session.label }}">
+                        <i class="fas fa-vial"></i><strong>Simulation {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.application %}
-                    <button class="module-launch application-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Application {{ session.label }}">
-                        <i class="fas fa-briefcase"></i><strong>Application {{ session.label }}</strong>
+                    <button class="module-launch application-launch" type="button" data-key="application-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Application {{ session.label }}">
+                        <i class="fas fa-briefcase"></i><strong>Application {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.case %}
-                    <button class="module-launch case-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="Case {{ session.label }}">
-                        <i class="fas fa-clipboard-check"></i><strong>Case {{ session.label }}</strong>
+                    <button class="module-launch case-launch" type="button" data-key="case-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Case {{ session.label }}">
+                        <i class="fas fa-clipboard-check"></i><strong>Case {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                 </div>
@@ -147,13 +150,22 @@
     const quizBox = document.getElementById('quiz-box');
     let activeQuiz = null;
 
+    const progressPrefix = `hub-module-${lessonId}-`;
     document.querySelectorAll('.module-launch').forEach((button) => {
+        const key = button.dataset.key;
+        if (key && localStorage.getItem(progressPrefix + key) === 'done') {
+            button.classList.add('is-done');
+        }
         button.addEventListener('click', () => {
             const url = button.dataset.url;
             modalTitle.textContent = button.dataset.title || 'Resource';
             frame.src = url;
             newTab.href = url;
             modal.hidden = false;
+            if (key) {
+                localStorage.setItem(progressPrefix + key, 'done');
+                button.classList.add('is-done');
+            }
         });
     });
     close.addEventListener('click', () => {

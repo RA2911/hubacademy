@@ -1774,29 +1774,47 @@ a {
 }
 
 .module-session-card {
+    --session: var(--module);
+    --session-soft: var(--module-soft);
     padding: 22px 24px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 8px solid #eef2f7;
+    background: linear-gradient(90deg, var(--session-soft) 0, #fff 30%);
 }
 
 .module-session-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
     gap: 16px;
-    margin-bottom: 14px;
+    align-items: start;
+    margin-bottom: 18px;
 }
 
 .module-session-head span {
-    color: var(--module);
-    font-size: .86rem;
+    min-height: 52px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--session);
+    color: #fff;
+    font-size: .95rem;
     font-weight: 900;
-    text-transform: uppercase;
 }
 
 .module-session-head h3 {
     margin: 0;
     font-size: 1.45rem;
 }
+
+.module-session-head p {
+    margin: 4px 0 0;
+    color: var(--muted);
+}
+
+.session-color-1 { --session: #047857; --session-soft: #ecfdf5; }
+.session-color-2 { --session: #2563eb; --session-soft: #eff6ff; }
+.session-color-3 { --session: #7c3aed; --session-soft: #f5f3ff; }
+.session-color-4 { --session: #c2410c; --session-soft: #fff7ed; }
+.session-color-5 { --session: #be123c; --session-soft: #fff1f2; }
 
 .session-resource-grid {
     display: grid;
@@ -1863,16 +1881,17 @@ a {
     color: var(--ink);
     padding: 14px;
     cursor: pointer;
+    position: relative;
 }
 
 .module-launch i {
-    color: var(--module);
+    color: var(--session, var(--module));
     font-size: 1.3rem;
 }
 
 .module-launch:hover {
-    border-color: var(--module);
-    background: var(--module-soft);
+    border-color: var(--session, var(--module));
+    background: var(--session-soft, var(--module-soft));
 }
 
 .module-launch strong {
@@ -1882,6 +1901,33 @@ a {
 .module-launch span {
     color: var(--muted);
     overflow-wrap: anywhere;
+}
+
+.done-mark {
+    display: none;
+    justify-self: start;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 5px 8px;
+    background: #dcfce7;
+    color: #166534 !important;
+    font-size: .78rem;
+    font-weight: 900;
+}
+
+.done-mark i {
+    color: #166534;
+    font-size: .78rem;
+}
+
+.module-launch.is-done {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+.module-launch.is-done .done-mark {
+    display: inline-flex;
 }
 
 .module-evaluation {
