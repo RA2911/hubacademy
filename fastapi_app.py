@@ -39,6 +39,7 @@ QUIZ_PASS_SCORE = 60
 MATERIAL_TYPE_OPTIONS = [
     ('slide', 'Slides / PPT / PDF'),
     ('html', 'HTML lessons / interactive slides'),
+    ('intro_video', 'Intro videos'),
     ('video', 'Videos'),
     ('case_application', 'Case applications'),
     ('case_study', 'Case studies'),
@@ -264,13 +265,14 @@ def material_unit_number(material):
 def module_session_groups(materials, module_number, objective_map=None):
     objective_map = objective_map or {}
     sessions = {}
-    fallback_counts = {'session': 0, 'video': 0, 'simulation': 0, 'application': 0, 'case': 0}
+    fallback_counts = {'session': 0, 'intro_video': 0, 'video': 0, 'simulation': 0, 'application': 0, 'case': 0}
 
     def session_entry(unit):
         sessions.setdefault(unit, {
             'unit': unit,
             'label': f'{module_number}.{unit}',
             'objective': objective_map.get((module_number, unit)) or 'Review the session resources, apply the activity, and prepare for the module evaluation.',
+            'intro_video': [],
             'session': [],
             'video': [],
             'simulation': [],
@@ -283,7 +285,9 @@ def module_session_groups(materials, module_number, objective_map=None):
         material_type = material.material_type or 'other'
         if material_type == 'toolkit_asset':
             continue
-        if material_type in ('html', 'slide'):
+        if material_type == 'intro_video':
+            bucket = 'intro_video'
+        elif material_type in ('html', 'slide'):
             bucket = 'session'
         elif material_type == 'video':
             bucket = 'video'

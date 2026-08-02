@@ -36,6 +36,20 @@
                         <p>{{ session.objective }}</p>
                     </div>
                 </div>
+                {% if session.intro_video %}
+                <div class="session-intro-videos">
+                    {% for material in session.intro_video %}
+                    <div class="session-intro-video" data-key="intro-video-{{ session.label }}-{{ material.id }}">
+                        <div>
+                            <i class="fas fa-circle-play"></i>
+                            <strong>Intro Video {{ session.label }}</strong>
+                            <span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                        </div>
+                        <video controls preload="metadata" src="/materials/{{ material.id }}/download"></video>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
                 <div class="session-resource-grid">
                     {% for material in session.session %}
                     <button class="module-launch" type="button" data-key="session-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Session {{ session.label }}">
@@ -162,6 +176,19 @@
                 button.classList.add('is-done');
             }
         });
+    });
+    document.querySelectorAll('.session-intro-video').forEach((panel) => {
+        const key = panel.dataset.key;
+        const video = panel.querySelector('video');
+        if (key && localStorage.getItem(progressPrefix + key) === 'done') {
+            panel.classList.add('is-done');
+        }
+        if (!video) return;
+        video.addEventListener('play', () => {
+            if (!key) return;
+            localStorage.setItem(progressPrefix + key, 'done');
+            panel.classList.add('is-done');
+        }, { once: true });
     });
     close.addEventListener('click', () => {
         frame.src = 'about:blank';
