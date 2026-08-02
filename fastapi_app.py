@@ -1551,15 +1551,13 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
         db.flush()
     existing = db.query(Lesson).filter_by(course_id=course.id).count()
     for number in range(existing + 1, num_lessons + 1):
-        module_number = module_number_for_session(number)
-        session_number = session_number_for_lesson(number)
         db.add(Lesson(
             course_id=course.id,
             lesson_number=number,
-            module_number=module_number,
-            session_number=session_number,
+            module_number=number,
+            session_number=1,
             duration_minutes=SESSION_DURATION_MINUTES,
-            title=f'Module {module_number} - Session {session_number}',
+            title=f'Module {number}',
         ))
     db.commit()
     return RedirectResponse('/admin/courses', status_code=303)
