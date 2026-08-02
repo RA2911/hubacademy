@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hub-academy-v1';
+const CACHE_NAME = 'hub-academy-v2';
 const CORE_ASSETS = [
   '/',
   '/courses',
@@ -27,13 +27,20 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/assistant')) return;
+  if (
+    url.pathname.startsWith('/admin') ||
+    url.pathname.startsWith('/learn') ||
+    url.pathname.startsWith('/materials') ||
+    url.pathname.startsWith('/assistant') ||
+    url.pathname.startsWith('/login') ||
+    url.pathname.startsWith('/logout')
+  ) return;
 
   event.respondWith(
     fetch(request)
       .then((response) => {
         const copy = response.clone();
-        if (response.ok && (url.pathname.startsWith('/static/') || request.mode === 'navigate')) {
+        if (response.ok && url.pathname.startsWith('/static/')) {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
         return response;
