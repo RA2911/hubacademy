@@ -26,6 +26,21 @@
     </nav>
 
     <section class="module-board">
+        {% if module_extras.module_intro_video %}
+        <section class="module-feature module-intro-feature">
+            <div class="module-feature-head">
+                <i class="fas fa-circle-play"></i>
+                <div><h2>Module Intro</h2><p>Start here before working through the five sessions.</p></div>
+            </div>
+            {% for material in module_extras.module_intro_video %}
+            <div class="module-video-panel" data-key="module-intro-{{ material.id }}">
+                <video controls preload="metadata" src="/materials/{{ material.id }}/download"></video>
+                <span class="done-mark"><i class="fas fa-check"></i> Done</span>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
         <div class="module-session-list">
             {% for session in module_sessions %}
             <section class="module-session-card session-color-{{ ((loop.index - 1) % 5) + 1 }}" data-session="{{ session.label }}">
@@ -36,20 +51,6 @@
                         <p>{{ session.objective }}</p>
                     </div>
                 </div>
-                {% if session.intro_video %}
-                <div class="session-intro-videos">
-                    {% for material in session.intro_video %}
-                    <div class="session-intro-video" data-key="intro-video-{{ session.label }}-{{ material.id }}">
-                        <div>
-                            <i class="fas fa-circle-play"></i>
-                            <strong>Intro Video {{ session.label }}</strong>
-                            <span class="done-mark"><i class="fas fa-check"></i> Done</span>
-                        </div>
-                        <video controls preload="metadata" src="/materials/{{ material.id }}/download"></video>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
                 <div class="session-resource-grid">
                     {% for material in session.session %}
                     <button class="module-launch" type="button" data-key="session-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Session {{ session.label }}">
@@ -83,6 +84,27 @@
                 <p class="studio-empty">No visible session resources have been added for this module.</p>
             </section>
             {% endfor %}
+
+            {% if module_extras.case_analysis or module_extras.general_simulation %}
+            <section class="module-section module-final-practice">
+                <div class="module-section-head">
+                    <i class="fas fa-briefcase"></i>
+                    <div><h3>Module Application</h3><p>Complete the module case analysis and final general simulation before the self-evaluation.</p></div>
+                </div>
+                <div class="session-resource-grid">
+                    {% for material in module_extras.case_analysis %}
+                    <button class="module-launch" type="button" data-key="case-analysis-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Case Analysis">
+                        <i class="fas fa-clipboard-list"></i><strong>Case Analysis</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    </button>
+                    {% endfor %}
+                    {% for material in module_extras.general_simulation %}
+                    <button class="module-launch" type="button" data-key="general-simulation-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="General Simulation">
+                        <i class="fas fa-diagram-project"></i><strong>General Simulation</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
 
             <section class="module-section evaluation-material module-evaluation">
                 <div class="module-section-head">
@@ -177,7 +199,7 @@
             }
         });
     });
-    document.querySelectorAll('.session-intro-video').forEach((panel) => {
+    document.querySelectorAll('.module-video-panel').forEach((panel) => {
         const key = panel.dataset.key;
         const video = panel.querySelector('video');
         if (key && localStorage.getItem(progressPrefix + key) === 'done') {

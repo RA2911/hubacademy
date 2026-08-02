@@ -1,6 +1,24 @@
 {% extends 'admin/base.html' %}
 {% block admin_title %}Lessons - {{ course.title }}{% endblock %}
 {% block admin_content %}
+<section class="detail-block bulk-import-panel" data-course-id="{{ course.id }}">
+    <div class="band-head compact">
+        <div>
+            <span class="eyebrow">Bulk Import</span>
+            <h2>Structured Course Folder</h2>
+        </div>
+    </div>
+    <label>Course folder
+        <input id="bulk-folder-input" type="file" webkitdirectory directory multiple>
+    </label>
+    <div class="upload-actions">
+        <button class="market-btn primary" type="button" id="bulk-import-btn">Upload Structured Folder</button>
+        <button class="market-btn" type="button" id="bulk-clear-btn">Clear</button>
+    </div>
+    <div id="bulk-import-status" class="bulk-import-status">Select the structured Level folder that contains the five module folders.</div>
+    <ul id="bulk-import-log" class="upload-queue"></ul>
+</section>
+
 <section class="detail-block">
 {% for lesson in lessons %}
 <form class="module-row" method="POST" action="/admin/lessons/{{ lesson.id }}">
@@ -14,4 +32,159 @@
 </form>
 {% endfor %}
 </section>
+
+<script>
+(function () {
+    const panel = document.querySelector('.bulk-import-panel');
+    if (!panel) return;
+    const courseId = panel.dataset.courseId;
+    const input = document.getElementById('bulk-folder-input');
+    const button = document.getElementById('bulk-import-btn');
+    const clear = document.getElementById('bulk-clear-btn');
+    const status = document.getElementById('bulk-import-status');
+    const log = document.getElementById('bulk-import-log');
+    const sessionRe = /^\d{2}_Session_30min$/;
+    const moduleRe = /^\d{2}[-_]/;
+    let batch = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    function addLog(text, state) {
+        const row = document.createElement('li');
+        row.className = state || '';
+        row.innerHTML = `<span>${text}</span><b>${state || 'Pending'}</b>`;
+        log.appendChild(row);
+        row.scrollIntoView({block: 'nearest'});
+        return row;
+    }
+
+    function modulePartIndex(parts) {
+        return parts.findIndex((part) => moduleRe.test(part) && !sessionRe.test(part) && !part.includes('Course_Documents'));
+    }
+
+    function sessionNumber(name) {
+        const match = name.match(/^(\d{2})_/);
+        return match ? Number(match[1]) : 0;
+    }
+
+    function visibleFile(type, relParts, file) {
+        const name = file.name.toLowerCase();
+        if (type === 'html' || type === 'toolkit' || type === 'case_analysis' || type === 'general_simulation') return name.endsWith('.html') || name.endsWith('.htm');
+        if (type === 'syllabus' || type === 'clo') return name.endsWith('.pdf');
+        if (type === 'module_intro_video' || type === 'video') return /\.(mp4|mov|webm)$/i.test(name);
+        if (type === 'simulation') return name.endsWith('.html') || name.endsWith('.htm');
+        if (type === 'case_application') return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm');
+        return relParts.length === 1;
+    }
+
+    function classify(file, moduleMap) {
+        const parts = (file.webkitRelativePath || file.name).split('/').filter(Boolean);
+        const mIndex = modulePartIndex(parts);
+        if (mIndex < 0) return null;
+        const moduleName = parts[mIndex];
+        const lesson = moduleMap.get(moduleName);
+        if (!lesson) return null;
+        const rest = parts.slice(mIndex + 1);
+        const first = (rest[0] || '').toLowerCase();
+        if (first === 'syllabus') return {lessonId: lesson.lesson_id, type: 'syllabus', rel: rest.slice(1).join('/'), pkg: '', register: true};
+        if (first === 'clo_cbo') return {lessonId: lesson.lesson_id, type: 'clo', rel: rest.slice(1).join('/'), pkg: '', register: true};
+        if (first === 'intro_video') return {lessonId: lesson.lesson_id, type: 'module_intro_video', rel: rest.slice(1).join('/'), pkg: '', register: true};
+        if (first === 'case_analysis') {
+            const rel = rest.slice(1);
+            return {lessonId: lesson.lesson_id, type: 'case_analysis', rel: rel.join('/'), pkg: `module-${lesson.lesson_id}-case-analysis-${batch}`, register: visibleFile('case_analysis', rel, file)};
+        }
+        if (first === 'general_simulation') {
+            const rel = rest.slice(1);
+            return {lessonId: lesson.lesson_id, type: 'general_simulation', rel: rel.join('/'), pkg: `module-${lesson.lesson_id}-general-simulation-${batch}`, register: visibleFile('general_simulation', rel, file)};
+        }
+        const sIndex = rest.findIndex((part) => sessionRe.test(part));
+        if (sIndex < 0) return null;
+        const session = sessionNumber(rest[sIndex]);
+        const folder = (rest[sIndex + 1] || '').toLowerCase();
+        const rel = rest.slice(sIndex + 2);
+        const typeMap = {html: 'html', videos: 'video', simulations: 'simulation', applications: 'toolkit', cases: 'case_application'};
+        const type = typeMap[folder];
+        if (!type || !session || !rel.length) return null;
+        const packaged = ['html', 'simulation', 'toolkit'].includes(type);
+        return {
+            lessonId: lesson.lesson_id,
+            type,
+            rel: rel.join('/'),
+            pkg: packaged ? `module-${lesson.lesson_id}-session-${session}-${type}-${batch}` : '',
+            register: visibleFile(type, rel, file),
+        };
+    }
+
+    async function postJson(url, payload) {
+        const response = await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload || {})});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Request failed');
+        return data;
+    }
+
+    async function uploadOne(file, job) {
+        const data = new FormData();
+        data.append('material_type', job.type);
+        data.append('relative_path', job.rel || file.name);
+        data.append('package_id', job.pkg || '');
+        data.append('register_metadata', job.register ? 'true' : 'false');
+        data.append('file', file);
+        const response = await fetch(`/admin/lessons/${job.lessonId}/materials/upload`, {method: 'POST', body: data});
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) throw new Error(result.error || `Upload failed: ${file.name}`);
+    }
+
+    button.addEventListener('click', async () => {
+        const files = Array.from(input.files || []);
+        log.innerHTML = '';
+        if (!files.length) {
+            status.textContent = 'No folder selected.';
+            return;
+        }
+        button.disabled = true;
+        batch = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        try {
+            const moduleNames = [...new Set(files.map((file) => {
+                const parts = file.webkitRelativePath.split('/').filter(Boolean);
+                const index = modulePartIndex(parts);
+                return index >= 0 ? parts[index] : '';
+            }).filter(Boolean))].sort();
+            status.textContent = `Preparing ${moduleNames.length} modules...`;
+            const prepared = await postJson(`/admin/courses/${courseId}/bulk-prepare`, {module_names: moduleNames});
+            const moduleMap = new Map(prepared.modules.map((item) => [item.folder, item]));
+            const jobs = files.map((file) => ({file, job: classify(file, moduleMap)})).filter((item) => item.job);
+            if (!jobs.length) throw new Error('No importable files found in the selected folder.');
+            status.textContent = `Uploading ${jobs.length} files...`;
+            let done = 0;
+            for (const item of jobs) {
+                const row = addLog(item.file.webkitRelativePath || item.file.name, 'Uploading');
+                try {
+                    await uploadOne(item.file, item.job);
+                    row.className = 'done';
+                    row.querySelector('b').textContent = item.job.register ? 'Saved' : 'Asset';
+                } catch (error) {
+                    row.className = 'failed';
+                    row.querySelector('b').textContent = error.message;
+                    throw error;
+                }
+                done += 1;
+                status.textContent = `Uploaded ${done} / ${jobs.length}`;
+            }
+            status.textContent = 'Extracting objectives from syllabus PDFs...';
+            for (const item of prepared.modules) {
+                await postJson(`/admin/lessons/${item.lesson_id}/objectives/extract`);
+            }
+            status.textContent = 'Bulk import complete. Reloading...';
+            window.location.reload();
+        } catch (error) {
+            status.textContent = error.message;
+            button.disabled = false;
+        }
+    });
+
+    clear.addEventListener('click', () => {
+        input.value = '';
+        log.innerHTML = '';
+        status.textContent = 'Select the structured Level folder that contains the five module folders.';
+    });
+})();
+</script>
 {% endblock %}

@@ -582,6 +582,20 @@ a {
     gap: 14px;
 }
 
+.bulk-import-panel {
+    display: grid;
+    gap: 14px;
+}
+
+.bulk-import-status {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+    color: var(--muted);
+    font-weight: 700;
+}
+
 .objective-row {
     display: grid;
     grid-template-columns: 72px minmax(180px, 260px) minmax(0, 1fr);
@@ -1800,6 +1814,56 @@ a {
     gap: 0;
 }
 
+.module-feature {
+    padding: 22px 24px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+}
+
+.module-feature-head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.module-feature-head i {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    background: var(--module);
+    color: #fff;
+}
+
+.module-feature-head h2 {
+    margin: 0;
+}
+
+.module-feature-head p {
+    margin: 4px 0 0;
+    color: var(--muted);
+}
+
+.module-video-panel {
+    display: grid;
+    gap: 10px;
+    max-width: 980px;
+}
+
+.module-video-panel video {
+    width: 100%;
+    max-height: 460px;
+    border-radius: 8px;
+    background: #0f172a;
+}
+
+.module-video-panel.is-done .done-mark {
+    display: inline-flex;
+}
+
 .module-session-list {
     display: grid;
     gap: 0;
@@ -1849,54 +1913,6 @@ a {
 .session-color-3 { --session: #7c3aed; --session-soft: #f5f3ff; }
 .session-color-4 { --session: #c2410c; --session-soft: #fff7ed; }
 .session-color-5 { --session: #be123c; --session-soft: #fff1f2; }
-
-.session-intro-videos {
-    display: grid;
-    gap: 14px;
-    margin: 0 0 16px;
-}
-
-.session-intro-video {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 16px;
-    align-items: stretch;
-    padding: 14px;
-    border: 1px solid #d8e2ed;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, .82);
-}
-
-.session-intro-video > div {
-    display: grid;
-    align-content: start;
-    gap: 8px;
-}
-
-.session-intro-video i {
-    color: var(--session, var(--module));
-    font-size: 1.35rem;
-}
-
-.session-intro-video strong {
-    font-size: 1.12rem;
-}
-
-.session-intro-video video {
-    width: 100%;
-    max-height: 360px;
-    border-radius: 8px;
-    background: #0f172a;
-}
-
-.session-intro-video.is-done {
-    border-color: #86efac;
-    background: #f0fdf4;
-}
-
-.session-intro-video.is-done .done-mark {
-    display: inline-flex;
-}
 
 .session-resource-grid {
     display: grid;
@@ -2016,6 +2032,11 @@ a {
     border-top: 4px solid var(--module);
 }
 
+.module-final-practice {
+    border-top: 4px solid var(--module);
+    background: #fff;
+}
+
 .module-quiz {
     grid-column: 1 / -1;
     display: grid;
@@ -2084,10 +2105,6 @@ a {
     }
 
     .session-resource-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .session-intro-video {
         grid-template-columns: 1fr;
     }
 

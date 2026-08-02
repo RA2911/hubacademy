@@ -7,6 +7,7 @@ import re
 import secrets
 import smtplib
 import uuid
+from io import BytesIO
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 
@@ -28,9 +29,9 @@ from fastapi_storage import (guess_content_type, list_objects, object_bytes, obj
 
 
 CERTIFICATE_LEVEL_HOURS = 15
-MODULES_PER_LEVEL = 3
+MODULES_PER_LEVEL = 5
 SESSIONS_PER_MODULE = 5
-SESSION_DURATION_MINUTES = 60
+SESSION_DURATION_MINUTES = 180
 MASTER_CERTIFICATE_LEVEL = 4
 PASSWORD_RESET_TOKEN_MINUTES = 60
 MAX_LESSON_QUIZ_ATTEMPTS = 3
@@ -39,13 +40,15 @@ QUIZ_PASS_SCORE = 60
 MATERIAL_TYPE_OPTIONS = [
     ('slide', 'Slides / PPT / PDF'),
     ('html', 'HTML lessons / interactive slides'),
-    ('intro_video', 'Intro videos'),
+    ('module_intro_video', 'Module intro videos'),
     ('video', 'Videos'),
     ('case_application', 'Case applications'),
     ('case_study', 'Case studies'),
+    ('case_analysis', 'Module case analysis'),
     ('toolkit', 'Toolkits'),
     ('toolkit_asset', 'Toolkit Excel/assets'),
     ('simulation', 'Simulations'),
+    ('general_simulation', 'Module general simulation'),
     ('syllabus', 'Syllabus'),
     ('clo', 'CLO / CBO'),
     ('article', 'Articles / readings'),
@@ -162,10 +165,16 @@ def material_display_label(material, index):
     material_type = material.material_type or 'other'
     if material_type in ('html', 'slide'):
         return f'Session {index}'
+    if material_type == 'module_intro_video':
+        return 'Module intro video'
     if material_type == 'video':
         return f'Video {index}'
     if material_type == 'simulation':
         return f'Simulation {index}'
+    if material_type == 'general_simulation':
+        return 'General simulation'
+    if material_type == 'case_analysis':
+        return 'Case analysis'
     if material_type in ('toolkit', 'toolkit_asset'):
         return f'Application {index}'
     if material_type in ('case_application', 'case_study'):
@@ -265,14 +274,13 @@ def material_unit_number(material):
 def module_session_groups(materials, module_number, objective_map=None):
     objective_map = objective_map or {}
     sessions = {}
-    fallback_counts = {'session': 0, 'intro_video': 0, 'video': 0, 'simulation': 0, 'application': 0, 'case': 0}
+    fallback_counts = {'session': 0, 'video': 0, 'simulation': 0, 'application': 0, 'case': 0}
 
     def session_entry(unit):
         sessions.setdefault(unit, {
             'unit': unit,
             'label': f'{module_number}.{unit}',
             'objective': objective_map.get((module_number, unit)) or 'Review the session resources, apply the activity, and prepare for the module evaluation.',
-            'intro_video': [],
             'session': [],
             'video': [],
             'simulation': [],
@@ -283,11 +291,9 @@ def module_session_groups(materials, module_number, objective_map=None):
 
     for material in materials:
         material_type = material.material_type or 'other'
-        if material_type == 'toolkit_asset':
+        if material_type in ('toolkit_asset', 'module_intro_video', 'case_analysis', 'general_simulation'):
             continue
-        if material_type == 'intro_video':
-            bucket = 'intro_video'
-        elif material_type in ('html', 'slide'):
+        if material_type in ('html', 'slide'):
             bucket = 'session'
         elif material_type == 'video':
             bucket = 'video'
@@ -308,6 +314,22 @@ def module_session_groups(materials, module_number, objective_map=None):
     return [sessions[key] for key in sorted(sessions)]
 
 
+def module_extra_materials(materials):
+    extras = {
+        'module_intro_video': [],
+        'case_analysis': [],
+        'general_simulation': [],
+        'references': [],
+    }
+    for material in materials:
+        material_type = material.material_type or 'other'
+        if material_type in extras:
+            extras[material_type].append(material)
+        elif material_type in ('syllabus', 'clo'):
+            extras['references'].append(material)
+    return extras
+
+
 def session_objective_map(db: Session, course_id: int):
     rows = db.query(SessionObjective).filter_by(course_id=course_id).all()
     return {
@@ -315,6 +337,60 @@ def session_objective_map(db: Session, course_id: int):
         for row in rows
         if row.objective
     }
+
+
+def current_module_number_for_lesson(db: Session, lesson: Lesson) -> int:
+    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
+    return next((index for index, item in enumerate(lessons, start=1) if item.id == lesson.id), lesson_session_number(lesson))
+
+
+def extract_pdf_text(pdf_bytes: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+    except Exception as exc:
+        raise RuntimeError('pypdf is required for syllabus objective extraction.') from exc
+    reader = PdfReader(BytesIO(pdf_bytes))
+    return '\n'.join(page.extract_text() or '' for page in reader.pages)
+
+
+def extract_topic_objectives(text: str, limit: int = SESSIONS_PER_MODULE):
+    lines = [line.strip() for line in (text or '').splitlines()]
+    start = next((index for index, line in enumerate(lines) if re.search(r'\btopics covered\b', line, re.IGNORECASE)), -1)
+    if start < 0:
+        return []
+    objectives = []
+    stop_pattern = re.compile(r'^(applied lab|module\s+\d+|learning outcomes|note on scope)\b', re.IGNORECASE)
+    for line in lines[start + 1:]:
+        cleaned = re.sub(r'^[\u2022\-–—*\d\.\)\s]+', '', line).strip()
+        if not cleaned:
+            continue
+        if stop_pattern.search(cleaned):
+            break
+        if len(cleaned) < 8:
+            continue
+        objectives.append(cleaned)
+        if len(objectives) >= limit:
+            break
+    return objectives
+
+
+def save_session_objectives(db: Session, course_id: int, module_number: int, objectives):
+    saved = 0
+    for index, objective in enumerate(objectives[:SESSIONS_PER_MODULE], start=1):
+        existing = db.query(SessionObjective).filter_by(
+            course_id=course_id,
+            module_number=module_number,
+            session_number=index,
+        ).first()
+        if not existing:
+            existing = SessionObjective(course_id=course_id, module_number=module_number, session_number=index)
+            db.add(existing)
+        existing.objective = objective.strip()
+        existing.title = None
+        existing.source = 'syllabus'
+        saved += 1
+    db.commit()
+    return saved
 
 
 def module_nav_for_lessons(db: Session, student_id: int, lessons, current_lesson_id: int):
@@ -1090,6 +1166,7 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
     current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson.id), lesson_session_number(lesson))
     module_groups = module_material_groups(materials, current_module_number)
     module_sessions = module_session_groups(materials, current_module_number, session_objective_map(db, lesson.course_id))
+    module_extras = module_extra_materials(materials)
     module_nav = module_nav_for_lessons(db, student.id, lessons, lesson.id)
     quiz_attempts = db.query(QuizAttempt).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(
         QuizAttempt.student_id == student.id,
@@ -1112,6 +1189,7 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
         'grouped_materials': grouped_materials,
         'module_groups': module_groups,
         'module_sessions': module_sessions,
+        'module_extras': module_extras,
         'module_nav': module_nav,
         'current_module_number': current_module_number,
         'progress': progress,
@@ -1462,7 +1540,7 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     if course.certificate_level and not learning_hours:
         learning_hours = CERTIFICATE_LEVEL_HOURS
     if course.certificate_level and not num_lessons:
-        num_lessons = MODULES_PER_LEVEL * SESSIONS_PER_MODULE
+        num_lessons = MODULES_PER_LEVEL
     course.num_lessons = num_lessons
     course.learning_hours = max(0, learning_hours or 0)
     course.is_published = bool(is_published)
@@ -1497,6 +1575,61 @@ def admin_delete_course(course_id: int, request: Request, db: Session = Depends(
     return RedirectResponse('/admin/courses', status_code=303)
 
 
+@app.post('/admin/courses/{course_id}/bulk-prepare')
+async def admin_prepare_course_bulk_import(course_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    data = await request.json()
+    module_names = [str(name).strip() for name in data.get('module_names', []) if str(name).strip()]
+    if not module_names:
+        return JSONResponse({'error': 'No module folders found.'}, status_code=400)
+    module_names = module_names[:MODULES_PER_LEVEL]
+    existing_lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
+    lesson_map = {}
+    for index, module_name in enumerate(module_names, start=1):
+        lesson = existing_lessons[index - 1] if index <= len(existing_lessons) else None
+        if not lesson:
+            lesson = Lesson(course_id=course.id, lesson_number=index, created_at=datetime.utcnow())
+            db.add(lesson)
+        lesson.lesson_number = index
+        lesson.module_number = index
+        lesson.session_number = 1
+        lesson.duration_minutes = SESSION_DURATION_MINUTES
+        lesson.title = re.sub(r'^\d+\s*[-_]\s*', '', module_name).replace('_', ' ').strip() or f'Module {index}'
+        if not lesson.description:
+            lesson.description = f'{lesson.title} module with five guided sessions, applied practice, and final simulation.'
+        lesson_map[module_name] = lesson
+    blocked_extras = []
+    for extra in existing_lessons[len(module_names):]:
+        has_content = (
+            db.query(LessonMaterial).filter_by(lesson_id=extra.id).count()
+            or db.query(LessonProgress).filter_by(lesson_id=extra.id).count()
+            or db.query(Quiz).filter_by(lesson_id=extra.id).count()
+        )
+        if has_content:
+            blocked_extras.append(extra.title)
+        else:
+            db.delete(extra)
+    if blocked_extras:
+        db.rollback()
+        return JSONResponse({
+            'error': 'This course has extra lesson rows with existing content. Remove them before bulk import.',
+            'extras': blocked_extras,
+        }, status_code=409)
+    course.num_lessons = len(module_names)
+    if not course.learning_hours:
+        course.learning_hours = CERTIFICATE_LEVEL_HOURS
+    db.commit()
+    for lesson in lesson_map.values():
+        db.refresh(lesson)
+    return {
+        'ok': True,
+        'modules': [{'folder': folder, 'lesson_id': lesson.id, 'title': lesson.title} for folder, lesson in lesson_map.items()],
+    }
+
+
 @app.get('/admin/courses/{course_id}/lessons')
 def admin_lessons(course_id: int, request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
@@ -1522,8 +1655,7 @@ def admin_materials(lesson_id: int, request: Request, db: Session = Depends(get_
     admin = require_admin(request, db)
     lesson = db.get(Lesson, lesson_id)
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson_id).order_by(LessonMaterial.upload_order).all()
-    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all() if lesson else []
-    current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson_id), lesson_session_number(lesson)) if lesson else 1
+    current_module_number = current_module_number_for_lesson(db, lesson) if lesson else 1
     objective_rows = db.query(SessionObjective).filter_by(course_id=lesson.course_id, module_number=current_module_number).all() if lesson else []
     objective_by_session = {row.session_number: row for row in objective_rows}
     grouped = {key: [] for key, _label in MATERIAL_TYPE_OPTIONS}
@@ -1548,8 +1680,7 @@ async def admin_save_session_objectives(lesson_id: int, request: Request, db: Se
     lesson = db.get(Lesson, lesson_id)
     if not lesson:
         raise HTTPException(status_code=404)
-    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
-    current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson_id), lesson_session_number(lesson))
+    current_module_number = current_module_number_for_lesson(db, lesson)
     form = await request.form()
     for session_number in range(1, SESSIONS_PER_MODULE + 1):
         title = (form.get(f'title_{session_number}') or '').strip()
@@ -1575,6 +1706,28 @@ async def admin_save_session_objectives(lesson_id: int, request: Request, db: Se
         existing.source = 'admin'
     db.commit()
     return RedirectResponse(f'/admin/lessons/{lesson.id}/materials', status_code=303)
+
+
+@app.post('/admin/lessons/{lesson_id}/objectives/extract')
+def admin_extract_session_objectives(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404)
+    syllabus = db.query(LessonMaterial).filter_by(lesson_id=lesson.id, material_type='syllabus').order_by(LessonMaterial.upload_order.desc()).first()
+    if not syllabus or not (syllabus.object_key or syllabus.file_path):
+        return JSONResponse({'error': 'No syllabus PDF has been uploaded for this module.'}, status_code=400)
+    try:
+        text = extract_pdf_text(object_bytes(syllabus.object_key or syllabus.file_path))
+        objectives = extract_topic_objectives(text)
+    except Exception as exc:
+        logger.exception('Syllabus objective extraction failed: %s', exc)
+        return JSONResponse({'error': 'Could not extract objectives from the syllabus PDF.'}, status_code=500)
+    if len(objectives) < SESSIONS_PER_MODULE:
+        return JSONResponse({'error': f'Only {len(objectives)} objectives found in Topics covered.'}, status_code=422)
+    module_number = current_module_number_for_lesson(db, lesson)
+    saved = save_session_objectives(db, lesson.course_id, module_number, objectives)
+    return {'ok': True, 'saved': saved, 'objectives': objectives[:SESSIONS_PER_MODULE]}
 
 
 @app.post('/admin/lessons/{lesson_id}/materials/link')
@@ -1618,6 +1771,7 @@ async def admin_presign_material_upload(lesson_id: int, request: Request, db: Se
 @app.post('/admin/lessons/{lesson_id}/materials/upload')
 async def admin_upload_material_to_r2(lesson_id: int, request: Request, material_type: str = Form('other'),
                                       relative_path: str = Form(''), package_id: str = Form(''),
+                                      register_metadata: str = Form('true'),
                                       file: UploadFile = File(...), db: Session = Depends(get_db)):
     require_admin(request, db)
     lesson = db.get(Lesson, lesson_id)
@@ -1647,26 +1801,28 @@ async def admin_upload_material_to_r2(lesson_id: int, request: Request, material
     finally:
         await file.close()
 
-    try:
-        material = save_r2_material_metadata(db, lesson_id, clean_type, filename, key, content_type, size_bytes)
-    except Exception as exc:
-        db.rollback()
-        logger.exception('R2 metadata save failed after upload: %s', exc)
-        return JSONResponse({
-            'error': 'File reached R2, but the database record was not saved. Use Register uploaded file to repair it.',
-            'object_key': key,
-            'file_name': filename,
-            'material_type': clean_type,
-            'content_type': content_type,
-            'size_bytes': size_bytes,
-        }, status_code=500)
+    material = None
+    if str(register_metadata).lower() not in ('false', '0', 'no', 'off'):
+        try:
+            material = save_r2_material_metadata(db, lesson_id, clean_type, filename, key, content_type, size_bytes)
+        except Exception as exc:
+            db.rollback()
+            logger.exception('R2 metadata save failed after upload: %s', exc)
+            return JSONResponse({
+                'error': 'File reached R2, but the database record was not saved. Use Register uploaded file to repair it.',
+                'object_key': key,
+                'file_name': filename,
+                'material_type': clean_type,
+                'content_type': content_type,
+                'size_bytes': size_bytes,
+            }, status_code=500)
     return {
         'ok': True,
-        'material_id': material.id,
-        'file_name': material.file_name,
-        'material_type': material.material_type,
-        'object_key': material.object_key,
-        'size_bytes': material.size_bytes,
+        'material_id': material.id if material else None,
+        'file_name': material.file_name if material else filename,
+        'material_type': material.material_type if material else clean_type,
+        'object_key': material.object_key if material else key,
+        'size_bytes': material.size_bytes if material else size_bytes,
     }
 
 
