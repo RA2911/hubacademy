@@ -269,6 +269,7 @@ def module_session_groups(materials, module_number):
         sessions.setdefault(unit, {
             'unit': unit,
             'label': f'{module_number}.{unit}',
+            'objective': module_session_objective(module_number, unit),
             'session': [],
             'video': [],
             'simulation': [],
@@ -300,6 +301,50 @@ def module_session_groups(materials, module_number):
         session_entry(unit)[bucket].append(material)
 
     return [sessions[key] for key in sorted(sessions)]
+
+
+def module_session_objective(module_number, unit):
+    objectives = {
+        1: {
+            1: 'Explain digital maturity in plain, practical terms and connect it to everyday business decisions.',
+            2: 'Understand digital maturity as a staged journey, not a simple yes/no status.',
+            3: 'Recognise everyday signs of digital maturity across bookings, bookkeeping, service, and operations.',
+            4: 'Connect digital maturity with growth, lower cost, and a better customer experience.',
+            5: 'Identify and challenge common myths that prevent small businesses from starting their digital journey.',
+        },
+        2: {
+            1: 'Take an honest snapshot of the digital habits already used in the business.',
+            2: 'Assess operations, customers, payments, data, and records as the core areas of readiness.',
+            3: 'Use a simple scorecard to turn observations into a clear maturity baseline.',
+            4: 'Identify the strongest digital practices and the most important gaps to close.',
+            5: 'Read the maturity score calmly and turn it into a practical starting point.',
+        },
+        3: {
+            1: 'Understand how online presence helps customers find, trust, and contact the business.',
+            2: 'Recognise how cloud and SaaS tools support daily work without servers or technical setup.',
+            3: 'Identify how digital payments improve speed, safety, and customer convenience.',
+            4: 'Understand the value of paperless records for storing, finding, and protecting information.',
+            5: 'Spot simple automation opportunities that reduce repetitive manual work.',
+        },
+        4: {
+            1: 'Spot practical quick wins that can be started with limited time, money, or technical skill.',
+            2: 'Prioritise improvement ideas by comparing effort, impact, and business urgency.',
+            3: 'Plan safe first steps that reduce risk while building confidence.',
+            4: 'Avoid common early mistakes when choosing tools or changing workflows.',
+            5: 'Select a small number of actions that can create visible progress quickly.',
+        },
+        5: {
+            1: 'Turn the maturity assessment into a focused digital improvement roadmap.',
+            2: 'Set clear goals and simple KPIs that match business priorities.',
+            3: 'Sequence digital actions across the next 90 days in a realistic order.',
+            4: 'Assign ownership and review points so the roadmap stays active.',
+            5: 'Prepare a practical plan that can be shared, reviewed, and improved over time.',
+        },
+    }
+    return objectives.get(module_number, {}).get(
+        unit,
+        'Focus on the key concept, supporting resource, application, case, and evaluation activity for this session.'
+    )
 
 
 def module_nav_for_lessons(db: Session, student_id: int, lessons, current_lesson_id: int):

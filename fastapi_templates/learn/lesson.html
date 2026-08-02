@@ -5,8 +5,8 @@
     <header class="module-hero">
         <div>
             <a class="studio-back" href="/learn/course/{{ lesson.course_id }}"><i class="fas fa-arrow-left"></i> Journey</a>
-            <span class="eyebrow">Module {{ current_module_number }}</span>
             <h1>{{ lesson.title }}</h1>
+            <span class="eyebrow">Module {{ current_module_number }}</span>
             <p>{{ lesson.description or 'Complete this module by studying the session, opening the application/case when available, and passing the AI self-evaluation.' }}</p>
         </div>
         <aside class="module-completion">
@@ -26,11 +26,6 @@
     </nav>
 
     <section class="module-board">
-        <div class="module-board-head">
-            <span>Module {{ current_module_number }}</span>
-            <h2>{{ lesson.title }}</h2>
-        </div>
-
         <div class="module-session-list">
             {% for session in module_sessions %}
             <section class="module-session-card session-color-{{ ((loop.index - 1) % 5) + 1 }}" data-session="{{ session.label }}">
@@ -38,7 +33,7 @@
                     <span>{{ session.label }}</span>
                     <div>
                         <h3>Session {{ session.label }}</h3>
-                        <p>Complete the learning item, video, simulation, application, and case for this session.</p>
+                        <p>{{ session.objective }}</p>
                     </div>
                 </div>
                 <div class="session-resource-grid">

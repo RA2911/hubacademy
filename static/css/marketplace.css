@@ -1648,7 +1648,7 @@ a {
     grid-template-columns: minmax(0, 1fr) 190px;
     gap: 24px;
     align-items: end;
-    min-height: 250px;
+    min-height: 280px;
     padding: 34px;
     border-radius: 8px;
     background: linear-gradient(135deg, #101828 0%, var(--module) 100%);
@@ -1656,10 +1656,10 @@ a {
 }
 
 .module-hero h1 {
-    margin: 8px 0 10px;
-    max-width: 900px;
-    font-size: clamp(2rem, 4vw, 4.6rem);
-    line-height: .96;
+    margin: 4px 0 12px;
+    max-width: 980px;
+    font-size: 4.6rem;
+    line-height: 1;
 }
 
 .module-hero p {
@@ -1670,6 +1670,7 @@ a {
 
 .module-hero .eyebrow {
     color: rgba(255, 255, 255, .72);
+    margin: 0 0 10px;
 }
 
 .module-completion {
@@ -1806,8 +1807,10 @@ a {
 }
 
 .module-session-head p {
-    margin: 4px 0 0;
+    max-width: 860px;
+    margin: 6px 0 0;
     color: var(--muted);
+    line-height: 1.5;
 }
 
 .session-color-1 { --session: #047857; --session-soft: #ecfdf5; }
@@ -1952,6 +1955,7 @@ a {
 @media (max-width: 860px) {
     .module-studio {
         padding: 16px;
+        gap: 14px;
     }
 
     .module-hero,
@@ -1961,10 +1965,73 @@ a {
         grid-template-columns: 1fr;
     }
 
+    .module-hero {
+        min-height: auto;
+        padding: 24px;
+        align-items: start;
+    }
+
+    .module-hero h1 {
+        font-size: 2.45rem;
+        line-height: 1.05;
+    }
+
+    .module-completion {
+        max-width: 220px;
+    }
+
     .module-menu {
         top: 0;
         grid-template-columns: repeat(5, minmax(120px, 1fr));
         overflow-x: auto;
+    }
+
+    .module-session-card {
+        padding: 18px;
+    }
+
+    .module-session-head {
+        grid-template-columns: 66px minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .module-session-head span {
+        min-height: 46px;
+        font-size: .88rem;
+    }
+
+    .module-session-head h3 {
+        font-size: 1.22rem;
+    }
+
+    .session-resource-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .module-studio {
+        padding: 10px;
+    }
+
+    .module-hero {
+        padding: 20px;
+    }
+
+    .module-hero h1 {
+        font-size: 2rem;
+    }
+
+    .module-session-card {
+        padding: 16px;
+    }
+
+    .module-session-head {
+        grid-template-columns: 1fr;
+    }
+
+    .module-session-head span {
+        width: 72px;
     }
 }
 
