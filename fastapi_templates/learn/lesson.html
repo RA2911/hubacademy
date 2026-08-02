@@ -1,94 +1,221 @@
 {% extends 'base.html' %}
 {% block title %}{{ lesson.title }} - Hub Academy{% endblock %}
 {% block content %}
-<section class="session-shell" data-lesson-id="{{ lesson.id }}">
+<section class="session-shell lesson-workspace" data-lesson-id="{{ lesson.id }}">
     <header class="session-hero">
         <div>
             <span class="eyebrow">Module {{ lesson_module_number(lesson) }} / Session {{ lesson_session_number(lesson) }}</span>
             <h1>{{ lesson.title }}</h1>
-            <p>{{ lesson.description or 'Complete the three steps in order: learn, practice, then validate.' }}</p>
+            <p>{{ lesson.description or 'Learn, apply, and validate your understanding with AI-supported tools.' }}</p>
         </div>
         <div class="session-status">
             <strong>{{ 'Validated' if progress.is_completed else 'In progress' }}</strong>
-            <span>{{ lesson_duration_minutes(lesson) }} minute session</span>
+            <span>Pass mark {{ quiz_pass_score }}%</span>
         </div>
     </header>
 
-    <div class="session-layout">
-        <main class="session-main">
-            {% for step in steps %}
-            <article class="session-step {% if step.complete %}complete{% elif step.unlocked %}active{% else %}locked{% endif %}" data-step="{{ step.number }}">
-                <div class="step-orbit"><span>{{ step.number }}</span></div>
-                <div class="step-content">
-                    <span class="eyebrow">{{ step.label }}</span>
-                    <h2>{{ step.title }}</h2>
-                    {% if step.number == 1 %}
-                    <p>Study the session material. Watch the video, read the resource, or review the simulation instructions before moving forward.</p>
-                    <div class="material-stack">
-                        {% for material in materials %}
-                        <a class="material-pill" href="/materials/{{ material.id }}/download" target="_blank">
-                            <i class="fas fa-file-lines"></i>
-                            <span>{{ material.file_name or material.video_name or material.material_type }}</span>
-                        </a>
-                        {% else %}
-                        <div class="material-pill muted"><i class="fas fa-circle-info"></i><span>No material added yet. Admin can attach videos, practices, simulations, or documents.</span></div>
-                        {% endfor %}
-                    </div>
-                    {% elif step.number == 2 %}
-                    <p>Apply what you learned. Complete the practice activity, simulation, reflection, or business use-case exercise for this session.</p>
-                    <div class="practice-box">Practice area ready for the next design phase: activity instructions, embedded simulation, worksheet, or scenario.</div>
-                    {% else %}
-                    <p>Validate the session. Confirm that you completed the learning material and practice activity before unlocking the next session.</p>
-                    <div class="practice-box">Evaluation area ready for quiz, checklist, rubric, or AI-reviewed answer.</div>
-                    {% endif %}
-                    <button class="market-btn primary step-complete" type="button" {% if not step.unlocked or step.complete %}disabled{% endif %}>
-                        {% if step.complete %}Completed{% elif step.unlocked %}Complete Step {{ step.number }}{% else %}Locked{% endif %}
-                    </button>
-                </div>
-            </article>
-            {% endfor %}
-        </main>
-        <aside class="session-side">
-            <div class="journey-progress-card">
-                <strong>{{ '3/3' if progress.is_completed else ((1 if progress.content_viewed else 0) + (1 if progress.revise_viewed else 0) + (1 if progress.quiz_completed else 0)) ~ '/3' }}</strong>
-                <span>steps complete</span>
-                <div class="journey-meter"><i style="width: {{ 100 if progress.is_completed else (((1 if progress.content_viewed else 0) + (1 if progress.revise_viewed else 0) + (1 if progress.quiz_completed else 0)) * 33) }}%"></i></div>
-            </div>
-            <nav class="session-nav">
-                <a class="market-btn" href="/learn/course/{{ lesson.course_id }}">Back to Journey</a>
-                {% if previous_lesson %}<a class="market-btn" href="/learn/lesson/{{ previous_lesson.id }}">Previous</a>{% endif %}
-                {% if next_lesson %}
-                <a class="market-btn primary next-session-link {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/lesson/{{ next_lesson.id }}{% else %}#{% endif %}">Next Session</a>
+    <div class="lesson-sections">
+        <section class="lesson-section">
+            <div class="section-title"><span>1</span><div><h2>Learn</h2><p>HTML lessons, videos, and simulations.</p></div></div>
+            <div class="resource-grid">
+                {% for item in grouped_materials.learning %}
+                {% set material = item.material %}
+                <button class="resource-button" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                    <i class="fas {% if material.material_type == 'video' %}fa-circle-play{% elif material.material_type == 'simulation' %}fa-flask{% else %}fa-display{% endif %}"></i>
+                    <strong>{{ item.label }}</strong>
+                    <small>{{ material.file_name or material.video_name or material.material_type }}</small>
+                </button>
                 {% else %}
-                <a class="market-btn primary next-session-link {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/course/{{ lesson.course_id }}{% else %}#{% endif %}">Finish Course</a>
-                {% endif %}
-            </nav>
-        </aside>
+                <div class="empty-resource">No learning resources have been added yet.</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="lesson-section">
+            <div class="section-title"><span>2</span><div><h2>AI Tools & Applications</h2><p>Flashcards, OpenAI audio summary, and toolkit applications.</p></div></div>
+            <div class="ai-tool-row">
+                <button class="market-btn primary" type="button" id="flashcards-btn"><i class="fas fa-layer-group"></i> Flashcards</button>
+                <button class="market-btn primary" type="button" id="audio-btn"><i class="fas fa-headphones"></i> Audio Summary</button>
+            </div>
+            <div id="ai-output" class="ai-output" hidden></div>
+            <div class="resource-grid">
+                {% for item in grouped_materials.ai_tools %}
+                {% set material = item.material %}
+                <button class="resource-button" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                    <i class="fas fa-toolbox"></i>
+                    <strong>{{ item.label }}</strong>
+                    <small>{{ material.file_name or material.video_name or material.material_type }}</small>
+                </button>
+                {% else %}
+                <div class="empty-resource">No applications or toolkits have been added yet.</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="lesson-section">
+            <div class="section-title"><span>3</span><div><h2>Self-Evaluation</h2><p>Generate up to 3 AI quizzes. Results are saved to your dashboard.</p></div></div>
+            <div class="quiz-panel">
+                <div class="quiz-head">
+                    <strong>{{ quiz_attempts_remaining }} quiz attempt{{ '' if quiz_attempts_remaining == 1 else 's' }} remaining</strong>
+                    <button class="market-btn primary" type="button" id="quiz-generate-btn" {% if quiz_attempts_remaining <= 0 %}disabled{% endif %}>Generate AI Quiz</button>
+                </div>
+                <div id="quiz-box"></div>
+                <div class="attempt-list">
+                    {% for attempt in quiz_attempts %}
+                    <article>
+                        <strong>{{ attempt.score }}%</strong>
+                        <span>{{ attempt.attempted_at.strftime('%Y-%m-%d %H:%M') if attempt.attempted_at else '' }}</span>
+                        {% if attempt.feedback %}<p>{{ attempt.feedback }}</p>{% endif %}
+                    </article>
+                    {% else %}
+                    <p class="muted-line">No quiz attempts yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        {% if grouped_materials.support %}
+        <section class="lesson-section">
+            <div class="section-title"><span>+</span><div><h2>Reference Files</h2><p>Syllabus, CLO/CBO, and supporting documents.</p></div></div>
+            <div class="resource-grid">
+                {% for item in grouped_materials.support %}
+                {% set material = item.material %}
+                <button class="resource-button" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                    <i class="fas fa-file-lines"></i>
+                    <strong>{{ item.label }}</strong>
+                    <small>{{ material.file_name or material.video_name or material.material_type }}</small>
+                </button>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
     </div>
+
+    <nav class="session-nav lesson-bottom-nav">
+        <a class="market-btn" href="/learn/course/{{ lesson.course_id }}">Back to Journey</a>
+        {% if previous_lesson %}<a class="market-btn" href="/learn/lesson/{{ previous_lesson.id }}">Previous</a>{% endif %}
+        {% if next_lesson %}
+        <a class="market-btn primary next-session-link {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/lesson/{{ next_lesson.id }}{% else %}#{% endif %}">Next Session</a>
+        {% else %}
+        <a class="market-btn primary next-session-link {% if progress.is_completed %}{% else %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/course/{{ lesson.course_id }}{% else %}#{% endif %}">Finish Course</a>
+        {% endif %}
+    </nav>
 </section>
+
+<div class="resource-modal" id="resource-modal" hidden>
+    <div class="resource-modal-panel">
+        <header>
+            <strong id="resource-modal-title">Resource</strong>
+            <div>
+                <a class="market-btn" id="resource-new-tab" href="#" target="_blank" rel="noopener">New tab</a>
+                <button class="market-btn" type="button" id="resource-close">Close</button>
+            </div>
+        </header>
+        <iframe id="resource-frame" title="Lesson resource"></iframe>
+    </div>
+</div>
 
 <script>
 (function () {
-    const shell = document.querySelector('.session-shell');
-    if (!shell) return;
+    const shell = document.querySelector('.lesson-workspace');
     const lessonId = shell.dataset.lessonId;
-    shell.querySelectorAll('.step-complete').forEach((button) => {
-        button.addEventListener('click', async () => {
-            const step = button.closest('.session-step');
-            const stepNumber = step.dataset.step;
-            button.disabled = true;
-            button.textContent = 'Saving...';
-            try {
-                const response = await fetch(`/learn/lesson/${lessonId}/step/${stepNumber}/complete`, {method: 'POST'});
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Could not save progress');
-                window.location.reload();
-            } catch (error) {
-                button.disabled = false;
-                button.textContent = error.message;
-            }
+    const modal = document.getElementById('resource-modal');
+    const frame = document.getElementById('resource-frame');
+    const modalTitle = document.getElementById('resource-modal-title');
+    const newTab = document.getElementById('resource-new-tab');
+    const close = document.getElementById('resource-close');
+    const output = document.getElementById('ai-output');
+    const quizBox = document.getElementById('quiz-box');
+    let activeQuiz = null;
+
+    document.querySelectorAll('.resource-button').forEach((button) => {
+        button.addEventListener('click', () => {
+            const url = button.dataset.url;
+            modalTitle.textContent = button.dataset.title || 'Resource';
+            frame.src = url;
+            newTab.href = url;
+            modal.hidden = false;
         });
     });
+    close.addEventListener('click', () => {
+        frame.src = 'about:blank';
+        modal.hidden = true;
+    });
+
+    async function postJson(url, payload) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload || {})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Request failed');
+        return data;
+    }
+
+    document.getElementById('flashcards-btn').addEventListener('click', async () => {
+        output.hidden = false;
+        output.innerHTML = '<p>Generating flashcards...</p>';
+        try {
+            const data = await postJson(`/learn/lesson/${lessonId}/ai/flashcards`);
+            output.innerHTML = data.flashcards.map((card) => `<article><strong>${card.question}</strong><p>${card.answer}</p></article>`).join('');
+        } catch (error) {
+            output.innerHTML = `<p>${error.message}</p>`;
+        }
+    });
+
+    document.getElementById('audio-btn').addEventListener('click', async () => {
+        output.hidden = false;
+        output.innerHTML = '<p>Generating audio summary...</p>';
+        try {
+            const response = await fetch(`/learn/lesson/${lessonId}/ai/audio-summary`, {method: 'POST'});
+            if (!response.ok) throw new Error('Could not generate audio summary');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            output.innerHTML = `<audio controls src="${url}"></audio>`;
+        } catch (error) {
+            output.innerHTML = `<p>${error.message}</p>`;
+        }
+    });
+
+    document.getElementById('quiz-generate-btn').addEventListener('click', async (event) => {
+        event.target.disabled = true;
+        quizBox.innerHTML = '<p>Generating quiz...</p>';
+        try {
+            activeQuiz = await postJson(`/learn/lesson/${lessonId}/quiz/generate`);
+            quizBox.innerHTML = `<form id="active-quiz-form">${activeQuiz.questions.map((q, i) => `
+                <fieldset>
+                    <legend>${i + 1}. ${q.question}</legend>
+                    ${q.options.map((option, j) => `<label><input type="radio" name="q${i}" value="${j}" required> ${option}</label>`).join('')}
+                </fieldset>`).join('')}
+                <label class="keep-quiz"><input type="checkbox" id="keep-quiz" checked> Keep this generated quiz after finishing</label>
+                <button class="market-btn primary" type="submit">Submit Quiz</button>
+            </form>`;
+            document.getElementById('active-quiz-form').addEventListener('submit', submitQuiz);
+        } catch (error) {
+            quizBox.innerHTML = `<p>${error.message}</p>`;
+            event.target.disabled = false;
+        }
+    });
+
+    async function submitQuiz(event) {
+        event.preventDefault();
+        const answers = {};
+        activeQuiz.questions.forEach((q, i) => {
+            const selected = event.target.querySelector(`input[name="q${i}"]:checked`);
+            if (selected) answers[i] = Number(selected.value);
+        });
+        quizBox.insertAdjacentHTML('beforeend', '<p>Scoring and generating feedback...</p>');
+        try {
+            const data = await postJson(`/learn/quiz/${activeQuiz.quiz_id}/submit`, {
+                answers,
+                keep_quiz: document.getElementById('keep-quiz').checked
+            });
+            quizBox.innerHTML = `<div class="quiz-result"><strong>Score: ${data.score}%</strong><p>${data.feedback}</p><p>${data.recommendations}</p></div>`;
+        } catch (error) {
+            quizBox.innerHTML = `<p>${error.message}</p>`;
+        }
+    }
 })();
 </script>
 {% endblock %}

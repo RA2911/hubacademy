@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import os
 import posixpath
@@ -20,7 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import fastapi_config as cfg
 from fastapi_auth import admin_from_request, hash_password, username_from_email, verify_password
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
-                        PasswordResetToken, Program, Purchase, Settings, Student, db_session as next_db_session,
+                        PasswordResetToken, Program, Purchase, Quiz, QuizAttempt, Settings, Student, db_session as next_db_session,
                         ensure_schema, get_db)
 from fastapi_storage import (guess_content_type, list_objects, object_bytes, object_key, package_object_key,
                              presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
@@ -32,6 +33,8 @@ SESSIONS_PER_MODULE = 5
 SESSION_DURATION_MINUTES = 60
 MASTER_CERTIFICATE_LEVEL = 4
 PASSWORD_RESET_TOKEN_MINUTES = 60
+MAX_LESSON_QUIZ_ATTEMPTS = 3
+QUIZ_PASS_SCORE = 60
 
 MATERIAL_TYPE_OPTIONS = [
     ('slide', 'Slides / PPT / PDF'),
@@ -135,6 +138,157 @@ def lesson_session_number(lesson):
 
 def lesson_duration_minutes(lesson):
     return lesson.duration_minutes or SESSION_DURATION_MINUTES
+
+
+def material_display_label(material, index):
+    material_type = material.material_type or 'other'
+    if material_type in ('html', 'slide'):
+        return f'Session {index}'
+    if material_type == 'video':
+        return f'Video {index}'
+    if material_type == 'simulation':
+        return f'Simulation {index}'
+    if material_type in ('toolkit', 'toolkit_asset'):
+        return f'Application {index}'
+    if material_type in ('case_application', 'case_study'):
+        return f'Case {index}'
+    if material_type == 'syllabus':
+        return 'Syllabus'
+    if material_type == 'clo':
+        return 'CLO / CBO'
+    return f'Material {index}'
+
+
+def group_lesson_materials(materials):
+    groups = {
+        'learning': [],
+        'ai_tools': [],
+        'support': [],
+    }
+    counts = {}
+    for material in materials:
+        material_type = material.material_type or 'other'
+        counts[material_type] = counts.get(material_type, 0) + 1
+        item = {
+            'material': material,
+            'label': material_display_label(material, counts[material_type]),
+        }
+        if material_type in ('html', 'slide', 'video', 'simulation'):
+            groups['learning'].append(item)
+        elif material_type in ('toolkit', 'toolkit_asset', 'case_application', 'case_study'):
+            groups['ai_tools'].append(item)
+        else:
+            groups['support'].append(item)
+    return groups
+
+
+def lesson_context_text(lesson, materials):
+    course = lesson.course
+    material_lines = [
+        f"- {m.material_type}: {m.file_name or m.video_name or m.object_key or m.video_url}"
+        for m in materials[:40]
+    ]
+    return "\n".join([
+        f"Course: {course.title if course else ''}",
+        f"Lesson: {lesson.title}",
+        f"Description: {lesson.description or ''}",
+        "Available materials:",
+        "\n".join(material_lines),
+    ])
+
+
+def openai_client():
+    if not cfg.OPENAI_API_KEY:
+        raise RuntimeError('OpenAI API key is not configured.')
+    from openai import OpenAI
+    return OpenAI(api_key=cfg.OPENAI_API_KEY, timeout=45, max_retries=1)
+
+
+def parse_json_response(text, fallback):
+    cleaned = (text or '').strip()
+    if cleaned.startswith('```json'):
+        cleaned = cleaned[7:]
+    if cleaned.startswith('```'):
+        cleaned = cleaned[3:]
+    if cleaned.endswith('```'):
+        cleaned = cleaned[:-3]
+    try:
+        return json.loads(cleaned.strip())
+    except Exception:
+        return fallback
+
+
+def ai_generate_quiz_questions(lesson, materials, previous_questions):
+    prompt = f"""Create exactly 5 multiple-choice questions for this lesson.
+
+The questions must be scenario-based, non-obvious, and specific to this lesson. Avoid generic definitions and avoid questions about file names or course structure.
+
+Lesson context:
+{lesson_context_text(lesson, materials)}
+
+Previous questions to avoid repeating:
+{json.dumps(previous_questions[-30:], ensure_ascii=False)}
+
+Return only valid JSON:
+[
+  {{
+    "question": "question text",
+    "options": ["A", "B", "C", "D"],
+    "correct_answer": 0,
+    "explanation": "short explanation"
+  }}
+]"""
+    response = openai_client().chat.completions.create(
+        model=cfg.OPENAI_MODEL,
+        messages=[{'role': 'user', 'content': prompt}],
+        max_tokens=1800,
+        temperature=0.9,
+    )
+    data = parse_json_response(response.choices[0].message.content, [])
+    return data[:5] if isinstance(data, list) else []
+
+
+def ai_generate_feedback(lesson, score, questions, answers):
+    prompt = f"""A student completed a quiz for this lesson.
+
+Lesson: {lesson.title}
+Score: {score}%
+Questions and correct answers:
+{json.dumps(questions, ensure_ascii=False)}
+Student answers by question index:
+{json.dumps(answers, ensure_ascii=False)}
+
+Return only valid JSON:
+{{
+  "feedback": "specific feedback on strengths and mistakes",
+  "recommendations": "specific next steps to improve"
+}}"""
+    response = openai_client().chat.completions.create(
+        model=cfg.OPENAI_MODEL,
+        messages=[{'role': 'user', 'content': prompt}],
+        max_tokens=700,
+        temperature=0.5,
+    )
+    data = parse_json_response(response.choices[0].message.content, {})
+    return {
+        'feedback': data.get('feedback') or 'Quiz completed. Review the explanations and retry with stronger focus on weak areas.',
+        'recommendations': data.get('recommendations') or 'Review the lesson materials and applications before the next attempt.',
+    }
+
+
+def course_quiz_stats(db: Session, student_id: int, course_id: int):
+    attempts = db.query(QuizAttempt).join(Quiz, QuizAttempt.quiz_id == Quiz.id).join(
+        Lesson, Quiz.lesson_id == Lesson.id
+    ).filter(QuizAttempt.student_id == student_id, Lesson.course_id == course_id).all()
+    if not attempts:
+        return {'attempts': 0, 'average': 0, 'best': 0}
+    scores = [attempt.score for attempt in attempts]
+    return {'attempts': len(scores), 'average': int(sum(scores) / len(scores)), 'best': max(scores)}
+
+
+def course_quiz_average_passed(db: Session, student_id: int, course_id: int):
+    stats = course_quiz_stats(db, student_id, course_id)
+    return stats['attempts'] > 0 and stats['average'] >= QUIZ_PASS_SCORE
 
 
 def certificate_badge(course):
@@ -377,7 +531,7 @@ def course_is_completed(db: Session, student_id: int, course: Course):
         LessonProgress.lesson_id.in_(lesson_ids),
         LessonProgress.is_completed.is_(True),
     ).count()
-    return completed == len(lesson_ids)
+    return completed == len(lesson_ids) and course_quiz_average_passed(db, student_id, course.id)
 
 
 def certificate_title(expertise_area: str, certificate_level: int):
@@ -737,7 +891,13 @@ def learner_dashboard(request: Request, db: Session = Depends(get_db)):
             Lesson.course_id == enrollment.course_id,
             LessonProgress.is_completed.is_(True)
         ).count()
-        cards.append({'enrollment': enrollment, 'total': total, 'done': done, 'pct': int(done / total * 100) if total else 0})
+        cards.append({
+            'enrollment': enrollment,
+            'total': total,
+            'done': done,
+            'pct': int(done / total * 100) if total else 0,
+            'quiz': course_quiz_stats(db, student.id, enrollment.course_id),
+        })
     return template(request, 'learn/dashboard.html', db, {'student': student, 'cards': cards, 'certificates': certificates})
 
 
@@ -773,6 +933,11 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
     progress.last_accessed_at = datetime.utcnow()
     db.commit()
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
+    grouped_materials = group_lesson_materials(materials)
+    quiz_attempts = db.query(QuizAttempt).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(
+        QuizAttempt.student_id == student.id,
+        Quiz.lesson_id == lesson.id,
+    ).order_by(QuizAttempt.attempted_at.desc()).all()
     lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
     previous_lesson = next_lesson = None
     for index, item in enumerate(lessons):
@@ -788,11 +953,173 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
         'student': student,
         'lesson': lesson,
         'materials': materials,
+        'grouped_materials': grouped_materials,
         'progress': progress,
         'steps': steps,
+        'quiz_attempts': quiz_attempts,
+        'quiz_attempts_remaining': max(0, MAX_LESSON_QUIZ_ATTEMPTS - len(quiz_attempts)),
+        'quiz_pass_score': QUIZ_PASS_SCORE,
         'previous_lesson': previous_lesson,
         'next_lesson': next_lesson,
     })
+
+
+@app.post('/learn/lesson/{lesson_id}/ai/flashcards')
+def learner_flashcards(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not student or not lesson or not db.query(Enrollment).filter_by(student_id=student.id, course_id=lesson.course_id, is_active=True).first():
+        return JSONResponse({'error': 'Not allowed'}, status_code=403)
+    materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
+    prompt = f"""Create 8 concise flashcards for this lesson. Make them useful for recall and application.
+
+{lesson_context_text(lesson, materials)}
+
+Return only JSON:
+[{{"question":"...", "answer":"..."}}]"""
+    try:
+        response = openai_client().chat.completions.create(
+            model=cfg.OPENAI_MODEL,
+            messages=[{'role': 'user', 'content': prompt}],
+            max_tokens=1200,
+            temperature=0.7,
+        )
+        cards = parse_json_response(response.choices[0].message.content, [])
+        return {'ok': True, 'flashcards': cards[:8] if isinstance(cards, list) else []}
+    except Exception as exc:
+        logger.exception('Flashcard generation failed: %s', exc)
+        return JSONResponse({'error': 'Could not generate flashcards.'}, status_code=502)
+
+
+@app.post('/learn/lesson/{lesson_id}/ai/audio-summary')
+def learner_audio_summary(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not student or not lesson or not db.query(Enrollment).filter_by(student_id=student.id, course_id=lesson.course_id, is_active=True).first():
+        return JSONResponse({'error': 'Not allowed'}, status_code=403)
+    materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
+    prompt = f"""Write a professional spoken audio summary for this lesson. Keep it under 350 words, practical, and specific.
+
+{lesson_context_text(lesson, materials)}"""
+    try:
+        client = openai_client()
+        script_response = client.chat.completions.create(
+            model=cfg.OPENAI_MODEL,
+            messages=[{'role': 'user', 'content': prompt}],
+            max_tokens=800,
+            temperature=0.6,
+        )
+        speech = client.audio.speech.create(
+            model=cfg.OPENAI_AUDIO_MODEL,
+            voice=cfg.OPENAI_VOICE,
+            input=script_response.choices[0].message.content,
+        )
+        return Response(content=speech.content, media_type='audio/mpeg')
+    except Exception as exc:
+        logger.exception('Audio summary generation failed: %s', exc)
+        return JSONResponse({'error': 'Could not generate audio summary.'}, status_code=502)
+
+
+@app.post('/learn/lesson/{lesson_id}/quiz/generate')
+def learner_generate_quiz(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not student or not lesson or not db.query(Enrollment).filter_by(student_id=student.id, course_id=lesson.course_id, is_active=True).first():
+        return JSONResponse({'error': 'Not allowed'}, status_code=403)
+    attempt_count = db.query(QuizAttempt).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(
+        QuizAttempt.student_id == student.id,
+        Quiz.lesson_id == lesson.id,
+    ).count()
+    if attempt_count >= MAX_LESSON_QUIZ_ATTEMPTS:
+        return JSONResponse({'error': 'Maximum 3 quiz attempts reached for this lesson.'}, status_code=400)
+    materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
+    previous_questions = []
+    previous_quizzes = db.query(Quiz).filter_by(lesson_id=lesson.id, is_ai_generated=True).order_by(Quiz.created_at.desc()).limit(10).all()
+    for quiz in previous_quizzes:
+        for question in parse_json_response(quiz.questions_json, []):
+            if isinstance(question, dict):
+                previous_questions.append(question.get('question', ''))
+    try:
+        questions = ai_generate_quiz_questions(lesson, materials, previous_questions)
+        if not questions:
+            return JSONResponse({'error': 'Could not generate quiz questions.'}, status_code=502)
+        quiz = Quiz(
+            lesson_id=lesson.id,
+            title=f'AI Quiz - {lesson.title}',
+            questions_json=json.dumps(questions, ensure_ascii=False),
+            is_ai_generated=True,
+            language='en',
+        )
+        db.add(quiz)
+        db.commit()
+        db.refresh(quiz)
+        public_questions = [{**q, 'correct_answer': None, 'explanation': None} for q in questions]
+        return {'ok': True, 'quiz_id': quiz.id, 'questions': public_questions, 'attempts_remaining': MAX_LESSON_QUIZ_ATTEMPTS - attempt_count}
+    except Exception as exc:
+        logger.exception('Quiz generation failed: %s', exc)
+        return JSONResponse({'error': 'Could not generate quiz.'}, status_code=502)
+
+
+@app.post('/learn/quiz/{quiz_id}/submit')
+async def learner_submit_quiz(quiz_id: int, request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    quiz = db.get(Quiz, quiz_id)
+    if not student or not quiz or not quiz.lesson:
+        return JSONResponse({'error': 'Not allowed'}, status_code=403)
+    if not db.query(Enrollment).filter_by(student_id=student.id, course_id=quiz.lesson.course_id, is_active=True).first():
+        return JSONResponse({'error': 'Not allowed'}, status_code=403)
+    data = await request.json()
+    answers = data.get('answers') or {}
+    keep_quiz = bool(data.get('keep_quiz', True))
+    questions = parse_json_response(quiz.questions_json, [])
+    total = len(questions) or 1
+    correct = 0
+    for index, question in enumerate(questions):
+        expected = int(question.get('correct_answer', -1))
+        try:
+            actual = int(answers.get(str(index), answers.get(index, -999)))
+        except Exception:
+            actual = -999
+        if actual == expected:
+            correct += 1
+    score = int(round(correct / total * 100))
+    try:
+        ai_feedback = ai_generate_feedback(quiz.lesson, score, questions, answers)
+    except Exception as exc:
+        logger.exception('Quiz feedback failed: %s', exc)
+        ai_feedback = {'feedback': 'Quiz completed. Review the explanations for missed questions.', 'recommendations': 'Review the lesson and try another quiz attempt if available.'}
+    attempt = QuizAttempt(
+        student_id=student.id,
+        quiz_id=quiz.id,
+        score=score,
+        answers_json=json.dumps(answers, ensure_ascii=False),
+        questions_snapshot_json=json.dumps(questions, ensure_ascii=False),
+        feedback=ai_feedback['feedback'],
+        recommendations=ai_feedback['recommendations'],
+    )
+    db.add(attempt)
+    progress = db.query(LessonProgress).filter_by(student_id=student.id, lesson_id=quiz.lesson_id).first()
+    if not progress:
+        progress = LessonProgress(student_id=student.id, lesson_id=quiz.lesson_id, started_at=datetime.utcnow())
+        db.add(progress)
+    progress.quiz_completed = score >= QUIZ_PASS_SCORE
+    if score >= QUIZ_PASS_SCORE:
+        progress.content_viewed = True
+        progress.revise_viewed = True
+        progress.is_completed = True
+        progress.completed_at = progress.completed_at or datetime.utcnow()
+        evaluate_certificates(db, student.id, quiz.lesson.course)
+    if not keep_quiz:
+        quiz.title = f'Discarded quiz - {quiz.lesson.title}'
+    db.commit()
+    return {
+        'ok': True,
+        'score': score,
+        'passed': score >= QUIZ_PASS_SCORE,
+        'feedback': ai_feedback['feedback'],
+        'recommendations': ai_feedback['recommendations'],
+        'questions': questions,
+    }
 
 
 @app.post('/learn/lesson/{lesson_id}/step/{step_number}/complete')

@@ -211,6 +211,9 @@ class QuizAttempt(Base):
     quiz_id = Column(Integer, ForeignKey('quizzes.id'), nullable=False, index=True)
     score = Column(Integer, nullable=False)
     answers_json = Column(Text)
+    questions_snapshot_json = Column(Text)
+    feedback = Column(Text)
+    recommendations = Column(Text)
     attempted_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -302,6 +305,12 @@ LESSON_COLUMNS = {
     'duration_minutes': "INTEGER DEFAULT 60",
 }
 
+QUIZ_ATTEMPT_COLUMNS = {
+    'questions_snapshot_json': "TEXT",
+    'feedback': "TEXT",
+    'recommendations': "TEXT",
+}
+
 
 def ensure_schema():
     Base.metadata.create_all(bind=engine)
@@ -325,3 +334,9 @@ def ensure_schema():
             for name, ddl in LESSON_COLUMNS.items():
                 if name not in existing_lesson:
                     conn.execute(text(f"ALTER TABLE lessons ADD COLUMN {name} {ddl}"))
+    if 'quiz_attempts' in inspector.get_table_names():
+        existing_attempt = {column['name'] for column in inspector.get_columns('quiz_attempts')}
+        with engine.begin() as conn:
+            for name, ddl in QUIZ_ATTEMPT_COLUMNS.items():
+                if name not in existing_attempt:
+                    conn.execute(text(f"ALTER TABLE quiz_attempts ADD COLUMN {name} {ddl}"))

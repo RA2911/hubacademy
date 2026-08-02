@@ -5,7 +5,20 @@
     <div class="band-head"><div><span class="eyebrow">My Learning</span><h2>Welcome, {{ student.full_name }}</h2></div><a class="market-btn primary" href="/courses">Browse More</a></div>
     <div class="course-grid premium-grid">
     {% for card in cards %}
-    <article class="course-card"><div class="course-card-body"><div class="course-meta"><span>{{ card.pct }}% complete</span><span>{{ card.done }}/{{ card.total }} lessons</span></div><h3>{{ card.enrollment.course.title }}</h3><a class="market-btn primary" href="/learn/course/{{ card.enrollment.course.id }}">Continue</a></div></article>
+    <article class="course-card">
+        <div class="course-card-body">
+            <div class="course-meta"><span>{{ card.pct }}% complete</span><span>{{ card.done }}/{{ card.total }} lessons</span></div>
+            <h3>{{ card.enrollment.course.title }}</h3>
+            <div class="dashboard-progress">
+                <div><strong>{{ card.quiz.average }}%</strong><span>Quiz average</span></div>
+                <div><strong>{{ card.quiz.best }}%</strong><span>Best score</span></div>
+                <div><strong>{{ card.quiz.attempts }}</strong><span>Attempts</span></div>
+            </div>
+            <div class="journey-meter"><i style="width: {{ card.pct }}%"></i></div>
+            <p class="certificate-status">{{ 'Certificate score reached' if card.quiz.average >= 60 else 'Certificate requires 60% quiz average' }}</p>
+            <a class="market-btn primary" href="/learn/course/{{ card.enrollment.course.id }}">Continue</a>
+        </div>
+    </article>
     {% else %}
     <div class="empty-cinema"><h3>No courses yet.</h3><p>Buy or enroll in a course to start learning.</p><a class="market-btn primary" href="/courses">Browse Courses</a></div>
     {% endfor %}
