@@ -75,6 +75,17 @@ def object_bytes(key):
     return response['Body'].read()
 
 
+def list_objects(prefix):
+    client = r2_client()
+    paginator = client.get_paginator('list_objects_v2')
+    for page in paginator.paginate(Bucket=cfg.R2_BUCKET, Prefix=prefix):
+        for item in page.get('Contents', []):
+            yield {
+                'key': item.get('Key', ''),
+                'size': int(item.get('Size') or 0),
+            }
+
+
 def upload_fileobj(key, fileobj, content_type):
     client = r2_client()
     client.upload_fileobj(

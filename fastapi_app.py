@@ -22,7 +22,7 @@ from fastapi_auth import admin_from_request, hash_password, username_from_email,
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
                         PasswordResetToken, Program, Purchase, Settings, Student, db_session as next_db_session,
                         ensure_schema, get_db)
-from fastapi_storage import (guess_content_type, object_bytes, object_key, package_object_key,
+from fastapi_storage import (guess_content_type, list_objects, object_bytes, object_key, package_object_key,
                              presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
 
 
@@ -38,6 +38,7 @@ MATERIAL_TYPE_OPTIONS = [
     ('html', 'HTML lessons / interactive slides'),
     ('video', 'Videos'),
     ('case_application', 'Case applications'),
+    ('case_study', 'Case studies'),
     ('toolkit', 'Toolkits'),
     ('toolkit_asset', 'Toolkit Excel/assets'),
     ('simulation', 'Simulations'),
@@ -46,6 +47,7 @@ MATERIAL_TYPE_OPTIONS = [
     ('article', 'Articles / readings'),
     ('other', 'Other material'),
 ]
+MATERIAL_TYPE_KEYS = {key for key, _label in MATERIAL_TYPE_OPTIONS}
 
 EXPERTISE_AREAS = [
     {'name': 'AI Agents & Generative AI', 'slug': 'ai-agents-generative-ai'},
@@ -302,6 +304,26 @@ def html_material(material: LessonMaterial) -> bool:
     name = (material.file_name or '').lower()
     content_type = (material.content_type or '').lower()
     return name.endswith(('.html', '.htm')) or content_type.startswith('text/html')
+
+
+def uploaded_file_size(fileobj) -> int:
+    try:
+        current = fileobj.tell()
+        fileobj.seek(0, os.SEEK_END)
+        size = fileobj.tell()
+        fileobj.seek(current)
+        return int(size)
+    except Exception:
+        return 0
+
+
+def infer_material_type_from_key(key: str) -> str:
+    parts = key.split('/')
+    if len(parts) >= 3 and parts[0] == 'lessons':
+        candidate = parts[2]
+        if candidate in MATERIAL_TYPE_KEYS:
+            return candidate
+    return 'other'
 
 
 def token_hash(token: str) -> str:
@@ -1087,32 +1109,30 @@ async def admin_upload_material_to_r2(lesson_id: int, request: Request, material
         key = package_object_key(clean_relative_path, lesson_id=lesson_id, material_type=clean_type, package_id=package_id)
     else:
         key = object_key(filename, lesson_id=lesson_id, material_type=clean_type)
+    size_bytes = uploaded_file_size(file.file)
 
     try:
         file.file.seek(0)
         upload_fileobj(key, file.file, content_type)
-        size_bytes = file.file.tell()
     except Exception as exc:
         logger.exception('R2 material upload failed: %s', exc)
-        return JSONResponse({'error': 'R2 upload failed. Check R2 credentials and bucket permissions.'}, status_code=502)
+        return JSONResponse({'error': 'R2 upload failed before metadata was saved. Check R2 credentials, bucket permissions, and file size.'}, status_code=502)
     finally:
         await file.close()
 
-    max_order = db.query(func.max(LessonMaterial.upload_order)).filter_by(lesson_id=lesson_id).scalar() or 0
-    material = LessonMaterial(
-        lesson_id=lesson_id,
-        material_type=clean_type,
-        file_name=filename,
-        file_path=key,
-        object_key=key,
-        content_type=content_type,
-        size_bytes=size_bytes,
-        storage_provider='r2',
-        upload_order=max_order + 1,
-    )
-    db.add(material)
-    db.commit()
-    db.refresh(material)
+    try:
+        material = save_r2_material_metadata(db, lesson_id, clean_type, filename, key, content_type, size_bytes)
+    except Exception as exc:
+        db.rollback()
+        logger.exception('R2 metadata save failed after upload: %s', exc)
+        return JSONResponse({
+            'error': 'File reached R2, but the database record was not saved. Use Register uploaded file to repair it.',
+            'object_key': key,
+            'file_name': filename,
+            'material_type': clean_type,
+            'content_type': content_type,
+            'size_bytes': size_bytes,
+        }, status_code=500)
     return {
         'ok': True,
         'material_id': material.id,
@@ -1121,6 +1141,92 @@ async def admin_upload_material_to_r2(lesson_id: int, request: Request, material
         'object_key': material.object_key,
         'size_bytes': material.size_bytes,
     }
+
+
+def save_r2_material_metadata(db: Session, lesson_id: int, material_type: str, file_name: str, object_key_value: str,
+                              content_type: str = '', size_bytes: int = 0) -> LessonMaterial:
+    existing = db.query(LessonMaterial).filter_by(lesson_id=lesson_id, object_key=object_key_value).first()
+    if existing:
+        existing.material_type = material_type
+        existing.file_name = file_name or existing.file_name
+        existing.file_path = object_key_value
+        existing.content_type = content_type or existing.content_type
+        existing.size_bytes = size_bytes or existing.size_bytes
+        existing.storage_provider = 'r2'
+        db.commit()
+        db.refresh(existing)
+        return existing
+    max_order = db.query(func.max(LessonMaterial.upload_order)).filter_by(lesson_id=lesson_id).scalar() or 0
+    material = LessonMaterial(
+        lesson_id=lesson_id,
+        material_type=material_type,
+        file_name=file_name,
+        file_path=object_key_value,
+        object_key=object_key_value,
+        content_type=content_type,
+        size_bytes=size_bytes,
+        storage_provider='r2',
+        upload_order=max_order + 1,
+    )
+    db.add(material)
+    db.commit()
+    db.refresh(material)
+    return material
+
+
+@app.post('/admin/lessons/{lesson_id}/materials/register')
+async def admin_register_uploaded_material(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    if not db.get(Lesson, lesson_id):
+        raise HTTPException(status_code=404)
+    data = await request.json()
+    object_key_value = (data.get('object_key') or '').strip()
+    if not object_key_value:
+        return JSONResponse({'error': 'object_key is required'}, status_code=400)
+    file_name = (data.get('file_name') or posixpath.basename(object_key_value)).strip()
+    material_type = (data.get('material_type') or 'other').strip() or 'other'
+    content_type = (data.get('content_type') or guess_content_type(file_name)).strip()
+    size_bytes = int(data.get('size_bytes') or 0)
+    material = save_r2_material_metadata(db, lesson_id, material_type, file_name, object_key_value, content_type, size_bytes)
+    return {'ok': True, 'material_id': material.id}
+
+
+@app.post('/admin/lessons/{lesson_id}/materials/sync-r2')
+def admin_sync_lesson_r2_materials(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    if not db.get(Lesson, lesson_id):
+        raise HTTPException(status_code=404)
+    if not r2_enabled():
+        return JSONResponse({'error': 'Cloudflare R2 is not configured.'}, status_code=400)
+    existing_keys = {
+        row[0] for row in db.query(LessonMaterial.object_key)
+        .filter(LessonMaterial.lesson_id == lesson_id, LessonMaterial.object_key.isnot(None))
+        .all()
+    }
+    created = 0
+    prefix = f'lessons/{lesson_id}/'
+    try:
+        for item in list_objects(prefix):
+            key = item['key']
+            if not key or key.endswith('/') or key in existing_keys:
+                continue
+            file_name = posixpath.basename(key)
+            material_type = infer_material_type_from_key(key)
+            save_r2_material_metadata(
+                db,
+                lesson_id,
+                material_type,
+                file_name,
+                key,
+                guess_content_type(file_name),
+                item.get('size') or 0,
+            )
+            existing_keys.add(key)
+            created += 1
+    except Exception as exc:
+        logger.exception('R2 material sync failed: %s', exc)
+        return JSONResponse({'error': 'Could not list lesson files in R2. Check R2 credentials and bucket permissions.'}, status_code=502)
+    return RedirectResponse(f'/admin/lessons/{lesson_id}/materials?synced={created}', status_code=303)
 
 
 @app.post('/admin/lessons/{lesson_id}/materials/complete')

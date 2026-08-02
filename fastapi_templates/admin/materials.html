@@ -8,8 +8,16 @@
                 <span class="eyebrow">R2 Uploads</span>
                 <h2>Course Material Manager</h2>
             </div>
-            <span class="status-pill {{ 'ok' if r2_ready else 'bad' }}">{{ 'R2 ready' if r2_ready else 'R2 not configured' }}</span>
+            <div class="admin-inline-actions">
+                <form method="POST" action="/admin/lessons/{{ lesson.id }}/materials/sync-r2">
+                    <button class="market-btn" type="submit" {% if not r2_ready %}disabled{% endif %}>Sync missing R2 files</button>
+                </form>
+                <span class="status-pill {{ 'ok' if r2_ready else 'bad' }}">{{ 'R2 ready' if r2_ready else 'R2 not configured' }}</span>
+            </div>
         </div>
+        {% if request.query_params.get('synced') %}
+        <p class="sync-result">{{ request.query_params.get('synced') }} R2 files registered in this lesson.</p>
+        {% endif %}
 
         <div class="upload-type-grid">
             {% for type_key, type_label in material_type_options %}
