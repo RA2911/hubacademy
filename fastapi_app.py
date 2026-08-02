@@ -199,6 +199,60 @@ def group_lesson_materials(materials):
     return groups
 
 
+def module_material_groups(materials, module_number):
+    groups = {
+        'sessions': [],
+        'videos': [],
+        'simulations': [],
+        'applications': [],
+        'cases': [],
+        'references': [],
+    }
+    counters = {key: 0 for key in groups}
+    for material in materials:
+        material_type = material.material_type or 'other'
+        if material_type == 'toolkit_asset':
+            continue
+        if material_type in ('html', 'slide'):
+            group = 'sessions'
+            label = f'Session {module_number}'
+        elif material_type == 'video':
+            group = 'videos'
+            label = f'Video {module_number}'
+        elif material_type == 'simulation':
+            group = 'simulations'
+            label = f'Simulation {module_number}'
+        elif material_type == 'toolkit' and html_material(material):
+            group = 'applications'
+            label = f'Application {module_number}'
+        elif material_type in ('case_application', 'case_study'):
+            group = 'cases'
+            label = f'Case {module_number}'
+        else:
+            group = 'references'
+            counters[group] += 1
+            label = material_display_label(material, counters[group])
+        groups[group].append({'material': material, 'label': label})
+    return groups
+
+
+def module_nav_for_lessons(db: Session, student_id: int, lessons, current_lesson_id: int):
+    items = []
+    previous_progress = None
+    for index, item in enumerate(lessons, start=1):
+        progress = db.query(LessonProgress).filter_by(student_id=student_id, lesson_id=item.id).first()
+        unlocked = index == 1 or session_unlocked(previous_progress)
+        items.append({
+            'lesson': item,
+            'number': index,
+            'active': item.id == current_lesson_id,
+            'unlocked': unlocked,
+            'completed': bool(progress and progress.is_completed),
+        })
+        previous_progress = progress
+    return items
+
+
 def lesson_context_text(lesson, materials):
     course = lesson.course
     material_lines = [
@@ -950,12 +1004,15 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
     progress.last_accessed_at = datetime.utcnow()
     db.commit()
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
+    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
     grouped_materials = group_lesson_materials(materials)
+    current_module_number = next((index for index, item in enumerate(lessons, start=1) if item.id == lesson.id), lesson_session_number(lesson))
+    module_groups = module_material_groups(materials, current_module_number)
+    module_nav = module_nav_for_lessons(db, student.id, lessons, lesson.id)
     quiz_attempts = db.query(QuizAttempt).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(
         QuizAttempt.student_id == student.id,
         Quiz.lesson_id == lesson.id,
     ).order_by(QuizAttempt.attempted_at.desc()).all()
-    lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
     previous_lesson = next_lesson = None
     for index, item in enumerate(lessons):
         if item.id == lesson.id:
@@ -971,6 +1028,9 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
         'lesson': lesson,
         'materials': materials,
         'grouped_materials': grouped_materials,
+        'module_groups': module_groups,
+        'module_nav': module_nav,
+        'current_module_number': current_module_number,
         'progress': progress,
         'steps': steps,
         'quiz_attempts': quiz_attempts,
@@ -1161,9 +1221,7 @@ def learner_complete_step(lesson_id: int, step_number: int, request: Request, db
             return JSONResponse({'error': 'Complete step 1 first'}, status_code=400)
         progress.revise_viewed = True
     elif step_number == 3:
-        if not progress.content_viewed or not progress.revise_viewed:
-            return JSONResponse({'error': 'Complete previous steps first'}, status_code=400)
-        progress.quiz_completed = True
+        return JSONResponse({'error': 'Complete the AI quiz with at least 60% to finish this module.'}, status_code=400)
     else:
         return JSONResponse({'error': 'Invalid step'}, status_code=400)
     if progress.content_viewed and progress.revise_viewed and progress.quiz_completed:

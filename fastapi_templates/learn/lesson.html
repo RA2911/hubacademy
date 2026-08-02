@@ -1,144 +1,163 @@
 {% extends 'base.html' %}
-{% block title %}{{ lesson.title }} - Hub Academy{% endblock %}
+{% block title %}Module {{ current_module_number }} - {{ lesson.title }}{% endblock %}
 {% block content %}
-<main class="learning-studio lesson-workspace" data-lesson-id="{{ lesson.id }}">
-    <header class="studio-header">
+<main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
+    <header class="module-hero">
         <div>
             <a class="studio-back" href="/learn/course/{{ lesson.course_id }}"><i class="fas fa-arrow-left"></i> Journey</a>
-            <span class="eyebrow">Module {{ lesson_module_number(lesson) }} / Session {{ lesson_session_number(lesson) }}</span>
+            <span class="eyebrow">Module {{ current_module_number }}</span>
             <h1>{{ lesson.title }}</h1>
-            <p>{{ lesson.description or 'Study the resources, apply the tools, then validate your understanding.' }}</p>
+            <p>{{ lesson.description or 'Complete this module by studying the session, opening the application/case when available, and passing the AI self-evaluation.' }}</p>
         </div>
-        <aside class="studio-score">
-            <span>{{ 'Validated' if progress.is_completed else 'In progress' }}</span>
+        <aside class="module-completion">
+            <span>{{ 'Completed' if progress.is_completed else 'Locked by quiz' }}</span>
             <strong>{{ quiz_pass_score }}%</strong>
-            <small>quiz pass mark</small>
+            <small>minimum quiz score</small>
         </aside>
     </header>
 
-    <nav class="studio-tabs" aria-label="Lesson sections">
-        <a href="#learning">Learning</a>
-        <a href="#ai-tools">AI Tools</a>
-        <a href="#self-evaluation">Self-Evaluation</a>
+    <nav class="module-menu" aria-label="Course modules">
+        {% for item in module_nav %}
+        <a class="{% if item.active %}active{% elif item.completed %}done{% elif not item.unlocked %}locked{% endif %}" href="{% if item.unlocked %}/learn/lesson/{{ item.lesson.id }}{% else %}#{% endif %}">
+            <span>Module {{ item.number }}</span>
+            <small>{% if item.completed %}Completed{% elif item.active %}Current{% elif item.unlocked %}Open{% else %}Locked{% endif %}</small>
+        </a>
+        {% endfor %}
     </nav>
 
-    <section class="studio-zone learning-zone" id="learning">
-        <div class="zone-head">
-            <span class="zone-index">01</span>
-            <div>
-                <h2>Learning</h2>
-                <p>Open HTML sessions, videos, and simulations in the lesson viewer.</p>
-            </div>
+    <section class="module-board">
+        <div class="module-board-head">
+            <span>Module {{ current_module_number }}</span>
+            <h2>{{ lesson.title }}</h2>
         </div>
-        <div class="launch-grid">
-            {% for item in grouped_materials.learning %}
-            {% set material = item.material %}
-            <button class="launch-card" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                <span class="launch-icon"><i class="fas {% if material.material_type == 'video' %}fa-play{% elif material.material_type == 'simulation' %}fa-vial{% else %}fa-desktop{% endif %}"></i></span>
-                <span class="launch-kicker">{{ material.material_type|replace('_', ' ') }}</span>
-                <strong>{{ item.label }}</strong>
-                <small>{{ material.file_name or material.video_name or material.material_type }}</small>
-            </button>
-            {% else %}
-            <div class="studio-empty">No learning resources added yet.</div>
-            {% endfor %}
-        </div>
-    </section>
 
-    <section class="studio-zone tools-zone" id="ai-tools">
-        <div class="zone-head">
-            <span class="zone-index">02</span>
-            <div>
-                <h2>AI Tools & Applications</h2>
-                <p>Generate study aids and open practical applications without leaving the lesson.</p>
-            </div>
-        </div>
-        <div class="tool-console">
-            <button class="tool-command" type="button" id="flashcards-btn">
-                <i class="fas fa-layer-group"></i>
-                <strong>Flashcards</strong>
-                <span>Generate recall cards</span>
-            </button>
-            <button class="tool-command" type="button" id="audio-btn">
-                <i class="fas fa-headphones"></i>
-                <strong>Audio Summary</strong>
-                <span>OpenAI spoken recap</span>
-            </button>
-            <div id="ai-output" class="tool-output" hidden></div>
-        </div>
-        <div class="launch-grid application-grid">
-            {% for item in grouped_materials.ai_tools %}
-            {% set material = item.material %}
-            <button class="launch-card application-card" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                <span class="launch-icon"><i class="fas fa-briefcase"></i></span>
-                <span class="launch-kicker">{{ material.material_type|replace('_', ' ') }}</span>
-                <strong>{{ item.label }}</strong>
-                <small>{{ material.file_name or material.video_name or material.material_type }}</small>
-            </button>
-            {% else %}
-            <div class="studio-empty">No toolkit applications added yet.</div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="studio-zone evaluation-zone" id="self-evaluation">
-        <div class="zone-head">
-            <span class="zone-index">03</span>
-            <div>
-                <h2>Self-Evaluation</h2>
-                <p>Generate up to three AI quizzes. Scores and feedback are saved to your dashboard.</p>
-            </div>
-        </div>
-        <div class="assessment-board">
-            <div class="assessment-actions">
-                <div>
-                    <strong>{{ quiz_attempts_remaining }}</strong>
-                    <span>attempt{{ '' if quiz_attempts_remaining == 1 else 's' }} remaining</span>
+        <div class="module-sections">
+            <section class="module-section session-material">
+                <div class="module-section-head">
+                    <i class="fas fa-desktop"></i>
+                    <div><h3>Session {{ current_module_number }}</h3><p>HTML lesson or presentation.</p></div>
                 </div>
-                <button class="market-btn primary" type="button" id="quiz-generate-btn" {% if quiz_attempts_remaining <= 0 %}disabled{% endif %}>Generate AI Quiz</button>
-            </div>
-            <div id="quiz-box" class="quiz-workbench"></div>
-            <div class="attempt-list studio-attempts">
-                {% for attempt in quiz_attempts %}
-                <article>
-                    <strong>{{ attempt.score }}%</strong>
-                    <span>{{ attempt.attempted_at.strftime('%Y-%m-%d %H:%M') if attempt.attempted_at else '' }}</span>
-                    {% if attempt.feedback %}<p>{{ attempt.feedback }}</p>{% endif %}
-                </article>
-                {% else %}
-                <p class="muted-line">No quiz attempts yet.</p>
-                {% endfor %}
-            </div>
-        </div>
-    </section>
+                <div class="module-resource-row">
+                    {% for item in module_groups.sessions %}
+                    {% set material = item.material %}
+                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                        <strong>{{ item.label }}</strong>
+                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
+                    </button>
+                    {% else %}
+                    <p class="studio-empty">No session HTML has been added.</p>
+                    {% endfor %}
+                </div>
+            </section>
 
-    {% if grouped_materials.support %}
-    <section class="studio-zone reference-zone">
-        <div class="zone-head">
-            <span class="zone-index">REF</span>
-            <div>
-                <h2>Reference Files</h2>
-                <p>Syllabus, CLO/CBO, and supporting documents.</p>
-            </div>
-        </div>
-        <div class="launch-grid">
-            {% for item in grouped_materials.support %}
-            {% set material = item.material %}
-            <button class="launch-card" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
-                <span class="launch-icon"><i class="fas fa-file-lines"></i></span>
-                <span class="launch-kicker">{{ material.material_type|replace('_', ' ') }}</span>
-                <strong>{{ item.label }}</strong>
-                <small>{{ material.file_name or material.video_name or material.material_type }}</small>
-            </button>
-            {% endfor %}
+            <section class="module-section video-material">
+                <div class="module-section-head">
+                    <i class="fas fa-circle-play"></i>
+                    <div><h3>Video {{ current_module_number }}</h3><p>Module video resource.</p></div>
+                </div>
+                <div class="module-resource-row">
+                    {% for item in module_groups.videos %}
+                    {% set material = item.material %}
+                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                        <strong>{{ item.label }}</strong>
+                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
+                    </button>
+                    {% else %}
+                    <p class="studio-empty">No video has been added.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="module-section simulation-material">
+                <div class="module-section-head">
+                    <i class="fas fa-vial"></i>
+                    <div><h3>Simulation {{ current_module_number }}</h3><p>Interactive simulation or lab.</p></div>
+                </div>
+                <div class="module-resource-row">
+                    {% for item in module_groups.simulations %}
+                    {% set material = item.material %}
+                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                        <strong>{{ item.label }}</strong>
+                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
+                    </button>
+                    {% else %}
+                    <p class="studio-empty">No simulation has been added.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="module-section application-material">
+                <div class="module-section-head">
+                    <i class="fas fa-briefcase"></i>
+                    <div><h3>Application {{ current_module_number }}</h3><p>Main toolkit HTML only. Supporting Excel/assets stay hidden but remain linked.</p></div>
+                </div>
+                <div class="module-resource-row">
+                    {% for item in module_groups.applications %}
+                    {% set material = item.material %}
+                    <button class="module-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                        <strong>{{ item.label }}</strong>
+                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
+                    </button>
+                    {% else %}
+                    <p class="studio-empty">No application HTML has been added.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="module-section evaluation-material">
+                <div class="module-section-head">
+                    <i class="fas fa-clipboard-check"></i>
+                    <div><h3>Evaluation</h3><p>Case application and AI quiz for Module {{ current_module_number }}.</p></div>
+                </div>
+                <div class="module-resource-row">
+                    {% for item in module_groups.cases %}
+                    {% set material = item.material %}
+                    <button class="module-launch case-launch" type="button" data-url="/materials/{{ material.id }}/download" data-title="{{ item.label }} - {{ material.file_name or material.video_name or material.material_type }}">
+                        <strong>{{ item.label }}</strong>
+                        <span>{{ material.file_name or material.video_name or material.material_type }}</span>
+                    </button>
+                    {% else %}
+                    <p class="studio-empty">No case application has been added.</p>
+                    {% endfor %}
+                </div>
+                <div class="module-quiz">
+                    <div class="assessment-actions">
+                        <div><strong>{{ quiz_attempts_remaining }}</strong><span>quiz attempt{{ '' if quiz_attempts_remaining == 1 else 's' }} remaining</span></div>
+                        <button class="market-btn primary" type="button" id="quiz-generate-btn" {% if quiz_attempts_remaining <= 0 %}disabled{% endif %}>Generate AI Quiz</button>
+                    </div>
+                    <div id="quiz-box" class="quiz-workbench"></div>
+                    <div class="attempt-list studio-attempts">
+                        {% for attempt in quiz_attempts %}
+                        <article>
+                            <strong>{{ attempt.score }}%</strong>
+                            <span>{{ attempt.attempted_at.strftime('%Y-%m-%d %H:%M') if attempt.attempted_at else '' }}</span>
+                            {% if attempt.feedback %}<p>{{ attempt.feedback }}</p>{% endif %}
+                        </article>
+                        {% else %}
+                        <p class="muted-line">No quiz attempts yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="module-section ai-material">
+                <div class="module-section-head">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    <div><h3>AI Study Tools</h3><p>Flashcards and OpenAI audio summary for this module.</p></div>
+                </div>
+                <div class="tool-console compact-tools">
+                    <button class="tool-command" type="button" id="flashcards-btn"><i class="fas fa-layer-group"></i><strong>Flashcards</strong><span>Generate recall cards</span></button>
+                    <button class="tool-command" type="button" id="audio-btn"><i class="fas fa-headphones"></i><strong>Audio Summary</strong><span>OpenAI spoken recap</span></button>
+                    <div id="ai-output" class="tool-output" hidden></div>
+                </div>
+            </section>
         </div>
     </section>
-    {% endif %}
 
     <footer class="studio-footer">
-        {% if previous_lesson %}<a class="market-btn" href="/learn/lesson/{{ previous_lesson.id }}">Previous Session</a>{% endif %}
+        {% if previous_lesson %}<a class="market-btn" href="/learn/lesson/{{ previous_lesson.id }}">Previous Module</a>{% endif %}
         {% if next_lesson %}
-        <a class="market-btn primary {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/lesson/{{ next_lesson.id }}{% else %}#{% endif %}">Next Session</a>
+        <a class="market-btn primary {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/lesson/{{ next_lesson.id }}{% else %}#{% endif %}">Next Module</a>
         {% else %}
         <a class="market-btn primary {% if not progress.is_completed %}disabled{% endif %}" href="{% if progress.is_completed %}/learn/course/{{ lesson.course_id }}{% else %}#{% endif %}">Finish Course</a>
         {% endif %}
@@ -160,7 +179,7 @@
 
 <script>
 (function () {
-    const shell = document.querySelector('.learning-studio');
+    const shell = document.querySelector('.module-studio');
     const lessonId = shell.dataset.lessonId;
     const modal = document.getElementById('resource-modal');
     const frame = document.getElementById('resource-frame');
@@ -171,7 +190,7 @@
     const quizBox = document.getElementById('quiz-box');
     let activeQuiz = null;
 
-    document.querySelectorAll('.launch-card').forEach((button) => {
+    document.querySelectorAll('.module-launch').forEach((button) => {
         button.addEventListener('click', () => {
             const url = button.dataset.url;
             modalTitle.textContent = button.dataset.title || 'Resource';
