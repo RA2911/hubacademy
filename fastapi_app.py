@@ -504,7 +504,7 @@ def openai_api_key(db: Session = None, course=None):
     if course and getattr(course, 'openai_api_key_override', None):
         return course.openai_api_key_override.strip()
     if cfg.OPENAI_API_KEY:
-        return cfg.OPENAI_API_KEY
+        return cfg.OPENAI_API_KEY.strip()
     if db:
         setting = db.query(Settings).filter_by(key='openai_api_key').first()
         if setting and setting.value:
