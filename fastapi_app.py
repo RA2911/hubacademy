@@ -7,9 +7,10 @@ import re
 import secrets
 import smtplib
 import uuid
-from io import BytesIO
 from datetime import datetime, timedelta
 from email.message import EmailMessage
+from html.parser import HTMLParser
+from io import BytesIO
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -36,6 +37,8 @@ MASTER_CERTIFICATE_LEVEL = 4
 PASSWORD_RESET_TOKEN_MINUTES = 60
 MAX_LESSON_QUIZ_ATTEMPTS = 3
 QUIZ_PASS_SCORE = 60
+AI_CONTEXT_MAX_CHARS = 12000
+AI_CONTEXT_MATERIAL_LIMIT = 8
 
 MATERIAL_TYPE_OPTIONS = [
     ('slide', 'Slides / PPT / PDF'),
@@ -487,17 +490,177 @@ def module_nav_for_lessons(db: Session, student_id: int, lessons, current_lesson
 
 def lesson_context_text(lesson, materials):
     course = lesson.course
-    material_lines = [
-        f"- {m.material_type}: {m.file_name or m.video_name or m.object_key or m.video_url}"
-        for m in materials[:40]
-    ]
+    material_lines = []
+    for material in materials[:40]:
+        label = material.material_type.replace('_', ' ').title()
+        if material.video_url:
+            material_lines.append(f"- {label}: external video link")
+        elif material.content_type:
+            material_lines.append(f"- {label}: {material.content_type}")
+        else:
+            material_lines.append(f"- {label}")
     return "\n".join([
         f"Course: {course.title if course else ''}",
         f"Lesson: {lesson.title}",
         f"Description: {lesson.description or ''}",
-        "Available materials:",
+        "Available material types:",
         "\n".join(material_lines),
     ])
+
+
+class ReadableHTMLParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.parts = []
+        self.skip_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {'script', 'style', 'noscript', 'svg'}:
+            self.skip_depth += 1
+        if tag in {'p', 'div', 'section', 'article', 'li', 'br', 'h1', 'h2', 'h3', 'h4', 'tr'}:
+            self.parts.append('\n')
+
+    def handle_endtag(self, tag):
+        if tag in {'script', 'style', 'noscript', 'svg'} and self.skip_depth:
+            self.skip_depth -= 1
+        if tag in {'p', 'div', 'section', 'article', 'li', 'h1', 'h2', 'h3', 'h4', 'tr'}:
+            self.parts.append('\n')
+
+    def handle_data(self, data):
+        if not self.skip_depth:
+            value = re.sub(r'\s+', ' ', data or '').strip()
+            if value:
+                self.parts.append(value)
+
+    def text(self):
+        return re.sub(r'\n{3,}', '\n\n', '\n'.join(self.parts)).strip()
+
+
+def decode_text_bytes(raw_bytes):
+    for encoding in ('utf-8', 'utf-8-sig', 'cp1252', 'latin-1'):
+        try:
+            return raw_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw_bytes.decode('utf-8', errors='ignore')
+
+
+def html_to_text(raw_html):
+    parser = ReadableHTMLParser()
+    parser.feed(raw_html)
+    return parser.text()
+
+
+def extract_pptx_text(raw_bytes):
+    from pptx import Presentation
+    presentation = Presentation(BytesIO(raw_bytes))
+    parts = []
+    for slide_index, slide in enumerate(presentation.slides, start=1):
+        slide_parts = []
+        for shape in slide.shapes:
+            if hasattr(shape, 'text') and shape.text:
+                slide_parts.append(shape.text)
+        if slide_parts:
+            parts.append(f"Slide {slide_index}: " + ' '.join(slide_parts))
+    return '\n'.join(parts)
+
+
+def extract_xlsx_text(raw_bytes):
+    from openpyxl import load_workbook
+    workbook = load_workbook(BytesIO(raw_bytes), read_only=True, data_only=True)
+    parts = []
+    for sheet in workbook.worksheets[:4]:
+        rows = []
+        for row in sheet.iter_rows(max_row=40, values_only=True):
+            values = [str(value).strip() for value in row if value is not None and str(value).strip()]
+            if values:
+                rows.append(' | '.join(values))
+        if rows:
+            parts.append(f"Sheet {sheet.title}: " + ' '.join(rows))
+    return '\n'.join(parts)
+
+
+def material_source_bytes(material, max_bytes=20_000_000):
+    if material.size_bytes and material.size_bytes > max_bytes:
+        return None
+    key = material.object_key or material.file_path
+    if key:
+        try:
+            return object_bytes(key)
+        except Exception as exc:
+            logger.warning('Could not read material %s from R2: %s', material.id, exc)
+            return None
+    if material.file_path and os.path.exists(material.file_path):
+        try:
+            with open(material.file_path, 'rb') as handle:
+                return handle.read(max_bytes)
+        except Exception as exc:
+            logger.warning('Could not read local material %s: %s', material.id, exc)
+    return None
+
+
+def extract_material_text(material):
+    material_type = (material.material_type or '').lower()
+    content_type = (material.content_type or '').lower()
+    name = (material.file_name or material.object_key or material.file_path or '').lower()
+    if material_type in {'video', 'module_intro_video'} or content_type.startswith('video/'):
+        return ''
+    if not any([
+        'html' in content_type,
+        'text/' in content_type,
+        'json' in content_type,
+        'pdf' in content_type,
+        'presentation' in content_type,
+        'spreadsheet' in content_type,
+        name.endswith(('.html', '.htm', '.txt', '.md', '.json', '.pdf', '.pptx', '.xlsx')),
+    ]):
+        return ''
+    raw_bytes = material_source_bytes(material)
+    if not raw_bytes:
+        return ''
+    try:
+        if 'pdf' in content_type or name.endswith('.pdf'):
+            return extract_pdf_text(raw_bytes)
+        if 'presentation' in content_type or name.endswith('.pptx'):
+            return extract_pptx_text(raw_bytes)
+        if 'spreadsheet' in content_type or name.endswith('.xlsx'):
+            return extract_xlsx_text(raw_bytes)
+        raw_text = decode_text_bytes(raw_bytes)
+        if 'html' in content_type or name.endswith(('.html', '.htm')):
+            return html_to_text(raw_text)
+        return re.sub(r'\s+', ' ', raw_text).strip()
+    except Exception as exc:
+        logger.warning('Could not extract material %s text: %s', material.id, exc)
+        return ''
+
+
+def lesson_learning_corpus(lesson, materials):
+    sections = []
+    total_chars = 0
+    readable_materials = [
+        material for material in materials
+        if (material.material_type or '').lower() in {
+            'html', 'slide', 'simulation', 'toolkit', 'case_application', 'case_analysis',
+            'general_simulation', 'syllabus', 'clo', 'article', 'other'
+        }
+    ]
+    for material in readable_materials[:AI_CONTEXT_MATERIAL_LIMIT]:
+        text = extract_material_text(material)
+        if not text:
+            continue
+        text = re.sub(r'\s+', ' ', text).strip()
+        if len(text) < 120:
+            continue
+        remaining = AI_CONTEXT_MAX_CHARS - total_chars
+        if remaining <= 0:
+            break
+        excerpt = text[:remaining]
+        total_chars += len(excerpt)
+        label = (material.material_type or 'material').replace('_', ' ').title()
+        sections.append(f"{label} content:\n{excerpt}")
+    if sections:
+        return "\n\n".join(sections)
+    return ''
 
 
 def openai_api_key(db: Session = None, course=None):
@@ -571,12 +734,18 @@ def openai_chat_completion(client, messages, max_tokens, temperature):
 
 
 def ai_generate_quiz_questions(db, lesson, materials, previous_questions):
+    corpus = lesson_learning_corpus(lesson, materials)
     prompt = f"""Create exactly 5 multiple-choice questions for this lesson.
 
-The questions must be scenario-based, non-obvious, and specific to this lesson. Avoid generic definitions and avoid questions about file names or course structure.
+The questions must be scenario-based, non-obvious, and specific to the learning content below.
+Never ask about file names, document names, upload structure, folders, or course platform mechanics.
+If the content is thin, ask about concepts, decisions, risks, examples, and application from the content.
 
 Lesson context:
 {lesson_context_text(lesson, materials)}
+
+Learning content extracted from materials:
+{corpus or 'No readable material text was extracted. Use the lesson description only, and do not mention files.'}
 
 Previous questions to avoid repeating:
 {json.dumps(previous_questions[-30:], ensure_ascii=False)}
@@ -1333,12 +1502,28 @@ def learner_flashcards(lesson_id: int, request: Request, db: Session = Depends(g
     if not student or not lesson or not db.query(Enrollment).filter_by(student_id=student.id, course_id=lesson.course_id, is_active=True).first():
         return JSONResponse({'error': 'Not allowed'}, status_code=403)
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
-    prompt = f"""Create 8 concise flashcards for this lesson. Make them useful for recall and application.
+    corpus = lesson_learning_corpus(lesson, materials)
+    if not corpus:
+        return JSONResponse({'error': 'No readable lesson content was found for flashcards. Upload HTML, PDF, text, syllabus, case, simulation, or toolkit materials with extractable text.'}, status_code=400)
+    prompt = f"""Create 8 serious flashcards from the extracted learning content below.
 
+Rules:
+- Use only the learning ideas, frameworks, decisions, examples, and application points in the extracted content.
+- Never ask about file names, document names, folders, upload structure, or platform mechanics.
+- Do not create generic dictionary definitions unless the content requires the term.
+- Each card must test useful recall or application for a student.
+- Answers must be concrete and educational, not one-word answers.
+
+Lesson context:
 {lesson_context_text(lesson, materials)}
 
-Return only JSON:
-[{{"question":"...", "answer":"..."}}]"""
+Extracted learning content:
+{corpus}
+
+Return only valid JSON:
+[
+  {{"question":"specific question from the content", "answer":"clear answer grounded in the content"}}
+]"""
     try:
         response = openai_chat_completion(
             openai_client(db, lesson.course),
@@ -1361,9 +1546,16 @@ def learner_audio_summary(lesson_id: int, request: Request, db: Session = Depend
     if not student or not lesson or not db.query(Enrollment).filter_by(student_id=student.id, course_id=lesson.course_id, is_active=True).first():
         return JSONResponse({'error': 'Not allowed'}, status_code=403)
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
+    corpus = lesson_learning_corpus(lesson, materials)
     prompt = f"""Write a professional spoken audio summary for this lesson. Keep it under 350 words, practical, and specific.
 
-{lesson_context_text(lesson, materials)}"""
+Never summarize file names, folders, upload structure, or platform mechanics. Summarize the actual learning content.
+
+Lesson context:
+{lesson_context_text(lesson, materials)}
+
+Extracted learning content:
+{corpus or 'No readable material text was extracted. Use only the lesson title and description.'}"""
     try:
         client = openai_client(db, lesson.course)
         script_response = openai_chat_completion(
