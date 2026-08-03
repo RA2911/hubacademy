@@ -539,7 +539,13 @@ def ai_error_response(exc, fallback_message):
     if 'OpenAI API key is not configured' in message:
         return JSONResponse({'error': 'OpenAI API key is not configured. Add it in Admin Settings or Cloud Run OPENAI_API_KEY.'}, status_code=400)
     logger.exception('%s: %s', fallback_message, exc)
-    public_detail = message.strip().replace('\n', ' ')
+    details = []
+    current = exc
+    while current and len(details) < 4:
+        detail = str(current).strip() or current.__class__.__name__
+        details.append(detail.replace('\n', ' '))
+        current = getattr(current, '__cause__', None) or getattr(current, '__context__', None)
+    public_detail = ' | '.join(dict.fromkeys(details))
     if len(public_detail) > 260:
         public_detail = public_detail[:257] + '...'
     return JSONResponse({'error': f'{fallback_message} OpenAI said: {public_detail}' if public_detail else fallback_message}, status_code=502)
