@@ -282,14 +282,29 @@ def module_material_groups(materials, module_number):
 
 
 def material_unit_number(material):
-    text = ' '.join([
+    file_text = ' '.join([
         material.file_name or '',
         material.video_name or '',
+    ])
+    path_text = ' '.join([
         material.object_key or '',
         material.file_path or '',
     ])
+    text = f'{file_text} {path_text}'
+    # Bulk imports store assets under package names such as
+    # module-42-session-3-html. The session marker must win over the
+    # lesson/module id embedded in that package name.
+    session_match = re.search(r'(?:^|[/_-])session[-_ ]*0*(\d+)(?:[/_.-]|$)', path_text, flags=re.IGNORECASE)
+    if session_match:
+        try:
+            number = int(session_match.group(1))
+            if number > 0:
+                return number
+        except ValueError:
+            pass
     patterns = [
-        r'(?:module|session|simulation|sim|vol|application|case)[-_ ]*0*(\d+)',
+        r'(?:session|simulation|sim|vol|application|case)[-_ ]*0*(\d+)',
+        r'(?:^|[_\W])module[-_ ]*0*(\d+)',
         r'[_-]0*(\d+)[_-](?:ar[_-])?audio',
         r'[_-]0*(\d+)[_-][a-z]',
         r'[_-]0*(\d+)\.',
