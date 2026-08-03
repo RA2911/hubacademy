@@ -539,7 +539,29 @@ def ai_error_response(exc, fallback_message):
     if 'OpenAI API key is not configured' in message:
         return JSONResponse({'error': 'OpenAI API key is not configured. Add it in Admin Settings or Cloud Run OPENAI_API_KEY.'}, status_code=400)
     logger.exception('%s: %s', fallback_message, exc)
-    return JSONResponse({'error': fallback_message}, status_code=502)
+    public_detail = message.strip().replace('\n', ' ')
+    if len(public_detail) > 260:
+        public_detail = public_detail[:257] + '...'
+    return JSONResponse({'error': f'{fallback_message} OpenAI said: {public_detail}' if public_detail else fallback_message}, status_code=502)
+
+
+def openai_chat_completion(client, messages, max_tokens, temperature):
+    models = []
+    for model in [cfg.OPENAI_MODEL, 'gpt-4o-mini', 'gpt-4.1-mini']:
+        if model and model not in models:
+            models.append(model)
+    last_error = None
+    for model in models:
+        try:
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except Exception as exc:
+            last_error = exc
+    raise last_error or RuntimeError('OpenAI chat completion failed.')
 
 
 def ai_generate_quiz_questions(db, lesson, materials, previous_questions):
@@ -562,9 +584,9 @@ Return only valid JSON:
     "explanation": "short explanation"
   }}
 ]"""
-    response = openai_client(db, lesson.course).chat.completions.create(
-        model=cfg.OPENAI_MODEL,
-        messages=[{'role': 'user', 'content': prompt}],
+    response = openai_chat_completion(
+        openai_client(db, lesson.course),
+        [{'role': 'user', 'content': prompt}],
         max_tokens=1800,
         temperature=0.9,
     )
@@ -587,9 +609,9 @@ Return only valid JSON:
   "feedback": "specific feedback on strengths and mistakes",
   "recommendations": "specific next steps to improve"
 }}"""
-    response = openai_client(db, lesson.course).chat.completions.create(
-        model=cfg.OPENAI_MODEL,
-        messages=[{'role': 'user', 'content': prompt}],
+    response = openai_chat_completion(
+        openai_client(db, lesson.course),
+        [{'role': 'user', 'content': prompt}],
         max_tokens=700,
         temperature=0.5,
     )
@@ -1312,9 +1334,9 @@ def learner_flashcards(lesson_id: int, request: Request, db: Session = Depends(g
 Return only JSON:
 [{{"question":"...", "answer":"..."}}]"""
     try:
-        response = openai_client(db, lesson.course).chat.completions.create(
-            model=cfg.OPENAI_MODEL,
-            messages=[{'role': 'user', 'content': prompt}],
+        response = openai_chat_completion(
+            openai_client(db, lesson.course),
+            [{'role': 'user', 'content': prompt}],
             max_tokens=1200,
             temperature=0.7,
         )
@@ -1338,9 +1360,9 @@ def learner_audio_summary(lesson_id: int, request: Request, db: Session = Depend
 {lesson_context_text(lesson, materials)}"""
     try:
         client = openai_client(db, lesson.course)
-        script_response = client.chat.completions.create(
-            model=cfg.OPENAI_MODEL,
-            messages=[{'role': 'user', 'content': prompt}],
+        script_response = openai_chat_completion(
+            client,
+            [{'role': 'user', 'content': prompt}],
             max_tokens=800,
             temperature=0.6,
         )
