@@ -139,7 +139,6 @@
                 <div class="tool-console compact-tools">
                     <button class="tool-command" type="button" id="flashcards-btn"><i class="fas fa-layer-group"></i><strong>Flashcards</strong><span>Generate recall cards</span></button>
                     <button class="tool-command" type="button" id="audio-btn"><i class="fas fa-headphones"></i><strong>Audio Summary</strong><span>OpenAI spoken recap</span></button>
-                    <div id="ai-output" class="tool-output" hidden></div>
                 </div>
             </section>
         </div>
@@ -168,6 +167,19 @@
     </section>
 </div>
 
+<div class="studio-modal ai-study-modal" id="ai-modal" hidden>
+    <section class="studio-modal-panel ai-modal-panel">
+        <header>
+            <strong id="ai-modal-title">AI Study Tool</strong>
+            <div>
+                <button class="icon-link" type="button" id="ai-modal-refresh" title="Regenerate"><i class="fas fa-rotate-right"></i></button>
+                <button class="icon-link" type="button" id="ai-modal-close" title="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+        </header>
+        <div id="ai-modal-body" class="ai-modal-body"></div>
+    </section>
+</div>
+
 <script>
 (function () {
     const shell = document.querySelector('.module-studio');
@@ -177,9 +189,17 @@
     const modalTitle = document.getElementById('resource-modal-title');
     const newTab = document.getElementById('resource-new-tab');
     const close = document.getElementById('resource-close');
-    const output = document.getElementById('ai-output');
+    const aiModal = document.getElementById('ai-modal');
+    const aiModalTitle = document.getElementById('ai-modal-title');
+    const aiModalBody = document.getElementById('ai-modal-body');
+    const aiModalClose = document.getElementById('ai-modal-close');
+    const aiModalRefresh = document.getElementById('ai-modal-refresh');
     const quizBox = document.getElementById('quiz-box');
     let activeQuiz = null;
+    let aiMode = null;
+    let currentAudioUrl = null;
+    let flashcards = [];
+    let flashcardIndex = 0;
 
     const progressPrefix = `hub-module-${lessonId}-`;
     document.querySelectorAll('.module-launch').forEach((button) => {
@@ -216,6 +236,49 @@
         frame.src = 'about:blank';
         modal.hidden = true;
     });
+    aiModalClose.addEventListener('click', closeAiModal);
+    aiModal.addEventListener('click', (event) => {
+        if (event.target === aiModal) closeAiModal();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !aiModal.hidden) closeAiModal();
+    });
+    aiModalRefresh.addEventListener('click', () => {
+        if (aiMode === 'flashcards') generateFlashcards();
+        if (aiMode === 'audio') generateAudioSummary();
+    });
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
+    }
+
+    function openAiModal(title, mode) {
+        aiMode = mode;
+        aiModalTitle.textContent = title;
+        aiModal.hidden = false;
+    }
+
+    function closeAiModal() {
+        const audio = aiModalBody.querySelector('audio');
+        if (audio) {
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
+        }
+        if (currentAudioUrl) {
+            URL.revokeObjectURL(currentAudioUrl);
+            currentAudioUrl = null;
+        }
+        aiModalBody.innerHTML = '';
+        aiModal.hidden = true;
+        aiMode = null;
+    }
 
     async function postJson(url, payload) {
         const response = await fetch(url, {
@@ -228,20 +291,58 @@
         return data;
     }
 
-    document.getElementById('flashcards-btn').addEventListener('click', async () => {
-        output.hidden = false;
-        output.innerHTML = '<p>Generating flashcards...</p>';
+    function renderFlashcard() {
+        const card = flashcards[flashcardIndex] || {};
+        const question = escapeHtml(card.question || 'Question');
+        const answer = escapeHtml(card.answer || '');
+        aiModalBody.innerHTML = `
+            <div class="flashcard-stage">
+                <button class="flashcard-card" type="button" id="flashcard-card" aria-label="Flip flashcard">
+                    <span class="flashcard-side front"><small>Question ${flashcardIndex + 1} of ${flashcards.length}</small><strong>${question}</strong><em>Click to reveal answer</em></span>
+                    <span class="flashcard-side back"><small>Answer</small><strong>${answer}</strong><em>Click to return to question</em></span>
+                </button>
+                <div class="flashcard-controls">
+                    <button class="market-btn" type="button" id="flashcard-prev"><i class="fas fa-arrow-left"></i> Previous</button>
+                    <span>${flashcardIndex + 1}/${flashcards.length}</span>
+                    <button class="market-btn" type="button" id="flashcard-next">Next <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>`;
+        document.getElementById('flashcard-card').addEventListener('click', (event) => {
+            event.currentTarget.classList.toggle('is-flipped');
+        });
+        document.getElementById('flashcard-prev').addEventListener('click', () => {
+            flashcardIndex = (flashcardIndex - 1 + flashcards.length) % flashcards.length;
+            renderFlashcard();
+        });
+        document.getElementById('flashcard-next').addEventListener('click', () => {
+            flashcardIndex = (flashcardIndex + 1) % flashcards.length;
+            renderFlashcard();
+        });
+    }
+
+    async function generateFlashcards() {
+        openAiModal('Flashcards', 'flashcards');
+        aiModalBody.innerHTML = '<div class="ai-loading"><i class="fas fa-layer-group"></i><p>Generating flashcards...</p></div>';
         try {
             const data = await postJson(`/learn/lesson/${lessonId}/ai/flashcards`);
-            output.innerHTML = data.flashcards.map((card) => `<article><strong>${card.question || 'Question'}</strong><p>${card.answer || ''}</p></article>`).join('');
+            flashcards = data.flashcards || [];
+            flashcardIndex = 0;
+            if (!flashcards.length) throw new Error('No flashcards were generated.');
+            renderFlashcard();
         } catch (error) {
-            output.innerHTML = `<p>${error.message}</p>`;
+            aiModalBody.innerHTML = `<div class="ai-error"><strong>Flashcards failed</strong><p>${escapeHtml(error.message)}</p></div>`;
         }
-    });
+    }
 
-    document.getElementById('audio-btn').addEventListener('click', async () => {
-        output.hidden = false;
-        output.innerHTML = '<p>Generating audio summary...</p>';
+    document.getElementById('flashcards-btn').addEventListener('click', generateFlashcards);
+
+    async function generateAudioSummary() {
+        openAiModal('Audio Summary', 'audio');
+        if (currentAudioUrl) {
+            URL.revokeObjectURL(currentAudioUrl);
+            currentAudioUrl = null;
+        }
+        aiModalBody.innerHTML = '<div class="ai-loading"><i class="fas fa-headphones"></i><p>Generating audio summary...</p></div>';
         try {
             const response = await fetch(`/learn/lesson/${lessonId}/ai/audio-summary`, {method: 'POST'});
             if (!response.ok) {
@@ -253,12 +354,31 @@
                 throw new Error(message);
             }
             const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            output.innerHTML = `<audio controls src="${url}"></audio>`;
+            currentAudioUrl = URL.createObjectURL(blob);
+            aiModalBody.innerHTML = `
+                <div class="audio-summary-player">
+                    <div class="audio-icon"><i class="fas fa-headphones"></i></div>
+                    <div>
+                        <h3>Module Audio Summary</h3>
+                        <p>Use the player controls to listen, pause, replay, or download the recap.</p>
+                    </div>
+                    <audio id="summary-audio" controls src="${currentAudioUrl}"></audio>
+                    <div class="audio-actions">
+                        <button class="market-btn" type="button" id="audio-replay"><i class="fas fa-rotate-left"></i> Replay</button>
+                        <a class="market-btn primary" href="${currentAudioUrl}" download="module-audio-summary.mp3"><i class="fas fa-download"></i> Download</a>
+                    </div>
+                </div>`;
+            document.getElementById('audio-replay').addEventListener('click', () => {
+                const audio = document.getElementById('summary-audio');
+                audio.currentTime = 0;
+                audio.play();
+            });
         } catch (error) {
-            output.innerHTML = `<p>${error.message}</p>`;
+            aiModalBody.innerHTML = `<div class="ai-error"><strong>Audio failed</strong><p>${escapeHtml(error.message)}</p></div>`;
         }
-    });
+    }
+
+    document.getElementById('audio-btn').addEventListener('click', generateAudioSummary);
 
     document.getElementById('quiz-generate-btn').addEventListener('click', async (event) => {
         event.target.disabled = true;
