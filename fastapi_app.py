@@ -291,10 +291,34 @@ def material_unit_number(material):
         material.file_path or '',
     ])
     text = f'{file_text} {path_text}'
-    # Bulk imports store assets under package names such as
-    # module-42-session-3-html. The session marker must win over the
-    # lesson/module id embedded in that package name.
-    session_match = re.search(r'(?:^|[/_-])session[-_ ]*0*(\d+)(?:[/_.-]|$)', path_text, flags=re.IGNORECASE)
+
+    folder_match = re.search(r'(?:^|[/\\])0*(\d+)[-_ ]session(?:[_-]\d+min)?(?:[/\\]|$)', text, flags=re.IGNORECASE)
+    if folder_match:
+        try:
+            number = int(folder_match.group(1))
+            if number > 0:
+                return number
+        except ValueError:
+            pass
+
+    filename_patterns = [
+        r'(?:session|simulation|sim|vol|application|case)[-_ ]*0*(\d+)',
+        r'(?:^|[_\W])module[-_ ]*0*(\d+)',
+        r'[_-]0*(\d+)[_-](?:ar[_-])?audio',
+    ]
+    for pattern in filename_patterns:
+        match = re.search(pattern, file_text, flags=re.IGNORECASE)
+        if match:
+            try:
+                number = int(match.group(1))
+                if number > 0:
+                    return number
+            except ValueError:
+                continue
+
+    # Bulk imports store packages such as module-42-session-3-html.
+    # This must not treat 01_Session_30min as session 30.
+    session_match = re.search(r'(?:^|[/_-])session[-_ ]*0*(\d+)(?:[-_/]|$)', path_text, flags=re.IGNORECASE)
     if session_match:
         try:
             number = int(session_match.group(1))
@@ -302,14 +326,15 @@ def material_unit_number(material):
                 return number
         except ValueError:
             pass
-    patterns = [
+
+    fallback_patterns = [
         r'(?:session|simulation|sim|vol|application|case)[-_ ]*0*(\d+)',
         r'(?:^|[_\W])module[-_ ]*0*(\d+)',
         r'[_-]0*(\d+)[_-](?:ar[_-])?audio',
         r'[_-]0*(\d+)[_-][a-z]',
         r'[_-]0*(\d+)\.',
     ]
-    for pattern in patterns:
+    for pattern in fallback_patterns:
         match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
             try:
