@@ -1,21 +1,72 @@
 {% extends 'base.html' %}
 {% block title %}My Learning - Hub Academy{% endblock %}
 {% block content %}
-<section class="cinema-band">
-    <div class="band-head"><div><span class="eyebrow">My Learning</span><h2>Welcome, {{ student.full_name }}</h2></div><a class="market-btn primary" href="/courses">Browse More</a></div>
-    <div class="course-grid premium-grid">
+{% set summary = namespace(total=0, done=0, attempts=0, avg_sum=0) %}
+{% for card in cards %}
+    {% set summary.total = summary.total + card.total %}
+    {% set summary.done = summary.done + card.done %}
+    {% set summary.attempts = summary.attempts + card.quiz.attempts %}
+    {% set summary.avg_sum = summary.avg_sum + card.quiz.average %}
+{% endfor %}
+{% set overall_pct = (summary.done / summary.total * 100)|int if summary.total else 0 %}
+{% set avg_score = (summary.avg_sum / (cards|length))|int if cards else 0 %}
+<section class="learning-dashboard">
+    <header class="dashboard-hero">
+        <div>
+            <span class="eyebrow">My Learning</span>
+            <h1>Welcome, {{ student.full_name }}</h1>
+            <p>Courses, module progress, quiz performance, and certificate readiness.</p>
+        </div>
+        <a class="market-btn primary" href="/courses">Browse More</a>
+    </header>
+
+    <div class="dashboard-summary" aria-label="Learning summary">
+        <article>
+            <span>Overall Progress</span>
+            <strong>{{ overall_pct }}%</strong>
+            <div class="dashboard-meter"><i style="width: {{ overall_pct }}%"></i></div>
+        </article>
+        <article>
+            <span>Active Courses</span>
+            <strong>{{ cards|length }}</strong>
+            <small>{{ summary.done }}/{{ summary.total }} modules completed</small>
+        </article>
+        <article>
+            <span>Quiz Average</span>
+            <strong>{{ avg_score }}%</strong>
+            <small>{{ summary.attempts }} total attempts</small>
+        </article>
+        <article>
+            <span>Certificates</span>
+            <strong>{{ certificates|length }}</strong>
+            <small>60% quiz average required</small>
+        </article>
+    </div>
+
+    <div class="learning-card-grid">
     {% for card in cards %}
-    <article class="course-card">
-        <div class="course-card-body">
-            <div class="course-meta"><span>{{ card.pct }}% complete</span><span>{{ card.done }}/{{ card.total }} lessons</span></div>
-            <h3>{{ card.enrollment.course.title }}</h3>
-            <div class="dashboard-progress">
-                <div><strong>{{ card.quiz.average }}%</strong><span>Quiz average</span></div>
-                <div><strong>{{ card.quiz.best }}%</strong><span>Best score</span></div>
-                <div><strong>{{ card.quiz.attempts }}</strong><span>Attempts</span></div>
+    <article class="learning-course-card tone-{{ loop.index0 % 5 }}">
+        <div class="learning-card-top">
+            <div>
+                <span class="course-level">{{ card.enrollment.course.expertise_area or 'Course' }}{% if card.enrollment.course.certificate_level %} - Level {{ card.enrollment.course.certificate_level }}{% endif %}</span>
+                <h2>{{ card.enrollment.course.title }}</h2>
             </div>
-            <div class="journey-meter"><i style="width: {{ card.pct }}%"></i></div>
-            <p class="certificate-status">{{ 'Certificate score reached' if card.quiz.average >= 60 else 'Certificate requires 60% quiz average' }}</p>
+            <span class="course-pct">{{ card.pct }}%</span>
+        </div>
+        <div class="course-progress-block">
+            <div class="progress-label"><span>Course progress</span><strong>{{ card.done }}/{{ card.total }} modules</strong></div>
+            <div class="dashboard-meter"><i style="width: {{ card.pct }}%"></i></div>
+        </div>
+        <div class="learning-stats">
+            <div><strong>{{ card.quiz.average }}%</strong><span>Quiz average</span></div>
+            <div><strong>{{ card.quiz.best }}%</strong><span>Best score</span></div>
+            <div><strong>{{ card.quiz.attempts }}</strong><span>Attempts</span></div>
+        </div>
+        <div class="learning-card-footer">
+            <div class="certificate-pill {{ 'ready' if card.quiz.average >= 60 else 'pending' }}">
+                <i class="fas {{ 'fa-award' if card.quiz.average >= 60 else 'fa-chart-line' }}"></i>
+                <span>{{ 'Certificate score reached' if card.quiz.average >= 60 else 'Needs 60% quiz average' }}</span>
+            </div>
             <a class="market-btn primary" href="/learn/course/{{ card.enrollment.course.id }}">Continue</a>
         </div>
     </article>
@@ -24,7 +75,7 @@
     {% endfor %}
     </div>
 </section>
-<section class="cinema-band">
+<section class="cinema-band certificate-band">
     <div class="band-head"><div><span class="eyebrow">Certificates</span><h2>Earned credentials</h2></div></div>
     <div class="course-grid premium-grid">
     {% for certificate in certificates %}
