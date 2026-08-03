@@ -500,11 +500,24 @@ def lesson_context_text(lesson, materials):
     ])
 
 
-def openai_client():
-    if not cfg.OPENAI_API_KEY:
+def openai_api_key(db: Session = None, course=None):
+    if course and getattr(course, 'openai_api_key_override', None):
+        return course.openai_api_key_override.strip()
+    if cfg.OPENAI_API_KEY:
+        return cfg.OPENAI_API_KEY
+    if db:
+        setting = db.query(Settings).filter_by(key='openai_api_key').first()
+        if setting and setting.value:
+            return setting.value.strip()
+    return ''
+
+
+def openai_client(db: Session = None, course=None):
+    api_key = openai_api_key(db, course)
+    if not api_key:
         raise RuntimeError('OpenAI API key is not configured.')
     from openai import OpenAI
-    return OpenAI(api_key=cfg.OPENAI_API_KEY, timeout=45, max_retries=1)
+    return OpenAI(api_key=api_key, timeout=45, max_retries=1)
 
 
 def parse_json_response(text, fallback):
@@ -521,7 +534,15 @@ def parse_json_response(text, fallback):
         return fallback
 
 
-def ai_generate_quiz_questions(lesson, materials, previous_questions):
+def ai_error_response(exc, fallback_message):
+    message = str(exc)
+    if 'OpenAI API key is not configured' in message:
+        return JSONResponse({'error': 'OpenAI API key is not configured. Add it in Admin Settings or Cloud Run OPENAI_API_KEY.'}, status_code=400)
+    logger.exception('%s: %s', fallback_message, exc)
+    return JSONResponse({'error': fallback_message}, status_code=502)
+
+
+def ai_generate_quiz_questions(db, lesson, materials, previous_questions):
     prompt = f"""Create exactly 5 multiple-choice questions for this lesson.
 
 The questions must be scenario-based, non-obvious, and specific to this lesson. Avoid generic definitions and avoid questions about file names or course structure.
@@ -541,7 +562,7 @@ Return only valid JSON:
     "explanation": "short explanation"
   }}
 ]"""
-    response = openai_client().chat.completions.create(
+    response = openai_client(db, lesson.course).chat.completions.create(
         model=cfg.OPENAI_MODEL,
         messages=[{'role': 'user', 'content': prompt}],
         max_tokens=1800,
@@ -551,7 +572,7 @@ Return only valid JSON:
     return data[:5] if isinstance(data, list) else []
 
 
-def ai_generate_feedback(lesson, score, questions, answers):
+def ai_generate_feedback(db, lesson, score, questions, answers):
     prompt = f"""A student completed a quiz for this lesson.
 
 Lesson: {lesson.title}
@@ -566,7 +587,7 @@ Return only valid JSON:
   "feedback": "specific feedback on strengths and mistakes",
   "recommendations": "specific next steps to improve"
 }}"""
-    response = openai_client().chat.completions.create(
+    response = openai_client(db, lesson.course).chat.completions.create(
         model=cfg.OPENAI_MODEL,
         messages=[{'role': 'user', 'content': prompt}],
         max_tokens=700,
@@ -1291,17 +1312,18 @@ def learner_flashcards(lesson_id: int, request: Request, db: Session = Depends(g
 Return only JSON:
 [{{"question":"...", "answer":"..."}}]"""
     try:
-        response = openai_client().chat.completions.create(
+        response = openai_client(db, lesson.course).chat.completions.create(
             model=cfg.OPENAI_MODEL,
             messages=[{'role': 'user', 'content': prompt}],
             max_tokens=1200,
             temperature=0.7,
         )
         cards = parse_json_response(response.choices[0].message.content, [])
+        if not isinstance(cards, list) or not cards:
+            return JSONResponse({'error': 'OpenAI returned no flashcards. Try again.'}, status_code=502)
         return {'ok': True, 'flashcards': cards[:8] if isinstance(cards, list) else []}
     except Exception as exc:
-        logger.exception('Flashcard generation failed: %s', exc)
-        return JSONResponse({'error': 'Could not generate flashcards.'}, status_code=502)
+        return ai_error_response(exc, 'Could not generate flashcards.')
 
 
 @app.post('/learn/lesson/{lesson_id}/ai/audio-summary')
@@ -1315,22 +1337,36 @@ def learner_audio_summary(lesson_id: int, request: Request, db: Session = Depend
 
 {lesson_context_text(lesson, materials)}"""
     try:
-        client = openai_client()
+        client = openai_client(db, lesson.course)
         script_response = client.chat.completions.create(
             model=cfg.OPENAI_MODEL,
             messages=[{'role': 'user', 'content': prompt}],
             max_tokens=800,
             temperature=0.6,
         )
-        speech = client.audio.speech.create(
-            model=cfg.OPENAI_AUDIO_MODEL,
-            voice=cfg.OPENAI_VOICE,
-            input=script_response.choices[0].message.content,
-        )
+        script = (script_response.choices[0].message.content or '').strip()
+        if not script:
+            return JSONResponse({'error': 'OpenAI returned no audio script. Try again.'}, status_code=502)
+        audio_models = [cfg.OPENAI_AUDIO_MODEL]
+        if cfg.OPENAI_AUDIO_MODEL != 'tts-1':
+            audio_models.append('tts-1')
+        speech = None
+        last_audio_error = None
+        for audio_model in audio_models:
+            try:
+                speech = client.audio.speech.create(
+                    model=audio_model,
+                    voice=cfg.OPENAI_VOICE,
+                    input=script,
+                )
+                break
+            except Exception as audio_exc:
+                last_audio_error = audio_exc
+        if speech is None:
+            raise last_audio_error or RuntimeError('Audio generation failed.')
         return Response(content=speech.content, media_type='audio/mpeg')
     except Exception as exc:
-        logger.exception('Audio summary generation failed: %s', exc)
-        return JSONResponse({'error': 'Could not generate audio summary.'}, status_code=502)
+        return ai_error_response(exc, 'Could not generate audio summary.')
 
 
 @app.post('/learn/lesson/{lesson_id}/quiz/generate')
@@ -1353,7 +1389,7 @@ def learner_generate_quiz(lesson_id: int, request: Request, db: Session = Depend
             if isinstance(question, dict):
                 previous_questions.append(question.get('question', ''))
     try:
-        questions = ai_generate_quiz_questions(lesson, materials, previous_questions)
+        questions = ai_generate_quiz_questions(db, lesson, materials, previous_questions)
         if not questions:
             return JSONResponse({'error': 'Could not generate quiz questions.'}, status_code=502)
         quiz = Quiz(
@@ -1369,8 +1405,7 @@ def learner_generate_quiz(lesson_id: int, request: Request, db: Session = Depend
         public_questions = [{**q, 'correct_answer': None, 'explanation': None} for q in questions]
         return {'ok': True, 'quiz_id': quiz.id, 'questions': public_questions, 'attempts_remaining': MAX_LESSON_QUIZ_ATTEMPTS - attempt_count}
     except Exception as exc:
-        logger.exception('Quiz generation failed: %s', exc)
-        return JSONResponse({'error': 'Could not generate quiz.'}, status_code=502)
+        return ai_error_response(exc, 'Could not generate quiz.')
 
 
 @app.post('/learn/quiz/{quiz_id}/submit')
@@ -1397,7 +1432,7 @@ async def learner_submit_quiz(quiz_id: int, request: Request, db: Session = Depe
             correct += 1
     score = int(round(correct / total * 100))
     try:
-        ai_feedback = ai_generate_feedback(quiz.lesson, score, questions, answers)
+        ai_feedback = ai_generate_feedback(db, quiz.lesson, score, questions, answers)
     except Exception as exc:
         logger.exception('Quiz feedback failed: %s', exc)
         ai_feedback = {'feedback': 'Quiz completed. Review the explanations for missed questions.', 'recommendations': 'Review the lesson and try another quiz attempt if available.'}

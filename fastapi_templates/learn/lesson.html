@@ -233,7 +233,7 @@
         output.innerHTML = '<p>Generating flashcards...</p>';
         try {
             const data = await postJson(`/learn/lesson/${lessonId}/ai/flashcards`);
-            output.innerHTML = data.flashcards.map((card) => `<article><strong>${card.question}</strong><p>${card.answer}</p></article>`).join('');
+            output.innerHTML = data.flashcards.map((card) => `<article><strong>${card.question || 'Question'}</strong><p>${card.answer || ''}</p></article>`).join('');
         } catch (error) {
             output.innerHTML = `<p>${error.message}</p>`;
         }
@@ -244,7 +244,14 @@
         output.innerHTML = '<p>Generating audio summary...</p>';
         try {
             const response = await fetch(`/learn/lesson/${lessonId}/ai/audio-summary`, {method: 'POST'});
-            if (!response.ok) throw new Error('Could not generate audio summary');
+            if (!response.ok) {
+                let message = 'Could not generate audio summary';
+                try {
+                    const data = await response.json();
+                    message = data.error || message;
+                } catch (jsonError) {}
+                throw new Error(message);
+            }
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             output.innerHTML = `<audio controls src="${url}"></audio>`;
