@@ -753,7 +753,7 @@ a {
 .course-grid,
 .premium-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
     gap: 18px;
 }
 
@@ -794,9 +794,9 @@ a {
 }
 
 .course-body {
-    min-height: 332px;
+    min-height: 360px;
     display: grid;
-    grid-template-rows: auto auto minmax(88px, auto) auto 1fr;
+    grid-template-rows: auto auto minmax(112px, auto) auto 1fr;
     padding: 18px;
 }
 
@@ -830,10 +830,10 @@ a {
 }
 
 .course-body p {
-    min-height: 88px;
+    min-height: 112px;
     margin: 0 0 14px;
     display: -webkit-box;
-    -webkit-line-clamp: 4;
+    -webkit-line-clamp: 5;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -2865,6 +2865,8 @@ th {
     }
 
     .cert-path,
+    .course-grid,
+    .premium-grid,
     .outcome-panel,
     .journey-map,
     .learning-card-grid,
