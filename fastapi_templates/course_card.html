@@ -1,10 +1,6 @@
 <article class="course-card">
     <a class="course-thumb" href="/courses/{{ course_slug(course) }}">
-        {% if course.thumbnail_url %}
-            <img src="{{ course.thumbnail_url }}" alt="{{ course.title }}">
-        {% else %}
-            <img src="/static/images/hub_academy_logo.jpg" alt="{{ course.title }}">
-        {% endif %}
+        <img src="{{ course_image(course) }}" alt="{{ course.title }}" loading="lazy">
         {% if course.is_featured %}<span class="floating-badge">Featured</span>{% endif %}
     </a>
     <div class="course-body">

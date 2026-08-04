@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -142,6 +142,35 @@ def course_price(course):
     if amount <= 0 or course.allow_free_enrollment:
         return 'Free'
     return f"{(course.currency or 'USD').upper()} {amount / 100:.2f}"
+
+
+COURSE_IMAGE_RULES = [
+    (('cyber', 'security', 'privacy', 'risk'), 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=900&q=80'),
+    (('ai', 'artificial intelligence', 'machine learning', 'readiness', 'automation'), 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=900&q=80'),
+    (('data', 'analytics', 'dashboard', 'intelligence', 'metrics'), 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80'),
+    (('digital', 'maturity', 'transformation', 'platform'), 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=900&q=80'),
+    (('cloud', 'infrastructure', 'architecture'), 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=900&q=80'),
+    (('finance', 'financial', 'cost', 'budget'), 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=80'),
+    (('leadership', 'strategy', 'change', 'governance'), 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=900&q=80'),
+    (('sustainability', 'green', 'esg'), 'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&w=900&q=80'),
+    (('project', 'process', 'operations'), 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80'),
+]
+
+
+def course_image(course):
+    if course.thumbnail_url:
+        return course.thumbnail_url
+    haystack = ' '.join([
+        course.title or '',
+        course.expertise_area or '',
+        course.level or '',
+        course.description or '',
+        course.sales_copy or '',
+    ]).lower()
+    for keywords, image_url in COURSE_IMAGE_RULES:
+        if any(keyword in haystack for keyword in keywords):
+            return image_url
+    return 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80'
 
 
 def module_number_for_session(lesson_number: int):
@@ -921,6 +950,7 @@ def template(request: Request, name: str, db: Session, context=None):
         'current_admin': admin_from_request(request, db),
         'course_slug': course_slug,
         'course_price': course_price,
+        'course_image': course_image,
         'certificate_badge': certificate_badge,
         'lesson_module_number': lesson_module_number,
         'lesson_session_number': lesson_session_number,
@@ -1125,17 +1155,53 @@ def home(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get('/courses', response_class=HTMLResponse)
-def catalog(request: Request, q: str = '', level: str = '', expertise: str = '', db: Session = Depends(get_db)):
+def catalog(request: Request, q: str = '', level: str = '', expertise: str = '', price: str = '', duration: str = '', db: Session = Depends(get_db)):
     query = db.query(Course).filter_by(is_published=True)
     if level:
-        query = query.filter(Course.level == level)
+        level_number_match = re.search(r'\d+', level)
+        if level_number_match:
+            query = query.filter(or_(Course.level == level, Course.certificate_level == int(level_number_match.group(0))))
+        else:
+            query = query.filter(Course.level == level)
     if expertise:
         query = query.filter(Course.expertise_area == expertise)
+    if price == 'free':
+        query = query.filter(or_(Course.price_cents <= 0, Course.allow_free_enrollment.is_(True)))
+    elif price == 'paid':
+        query = query.filter(Course.price_cents > 0, Course.allow_free_enrollment.is_(False))
+    elif price == 'under-100':
+        query = query.filter(Course.price_cents > 0, Course.price_cents < 10000)
+    elif price == '100-500':
+        query = query.filter(Course.price_cents >= 10000, Course.price_cents <= 50000)
+    elif price == '500-plus':
+        query = query.filter(Course.price_cents > 50000)
+    if duration == 'short':
+        query = query.filter(Course.learning_hours > 0, Course.learning_hours <= 5)
+    elif duration == 'standard':
+        query = query.filter(or_(Course.learning_hours.is_(None), Course.learning_hours == 0, and_(Course.learning_hours > 5, Course.learning_hours <= 15)))
+    elif duration == 'extended':
+        query = query.filter(Course.learning_hours > 15)
     if q:
         query = query.filter(or_(Course.title.ilike(f'%{q}%'), Course.description.ilike(f'%{q}%'), Course.sales_copy.ilike(f'%{q}%')))
     courses = query.order_by(Course.is_featured.desc(), Course.created_at.desc()).all()
-    levels = [row[0] for row in db.query(Course.level).filter(Course.is_published.is_(True), Course.level.isnot(None)).distinct().all()]
-    return template(request, 'catalog.html', db, {'courses': courses, 'levels': levels, 'selected_level': level, 'selected_expertise': expertise, 'q': q, 'categories': categories(db)})
+    level_values = {row[0] for row in db.query(Course.level).filter(Course.is_published.is_(True), Course.level.isnot(None)).distinct().all() if row[0]}
+    level_values.update(
+        f'Level {row[0]}' for row in db.query(Course.certificate_level).filter(
+            Course.is_published.is_(True),
+            Course.certificate_level.in_([1, 2, 3]),
+        ).distinct().all()
+    )
+    levels = sorted(level_values)
+    return template(request, 'catalog.html', db, {
+        'courses': courses,
+        'levels': levels,
+        'selected_level': level,
+        'selected_expertise': expertise,
+        'selected_price': price,
+        'selected_duration': duration,
+        'q': q,
+        'categories': categories(db),
+    })
 
 
 @app.get('/api/expertise-areas')

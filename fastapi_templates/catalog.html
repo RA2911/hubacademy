@@ -8,21 +8,37 @@
         <form class="searchbar wide" method="GET" action="/courses">
             <i class="fas fa-search"></i>
             <input name="q" type="search" value="{{ q or '' }}" placeholder="Search courses, skills, topics...">
+            <input type="hidden" name="expertise" value="{{ selected_expertise or '' }}">
             <select name="level">
                 <option value="">All levels</option>
                 {% for level in levels %}<option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>{{ level }}</option>{% endfor %}
+            </select>
+            <select name="price">
+                <option value="">All prices</option>
+                <option value="free" {% if selected_price == 'free' %}selected{% endif %}>Free</option>
+                <option value="paid" {% if selected_price == 'paid' %}selected{% endif %}>Paid</option>
+                <option value="under-100" {% if selected_price == 'under-100' %}selected{% endif %}>Under USD 100</option>
+                <option value="100-500" {% if selected_price == '100-500' %}selected{% endif %}>USD 100-500</option>
+                <option value="500-plus" {% if selected_price == '500-plus' %}selected{% endif %}>USD 500+</option>
+            </select>
+            <select name="duration">
+                <option value="">All durations</option>
+                <option value="short" {% if selected_duration == 'short' %}selected{% endif %}>Up to 5h</option>
+                <option value="standard" {% if selected_duration == 'standard' %}selected{% endif %}>6-15h</option>
+                <option value="extended" {% if selected_duration == 'extended' %}selected{% endif %}>16h+</option>
             </select>
             <button type="submit">Find Courses</button>
         </form>
     </header>
 
-    <section class="section slim">
-        <div class="expertise-strip">
-            {% for category in categories %}
-            <a href="{{ category.href }}" class="{% if selected_expertise == category.name %}active{% endif %}">
-                {{ category.name }}
-            </a>
-            {% endfor %}
+    <section class="section slim catalog-topic-panel">
+        <div class="topic-panel-card">
+            <div>
+                <span class="eyebrow">Expertise areas</span>
+                <h2>{{ selected_expertise or 'Choose a topic' }}</h2>
+                <p>Open the topic browser to search expertise areas and filter the course library.</p>
+            </div>
+            <button class="btn secondary" type="button" id="topic-modal-open"><i class="fas fa-layer-group"></i> Browse Topics</button>
         </div>
     </section>
 
@@ -43,4 +59,79 @@
         </div>
     </section>
 </main>
+
+<div class="catalog-modal" id="topic-modal" hidden>
+    <section class="catalog-modal-panel">
+        <header>
+            <div>
+                <span class="eyebrow">Expertise areas</span>
+                <h2>Browse course topics</h2>
+            </div>
+            <button class="icon-link" type="button" id="topic-modal-close" title="Close"><i class="fas fa-xmark"></i></button>
+        </header>
+        <form class="topic-search" action="/courses" method="GET">
+            <i class="fas fa-search"></i>
+            <input id="topic-search-input" type="search" placeholder="Search expertise areas...">
+            <input type="hidden" name="q" value="{{ q or '' }}">
+            <input type="hidden" name="level" value="{{ selected_level or '' }}">
+            <input type="hidden" name="price" value="{{ selected_price or '' }}">
+            <input type="hidden" name="duration" value="{{ selected_duration or '' }}">
+            <button class="btn primary" type="button" id="topic-search-button">Search</button>
+        </form>
+        <div class="topic-modal-grid" id="topic-modal-grid">
+            <a class="topic-modal-card {% if not selected_expertise %}active{% endif %}" href="/courses?q={{ (q or '')|urlencode }}&level={{ (selected_level or '')|urlencode }}&price={{ (selected_price or '')|urlencode }}&duration={{ (selected_duration or '')|urlencode }}" data-topic="all topics">
+                <i class="fas fa-border-all"></i>
+                <strong>All Topics</strong>
+                <span>Show the full course library</span>
+            </a>
+            {% for category in categories %}
+            <a class="topic-modal-card {% if selected_expertise == category.name %}active{% endif %}" href="/courses?expertise={{ category.name|urlencode }}&q={{ (q or '')|urlencode }}&level={{ (selected_level or '')|urlencode }}&price={{ (selected_price or '')|urlencode }}&duration={{ (selected_duration or '')|urlencode }}" data-topic="{{ category.name|lower }}">
+                <i class="fas fa-graduation-cap"></i>
+                <strong>{{ category.name }}</strong>
+                <span>{{ category.count if category.count is not none else 0 }} course{{ '' if category.count == 1 else 's' }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<script>
+(function () {
+    const modal = document.getElementById('topic-modal');
+    const open = document.getElementById('topic-modal-open');
+    const close = document.getElementById('topic-modal-close');
+    const input = document.getElementById('topic-search-input');
+    const searchButton = document.getElementById('topic-search-button');
+    const cards = Array.from(document.querySelectorAll('.topic-modal-card'));
+
+    function openModal() {
+        modal.hidden = false;
+        input.focus();
+    }
+
+    function closeModal() {
+        modal.hidden = true;
+        input.value = '';
+        filterTopics('');
+    }
+
+    function filterTopics(value) {
+        const term = value.trim().toLowerCase();
+        cards.forEach((card) => {
+            card.hidden = term && !(card.dataset.topic || '').includes(term);
+        });
+    }
+
+    open.addEventListener('click', openModal);
+    close.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !modal.hidden) closeModal();
+    });
+    input.addEventListener('input', () => filterTopics(input.value));
+    searchButton.addEventListener('click', () => filterTopics(input.value));
+})();
+</script>
 {% endblock %}

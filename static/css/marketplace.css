@@ -219,8 +219,8 @@ a {
 }
 
 .searchbar.wide {
-    max-width: 980px;
-    grid-template-columns: auto 1fr 170px auto;
+    max-width: 1180px;
+    grid-template-columns: auto minmax(220px, 1fr) repeat(3, minmax(130px, 160px)) auto;
 }
 
 .searchbar input,
@@ -391,30 +391,125 @@ a {
     font-size: 14px;
 }
 
-.expertise-strip {
+.catalog-topic-panel {
+    padding-top: 8px;
+}
+
+.topic-panel-card {
     display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-}
-
-.expertise-strip a {
-    flex: 0 0 auto;
-    padding: 10px 13px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
     border: 1px solid var(--line);
-    border-radius: 999px;
+    border-radius: var(--radius);
     background: var(--surface);
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 700;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(16, 24, 40, .05);
 }
 
-.expertise-strip a.active,
-.expertise-strip a:hover {
-    color: var(--primary-2);
-    border-color: #b7ddd7;
+.topic-panel-card h2 {
+    margin: 4px 0 6px;
+}
+
+.topic-panel-card p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.catalog-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    padding: 24px;
+    background: rgba(2, 8, 23, .68);
+}
+
+.catalog-modal-panel {
+    width: min(980px, 100%);
+    max-height: calc(100vh - 48px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: var(--shadow);
+}
+
+.catalog-modal-panel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 20px;
+    border-bottom: 1px solid var(--line);
+}
+
+.catalog-modal-panel h2 {
+    margin: 4px 0 0;
+}
+
+.topic-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+}
+
+.topic-search input {
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 0 12px;
+    font: inherit;
+}
+
+.topic-search i {
+    color: var(--muted);
+}
+
+.topic-modal-grid {
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    padding: 20px;
+}
+
+.topic-modal-card {
+    min-height: 132px;
+    display: grid;
+    align-content: space-between;
+    gap: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+    color: var(--ink);
+    padding: 16px;
+    text-decoration: none;
+}
+
+.topic-modal-card:hover,
+.topic-modal-card.active {
+    border-color: #9bd8cf;
     background: #eef9f7;
+}
+
+.topic-modal-card i {
+    color: var(--primary);
+}
+
+.topic-modal-card strong,
+.topic-modal-card span {
+    display: block;
+}
+
+.topic-modal-card span {
+    color: var(--muted);
+    font-size: .9rem;
 }
 
 .cert-path {
@@ -663,6 +758,9 @@ a {
 }
 
 .course-card {
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--surface);
@@ -696,6 +794,9 @@ a {
 }
 
 .course-body {
+    min-height: 332px;
+    display: grid;
+    grid-template-rows: auto auto minmax(88px, auto) auto 1fr;
     padding: 18px;
 }
 
@@ -729,8 +830,12 @@ a {
 }
 
 .course-body p {
-    min-height: 74px;
+    min-height: 88px;
     margin: 0 0 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .course-facts {
@@ -738,6 +843,7 @@ a {
 }
 
 .card-bottom {
+    align-self: end;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2752,6 +2858,7 @@ th {
     .section-head,
     .band-head,
     .dashboard-hero,
+    .topic-panel-card,
     .learning-card-footer {
         align-items: start;
         flex-direction: column;
@@ -2772,6 +2879,36 @@ th {
 
     .dashboard-hero h1 {
         font-size: 34px;
+    }
+
+    .catalog-modal {
+        padding: 12px;
+    }
+
+    .catalog-modal-panel {
+        max-height: calc(100vh - 24px);
+    }
+
+    .catalog-modal-panel header,
+    .topic-search {
+        padding: 14px;
+    }
+
+    .topic-search {
+        grid-template-columns: 1fr;
+    }
+
+    .topic-search i {
+        display: none;
+    }
+
+    .topic-modal-grid {
+        grid-template-columns: 1fr;
+        padding: 14px;
+    }
+
+    .course-body {
+        min-height: 0;
     }
 
     .ai-modal-body {
