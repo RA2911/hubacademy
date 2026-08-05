@@ -90,6 +90,10 @@ app.mount('/static', StaticFiles(directory=os.path.join(cfg.BASE_DIR, 'static'))
 templates = Jinja2Templates(directory=os.path.join(cfg.BASE_DIR, 'fastapi_templates'))
 logger = logging.getLogger(__name__)
 
+# Additive: certificate PDF download + public verification (self-contained module).
+import certificate_verify  # noqa: E402
+app.include_router(certificate_verify.router)
+
 
 @app.on_event('startup')
 def startup():

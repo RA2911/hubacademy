@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Certificate verification · Hub Academy{% endblock %}
+{% block content %}
+<section class="verify-wrap">
+    {% if valid %}
+    <div class="verify-card ok">
+        <div class="verify-badge ok"><i class="fas fa-circle-check"></i> Verified authentic</div>
+        <h1>{{ student_name }}</h1>
+        <p class="verify-sub">has earned the following Hub Academy credential:</p>
+        <div class="verify-credential">
+            <h2>{{ title }}</h2>
+            <ul>
+                <li><span>Expertise area</span><strong>{{ expertise_area }}</strong></li>
+                <li><span>Level</span><strong>{{ level_label }}</strong></li>
+                <li><span>Learning hours</span><strong>{{ hours }}</strong></li>
+                <li><span>Issued</span><strong>{{ issued_at }}</strong></li>
+                <li><span>Verification ID</span><strong>{{ hub }}</strong></li>
+            </ul>
+        </div>
+        <p class="verify-hint">This confirmation is provided by Hub Academy for the sole purpose of credential verification.</p>
+    </div>
+    {% else %}
+    <div class="verify-card bad">
+        <div class="verify-badge bad"><i class="fas fa-circle-xmark"></i> Not found</div>
+        <h1>We could not verify that ID</h1>
+        <p class="verify-sub">No certificate matches <strong>{{ query_code }}</strong>. Please check the
+            Verification ID exactly as printed on the certificate and try again.</p>
+        <a class="btn primary" href="/verify">Try another ID</a>
+    </div>
+    {% endif %}
+</section>
+<style>
+.verify-wrap{max-width:720px;margin:64px auto;padding:0 20px;}
+.verify-card{background:#fff;border:1px solid #e7eef7;border-radius:18px;padding:40px;box-shadow:0 18px 40px rgba(15,35,80,.08);}
+.verify-card.ok{border-top:5px solid #17a673;}
+.verify-card.bad{border-top:5px solid #d64d4d;}
+.verify-badge{display:inline-flex;align-items:center;gap:8px;font-weight:700;padding:6px 14px;border-radius:999px;font-size:.85rem;}
+.verify-badge.ok{background:#e7f7f0;color:#17a673;}
+.verify-badge.bad{background:#fbeaea;color:#d64d4d;}
+.verify-card h1{color:#0f2350;margin:.8rem 0 .3rem;font-size:1.8rem;}
+.verify-sub{color:#5b6b86;line-height:1.6;}
+.verify-credential{margin:22px 0;padding:22px;background:#f6f9ff;border:1px solid #e7eef7;border-radius:14px;}
+.verify-credential h2{color:#2480DC;margin:0 0 14px;font-size:1.25rem;}
+.verify-credential ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;}
+.verify-credential li{display:flex;justify-content:space-between;gap:16px;border-bottom:1px dashed #dbe5f5;padding-bottom:8px;}
+.verify-credential li:last-child{border-bottom:none;padding-bottom:0;}
+.verify-credential li span{color:#8091ab;font-size:.9rem;}
+.verify-credential li strong{color:#0f2350;text-align:right;}
+.verify-hint{font-size:.85rem;color:#8091ab;}
+</style>
+{% endblock %}

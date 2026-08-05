@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}My certificates · Hub Academy{% endblock %}
+{% block content %}
+<section class="certs-wrap">
+    <div class="certs-head">
+        <span class="eyebrow">My credentials</span>
+        <h1>My certificates</h1>
+        <p>Download a stamped PDF or share your public verification link with employers.</p>
+        <a class="btn ghost" href="/learn/dashboard"><i class="fas fa-arrow-left"></i> Back to dashboard</a>
+    </div>
+
+    {% if certificates %}
+    <div class="certs-grid">
+        {% for c in certificates %}
+        <article class="cert-card">
+            <div class="cert-card-top">
+                <span class="cert-area">{{ c.expertise_area }}</span>
+                <span class="cert-level">{{ c.level_label }}</span>
+            </div>
+            <h3>{{ c.title }}</h3>
+            <p class="cert-meta">{{ c.hours }} learning hours · Issued {{ c.issued_at }}</p>
+            <p class="cert-id">Verification ID: <strong>{{ c.hub }}</strong></p>
+            <div class="cert-actions">
+                <a class="btn primary" href="/learn/certificate/{{ c.hub }}" target="_blank" rel="noopener">
+                    <i class="fas fa-file-arrow-down"></i> Download PDF</a>
+                <a class="btn secondary" href="{{ c.verify_url }}" target="_blank" rel="noopener">
+                    <i class="fas fa-shield-halved"></i> Public verify link</a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="certs-empty">
+        <h3>No certificates yet.</h3>
+        <p>Complete Level 1, Level 2, and Level 3 paths to earn certificates and the Master Certificate.</p>
+    </div>
+    {% endif %}
+</section>
+<style>
+.certs-wrap{max-width:1040px;margin:56px auto;padding:0 20px;}
+.certs-head .eyebrow{color:#2480DC;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.72rem;}
+.certs-head h1{color:#0f2350;margin:.4rem 0 .4rem;font-size:2rem;}
+.certs-head p{color:#5b6b86;margin:0 0 14px;}
+.certs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px;margin-top:26px;}
+.cert-card{background:#fff;border:1px solid #e7eef7;border-radius:16px;padding:24px;box-shadow:0 14px 34px rgba(15,35,80,.07);}
+.cert-card-top{display:flex;justify-content:space-between;gap:12px;color:#8091ab;font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.cert-card h3{color:#0f2350;margin:12px 0 6px;font-size:1.2rem;}
+.cert-meta{color:#5b6b86;font-size:.9rem;margin:0 0 4px;}
+.cert-id{color:#5b6b86;font-size:.85rem;margin:0 0 16px;}
+.cert-id strong{color:#0f2350;letter-spacing:.06em;}
+.cert-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.certs-empty{margin-top:40px;text-align:center;color:#5b6b86;}
+</style>
+{% endblock %}

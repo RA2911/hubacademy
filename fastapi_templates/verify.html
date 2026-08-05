@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Verify a certificate · Hub Academy{% endblock %}
+{% block content %}
+<section class="verify-wrap">
+    <div class="verify-card">
+        <span class="eyebrow">Credential verification</span>
+        <h1>Verify a Hub Academy certificate</h1>
+        <p>Enter the Verification ID printed on the certificate (for example
+            <strong>HUB-4F9A2C7B</strong>) to confirm it is authentic.</p>
+        <form class="verify-form" method="get" action="/verify">
+            <input type="text" name="code" placeholder="HUB-XXXXXXXX" autocomplete="off"
+                   autocapitalize="characters" spellcheck="false" required>
+            <button class="btn primary" type="submit">Verify</button>
+        </form>
+        <p class="verify-hint">You can also scan the QR code on the certificate to open this page automatically.</p>
+    </div>
+</section>
+<style>
+.verify-wrap{max-width:720px;margin:64px auto;padding:0 20px;}
+.verify-card{background:#fff;border:1px solid #e7eef7;border-radius:18px;padding:40px;box-shadow:0 18px 40px rgba(15,35,80,.08);}
+.verify-card .eyebrow{color:#2480DC;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.72rem;}
+.verify-card h1{color:#0f2350;margin:.4rem 0 1rem;font-size:1.9rem;}
+.verify-card p{color:#5b6b86;line-height:1.6;}
+.verify-form{display:flex;gap:12px;margin:22px 0 10px;flex-wrap:wrap;}
+.verify-form input{flex:1;min-width:220px;padding:14px 16px;border:1.5px solid #cdd8ea;border-radius:12px;font-size:1rem;letter-spacing:.06em;text-transform:uppercase;}
+.verify-form input:focus{outline:none;border-color:#2480DC;box-shadow:0 0 0 3px rgba(36,128,220,.15);}
+.verify-hint{font-size:.85rem;color:#8091ab;}
+</style>
+{% endblock %}
