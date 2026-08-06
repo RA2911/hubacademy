@@ -1498,32 +1498,56 @@ async def assistant(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
     question = (data.get('question') or '').strip()
     mode = (data.get('mode') or 'text').strip().lower()
-    courses = db.query(Course).filter_by(is_published=True).order_by(Course.is_featured.desc(), Course.created_at.desc()).limit(8).all()
-    course_lines = [f"{c.title} ({c.expertise_area or c.level or 'self-paced'}, {certificate_badge(c)}, {course_price(c)})" for c in courses]
+    history = data.get('history') or []
+    courses = db.query(Course).filter_by(is_published=True).order_by(Course.is_featured.desc(), Course.created_at.desc()).limit(20).all()
+    course_lines = [f"- {c.title} ({c.expertise_area or c.level or 'self-paced'}, {certificate_badge(c)}, {course_price(c)})" for c in courses]
     fallback = 'I can help you choose an expertise area, pick Level 1, Level 2, or Level 3 courses, and explain the Master Certificate path.'
-    if not cfg.OPENAI_API_KEY:
-        if course_lines:
-            fallback += ' Current courses include: ' + '; '.join(course_lines[:4]) + '.'
+    if not question:
         return {'answer': fallback, 'mode': mode, 'audio_available': False, 'video_available': False}
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=cfg.OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model=cfg.OPENAI_MODEL,
-            messages=[
-                {'role': 'system', 'content': 'You are Hub Academy concierge. Help visitors choose online courses or subscription plans. Be concise and practical.'},
-                {'role': 'user', 'content': f"Visitor question: {question}\nCertification model: each expertise area has Level 1, Level 2, and Level 3 certificates. Each level requires 15 hours across videos, practices, simulations, and evaluation. Completing all three levels grants a Master Certificate.\nAvailable courses:\n" + "\n".join(course_lines)},
-            ],
-            max_tokens=220,
-            temperature=0.5,
+        client = openai_client(db)
+        system = (
+            "You are Hub Academy's AI learning guide. Answer the visitor's question directly and helpfully. "
+            "Use a hybrid approach: draw on your general knowledge of the subject, skills, and careers, AND ground "
+            "any course, level, or price recommendations in the live catalog below. Never invent courses that are not listed. "
+            "When it fits, connect the answer to a relevant Hub Academy course or certificate level. Be concise, practical, and friendly.\n\n"
+            "Certification model: each expertise area has Level 1, Level 2, and Level 3 certificates. "
+            "Each level requires 15 hours across videos, practices, simulations, and evaluation. "
+            "Completing all three levels grants a Master Certificate, which is verifiable via a public verification ID.\n\n"
+            "Available courses:\n" + ("\n".join(course_lines) if course_lines else "(no published courses yet)")
         )
+        messages = [{'role': 'system', 'content': system}]
+        # conversation memory: replay recent prior turns from the client
+        for turn in history[-8:]:
+            role = turn.get('role') if isinstance(turn, dict) else None
+            content = (turn.get('content') or '').strip() if isinstance(turn, dict) else ''
+            if role in ('user', 'assistant') and content:
+                messages.append({'role': role, 'content': content[:1500]})
+        messages.append({'role': 'user', 'content': question})
+        # prefer gpt-4o, fall back to configured/mini models if unavailable
+        models = []
+        for model in ['gpt-4o', cfg.OPENAI_MODEL, 'gpt-4o-mini']:
+            if model and model not in models:
+                models.append(model)
+        response, last_error = None, None
+        for model in models:
+            try:
+                response = client.chat.completions.create(
+                    model=model, messages=messages, max_tokens=450, temperature=0.5,
+                )
+                break
+            except Exception as exc:
+                last_error = exc
+        if response is None:
+            raise last_error or RuntimeError('OpenAI chat completion failed.')
         return {
             'answer': response.choices[0].message.content,
             'mode': mode,
-            'audio_available': bool(cfg.OPENAI_API_KEY),
+            'audio_available': True,
             'video_available': bool(cfg.DID_API_KEY and cfg.DID_SOURCE_IMAGE_URL),
         }
-    except Exception:
+    except Exception as exc:
+        logger.exception('assistant failed: %s', exc)
         return {'answer': fallback, 'mode': mode, 'audio_available': False, 'video_available': False}
 
 

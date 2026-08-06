@@ -70,6 +70,7 @@
     const input = document.getElementById('ai-guide-input');
     const body = document.getElementById('ai-guide-body');
     if (!widget || !avatar || !form) return;
+    const history = [];
     avatar.addEventListener('click', () => widget.classList.toggle('open'));
     close.addEventListener('click', () => widget.classList.remove('open'));
     form.addEventListener('submit', async (event) => {
@@ -82,10 +83,13 @@
             const response = await fetch('/assistant', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({question})
+                body: JSON.stringify({question, history: history.slice(-8)})
             });
             const data = await response.json();
-            body.lastElementChild.textContent = data.answer || 'I could not answer that yet.';
+            const answer = data.answer || 'I could not answer that yet.';
+            body.lastElementChild.textContent = answer;
+            history.push({role: 'user', content: question});
+            history.push({role: 'assistant', content: answer});
         } catch (error) {
             body.lastElementChild.textContent = 'The guide is unavailable right now.';
         }
