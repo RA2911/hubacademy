@@ -42,21 +42,32 @@
 {% block content %}{% endblock %}
 
 <div class="ai-guide" id="ai-guide">
-    <button class="ai-guide-avatar" type="button" aria-label="Open learning guide"><i class="fas fa-message"></i></button>
+    <button class="ai-guide-avatar" type="button" aria-label="Open learning guide"><i class="fas fa-comment-dots"></i></button>
     <section class="ai-guide-panel" aria-live="polite">
         <div class="ai-guide-head">
-            <div>
-                <strong>Learning Guide</strong>
-                <small>Courses, levels, certificates</small>
+            <div class="ai-guide-head-id">
+                <span class="ai-guide-bot"><i class="fas fa-robot"></i></span>
+                <div>
+                    <strong>Learning Guide</strong>
+                    <small><span class="ai-guide-dot"></span> Online · replies instantly</small>
+                </div>
             </div>
-            <button type="button" class="ai-guide-close" aria-label="Close">x</button>
+            <button type="button" class="ai-guide-close" aria-label="Close"><i class="fas fa-xmark"></i></button>
         </div>
         <div class="ai-guide-body" id="ai-guide-body">
-            <p>Ask which expertise area or certificate level is right for you.</p>
+            <div class="ai-msg bot">
+                <span class="ai-msg-avatar"><i class="fas fa-robot"></i></span>
+                <div class="ai-bubble">👋 Hi! I'm your learning guide. Ask me anything about courses, levels, or certificates.</div>
+            </div>
+            <div class="ai-guide-chips" id="ai-guide-chips">
+                <button type="button" class="ai-chip">Where do I start?</button>
+                <button type="button" class="ai-chip">Which level suits me?</button>
+                <button type="button" class="ai-chip">How do certificates work?</button>
+            </div>
         </div>
         <form class="ai-guide-form" id="ai-guide-form">
-            <input type="text" id="ai-guide-input" placeholder="What should I learn next?">
-            <button type="submit">Ask</button>
+            <input type="text" id="ai-guide-input" placeholder="Ask me anything...">
+            <button type="submit" aria-label="Send"><i class="fas fa-paper-plane"></i></button>
         </form>
     </section>
 </div>
@@ -73,12 +84,38 @@
     const history = [];
     avatar.addEventListener('click', () => widget.classList.toggle('open'));
     close.addEventListener('click', () => widget.classList.remove('open'));
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const question = input.value.trim();
+
+    const esc = (s) => s.replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    function formatAnswer(text) {
+        const lines = (text || '').split(/\r?\n/);
+        let html = '', inList = false;
+        for (const raw of lines) {
+            const line = raw.trim();
+            if (!line) continue;
+            const m = line.match(/^[-*•]\s+(.*)$/);
+            if (m) {
+                if (!inList) { html += '<ul>'; inList = true; }
+                html += '<li>' + inline(m[1]) + '</li>';
+            } else {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += '<p>' + inline(line) + '</p>';
+            }
+        }
+        if (inList) html += '</ul>';
+        return html || '<p>' + esc(text || '') + '</p>';
+    }
+
+    async function ask(question) {
         if (!question) return;
-        body.innerHTML += `<p class="me">${question}</p><p>Thinking...</p>`;
-        input.value = '';
+        const chips = document.getElementById('ai-guide-chips');
+        if (chips) chips.remove();
+        body.insertAdjacentHTML('beforeend', `<div class="ai-msg me"><div class="ai-bubble">${esc(question)}</div></div>`);
+        const typing = document.createElement('div');
+        typing.className = 'ai-msg bot';
+        typing.innerHTML = '<span class="ai-msg-avatar"><i class="fas fa-robot"></i></span><div class="ai-bubble"><span class="ai-typing"><i></i><i></i><i></i></span></div>';
+        body.appendChild(typing);
+        body.scrollTop = body.scrollHeight;
         try {
             const response = await fetch('/assistant', {
                 method: 'POST',
@@ -87,14 +124,22 @@
             });
             const data = await response.json();
             const answer = data.answer || 'I could not answer that yet.';
-            body.lastElementChild.textContent = answer;
+            typing.querySelector('.ai-bubble').innerHTML = formatAnswer(answer);
             history.push({role: 'user', content: question});
             history.push({role: 'assistant', content: answer});
         } catch (error) {
-            body.lastElementChild.textContent = 'The guide is unavailable right now.';
+            typing.querySelector('.ai-bubble').textContent = 'The guide is unavailable right now.';
         }
         body.scrollTop = body.scrollHeight;
+    }
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const question = input.value.trim();
+        input.value = '';
+        ask(question);
     });
+    document.querySelectorAll('.ai-chip').forEach((chip) => chip.addEventListener('click', () => ask(chip.textContent.trim())));
 })();
 </script>
 <script>
