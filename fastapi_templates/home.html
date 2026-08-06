@@ -85,7 +85,12 @@
                 <button type="button" class="outcome-cta" data-modal="journey">See what you gain <i class="fas fa-arrow-right"></i></button>
             </div>
             <div><i class="fas fa-mobile-screen"></i><strong>Installable app</strong><span>Desktop and mobile stay synchronized.</span></div>
-            <div><i class="fas fa-message"></i><strong>AI guide</strong><span>Visitors can ask for course and level guidance.</span></div>
+            <div class="outcome-clickable">
+                <i class="fas fa-message"></i>
+                <strong>AI guide</strong>
+                <span>Visitors can ask for course and level guidance.</span>
+                <button type="button" class="outcome-cta" data-modal="aiguide">See how it helps <i class="fas fa-arrow-right"></i></button>
+            </div>
             <div><i class="fas fa-certificate"></i><strong>Certificates</strong><span>Level certificates lead to mastery.</span></div>
         </div>
     </section>
@@ -147,6 +152,42 @@
     </div>
 </div>
 
+<!-- AI Guide modal (compact) -->
+<div class="journey-modal" id="aiguide-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="aiguide-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">AI Guide</span>
+            <h2 id="aiguide-title">Your AI Learning Guide</h2>
+            <p>Instant answers, so you're never stuck choosing what to learn.</p>
+        </div>
+        <div class="journey-gallery two">
+            <figure>
+                <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=400&q=80" alt="Ask anything" loading="lazy">
+                <figcaption>Ask anything</figcaption>
+            </figure>
+            <figure>
+                <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80" alt="Get pointed the right way" loading="lazy">
+                <figcaption>Get pointed the right way</figcaption>
+            </figure>
+        </div>
+        <div class="journey-blocks">
+            <section class="journey-block">
+                <h3><i class="fas fa-wand-magic-sparkles"></i> Why it helps</h3>
+                <ul>
+                    <li><strong>Ask anything</strong> — which expertise area, which level, or what to learn next.</li>
+                    <li><strong>Personalized direction</strong> — pointed to the right course in seconds.</li>
+                    <li><strong>Always on</strong> — available 24/7 from any page, no waiting.</li>
+                </ul>
+            </section>
+        </div>
+        <div class="journey-foot">
+            <button type="button" class="btn primary" data-open-guide><i class="fas fa-message"></i> Ask the Guide</button>
+        </div>
+    </div>
+</div>
+
 <style>
 .outcome-clickable{display:flex;flex-direction:column;align-items:flex-start;}
 .outcome-cta{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#0f2350;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .15s ease;}
@@ -165,6 +206,8 @@
 .journey-head h2{margin:.4rem 0 .5rem;font-size:1.7rem;color:#fff;}
 .journey-head p{margin:0;color:#cdd8ea;line-height:1.5;}
 .journey-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:22px 36px 6px;}
+.journey-gallery.two{grid-template-columns:repeat(2,1fr);}
+.journey-gallery.two img{height:120px;}
 .journey-gallery figure{margin:0;}
 .journey-gallery img{width:100%;height:96px;object-fit:cover;border-radius:12px;display:block;}
 .journey-gallery figcaption{margin-top:8px;font-size:.78rem;color:#5b6b86;text-align:center;font-weight:600;}
@@ -185,13 +228,23 @@
 
 <script>
 (function(){
-    const modal=document.getElementById('journey-modal');
-    if(!modal)return;
-    const open=()=>{modal.hidden=false;document.body.style.overflow='hidden';};
-    const close=()=>{modal.hidden=true;document.body.style.overflow='';};
-    document.querySelectorAll('[data-modal="journey"]').forEach(b=>b.addEventListener('click',open));
-    modal.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',close));
-    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close();});
+    const setOpen=m=>{m.hidden=false;document.body.style.overflow='hidden';};
+    const setClose=m=>{m.hidden=true;document.body.style.overflow='';};
+    document.querySelectorAll('[data-modal]').forEach(btn=>{
+        const target=document.getElementById(btn.getAttribute('data-modal')+'-modal');
+        if(target)btn.addEventListener('click',()=>setOpen(target));
+    });
+    document.querySelectorAll('.journey-modal [data-close]').forEach(btn=>{
+        const modal=btn.closest('.journey-modal');
+        btn.addEventListener('click',()=>setClose(modal));
+    });
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.journey-modal:not([hidden])').forEach(setClose);});
+    // "Ask the Guide" closes the modal and opens the chat widget
+    document.querySelectorAll('[data-open-guide]').forEach(btn=>btn.addEventListener('click',()=>{
+        document.querySelectorAll('.journey-modal:not([hidden])').forEach(setClose);
+        const guide=document.getElementById('ai-guide');
+        if(guide){guide.classList.add('open');const input=document.getElementById('ai-guide-input');if(input)input.focus();}
+    }));
 })();
 </script>
 {% endblock %}
