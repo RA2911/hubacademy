@@ -79,11 +79,121 @@
 
     <section class="section compact-section">
         <div class="outcome-panel">
-            <div><i class="fas fa-route"></i><strong>Progressive journey</strong><span>Locked sessions keep learning focused.</span></div>
+            <div class="outcome-clickable">
+                <i class="fas fa-route"></i>
+                <strong>Progressive journey</strong>
+                <span>Locked sessions keep learning focused.</span>
+                <button type="button" class="outcome-cta" data-modal="journey">See what you gain <i class="fas fa-arrow-right"></i></button>
+            </div>
             <div><i class="fas fa-mobile-screen"></i><strong>Installable app</strong><span>Desktop and mobile stay synchronized.</span></div>
             <div><i class="fas fa-message"></i><strong>AI guide</strong><span>Visitors can ask for course and level guidance.</span></div>
             <div><i class="fas fa-certificate"></i><strong>Certificates</strong><span>Level certificates lead to mastery.</span></div>
         </div>
     </section>
 </main>
+
+<!-- Progressive Journey modal -->
+<div class="journey-modal" id="journey-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="journey-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">Progressive Journey</span>
+            <h2 id="journey-title">What you walk away with</h2>
+            <p>A clear, guided path that turns learning into provable capability.</p>
+        </div>
+        <div class="journey-gallery">
+            <figure>
+                <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=400&q=80" alt="Guided momentum" loading="lazy">
+                <figcaption>Guided momentum</figcaption>
+            </figure>
+            <figure>
+                <img src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=400&q=80" alt="Real, usable skills" loading="lazy">
+                <figcaption>Real, usable skills</figcaption>
+            </figure>
+            <figure>
+                <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80" alt="Career-ready proof" loading="lazy">
+                <figcaption>Career-ready proof</figcaption>
+            </figure>
+        </div>
+        <div class="journey-blocks">
+            <section class="journey-block">
+                <h3><i class="fas fa-bolt"></i> What you gain</h3>
+                <ul>
+                    <li><strong>Momentum, not overwhelm</strong> — sessions unlock step by step, so you always know your next move and actually finish.</li>
+                    <li><strong>Real, usable skills</strong> — every stage is built around doing, through practices and realistic simulations.</li>
+                    <li><strong>Confidence that compounds</strong> — each level builds on the last: understand → do → lead.</li>
+                </ul>
+            </section>
+            <section class="journey-block">
+                <h3><i class="fas fa-bullseye"></i> Your takeaways</h3>
+                <ul>
+                    <li><strong>Verifiable credentials</strong> at every level — proof employers can check instantly, not just a "watched a course" badge.</li>
+                    <li><strong>A portfolio of real work</strong> — simulations and case applications show what you can do, not just what you know.</li>
+                    <li><strong>A market-ready skill set</strong> — finish all three levels and earn a Master Certificate.</li>
+                </ul>
+            </section>
+            <section class="journey-block">
+                <h3><i class="fas fa-briefcase"></i> Career impact</h3>
+                <ul>
+                    <li><strong>Grow into bigger roles</strong> — from support, to independent practitioner, to project lead/advisor.</li>
+                    <li><strong>Stand out in the market</strong> — provable, credentialed skills that make hiring managers say yes.</li>
+                    <li><strong>Apply it day one</strong> — everything is tied to real business scenarios you'll face at work.</li>
+                </ul>
+            </section>
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/courses">Explore Courses</a>
+            <a class="btn secondary" href="/#certification">See the Certificate Path</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.outcome-clickable{display:flex;flex-direction:column;align-items:flex-start;}
+.outcome-cta{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#0f2350;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .15s ease;}
+.outcome-cta:hover{background:#2480DC;transform:translateX(2px);}
+.outcome-cta i{font-size:.78rem;}
+
+.journey-modal{position:fixed;inset:0;z-index:2400;display:flex;align-items:flex-start;justify-content:center;padding:32px 20px;overflow-y:auto;}
+.journey-modal[hidden]{display:none;}
+.journey-backdrop{position:fixed;inset:0;background:rgba(6,12,30,.72);backdrop-filter:blur(3px);}
+.journey-panel{position:relative;width:min(760px,100%);background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(6,12,30,.4);overflow:hidden;animation:journeyPop .28s ease;}
+@keyframes journeyPop{from{opacity:0;transform:translateY(16px) scale(.98);}to{opacity:1;transform:none;}}
+.journey-close{position:absolute;top:16px;right:16px;z-index:2;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,.92);color:#0f2350;font-size:1.05rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.15);}
+.journey-close:hover{background:#fff;}
+.journey-head{padding:38px 36px 20px;background:linear-gradient(135deg,#0f2350,#1c3f7a);color:#fff;}
+.journey-eyebrow{text-transform:uppercase;letter-spacing:.1em;font-size:.72rem;font-weight:700;color:#c9a227;}
+.journey-head h2{margin:.4rem 0 .5rem;font-size:1.7rem;color:#fff;}
+.journey-head p{margin:0;color:#cdd8ea;line-height:1.5;}
+.journey-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:22px 36px 6px;}
+.journey-gallery figure{margin:0;}
+.journey-gallery img{width:100%;height:96px;object-fit:cover;border-radius:12px;display:block;}
+.journey-gallery figcaption{margin-top:8px;font-size:.78rem;color:#5b6b86;text-align:center;font-weight:600;}
+.journey-blocks{padding:16px 36px 6px;display:grid;gap:22px;}
+.journey-block h3{display:flex;align-items:center;gap:9px;color:#0f2350;font-size:1.08rem;margin:0 0 10px;}
+.journey-block h3 i{color:#2480DC;}
+.journey-block ul{list-style:none;margin:0;padding:0;display:grid;gap:9px;}
+.journey-block li{position:relative;padding-left:26px;color:#4a5a75;line-height:1.5;}
+.journey-block li::before{content:"\f00c";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;left:0;top:2px;color:#17a673;font-size:.82rem;}
+.journey-block li strong{color:#0f2350;}
+.journey-foot{display:flex;gap:12px;flex-wrap:wrap;padding:24px 36px 34px;border-top:1px solid #eef2f8;margin-top:10px;}
+@media(max-width:560px){
+    .journey-head,.journey-gallery,.journey-blocks,.journey-foot{padding-left:20px;padding-right:20px;}
+    .journey-gallery img{height:72px;}
+    .journey-head h2{font-size:1.4rem;}
+}
+</style>
+
+<script>
+(function(){
+    const modal=document.getElementById('journey-modal');
+    if(!modal)return;
+    const open=()=>{modal.hidden=false;document.body.style.overflow='hidden';};
+    const close=()=>{modal.hidden=true;document.body.style.overflow='';};
+    document.querySelectorAll('[data-modal="journey"]').forEach(b=>b.addEventListener('click',open));
+    modal.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',close));
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close();});
+})();
+</script>
 {% endblock %}
