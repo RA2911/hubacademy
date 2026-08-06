@@ -84,14 +84,24 @@
                 <span>Locked sessions keep learning focused.</span>
                 <button type="button" class="outcome-cta" data-modal="journey">See what you gain <i class="fas fa-arrow-right"></i></button>
             </div>
-            <div><i class="fas fa-mobile-screen"></i><strong>Installable app</strong><span>Desktop and mobile stay synchronized.</span></div>
+            <div class="outcome-clickable">
+                <i class="fas fa-mobile-screen"></i>
+                <strong>Installable app</strong>
+                <span>Desktop and mobile stay synchronized.</span>
+                <button type="button" class="outcome-cta" data-modal="installable">Learn more <i class="fas fa-arrow-right"></i></button>
+            </div>
             <div class="outcome-clickable">
                 <i class="fas fa-message"></i>
                 <strong>AI guide</strong>
                 <span>Visitors can ask for course and level guidance.</span>
                 <button type="button" class="outcome-cta" data-modal="aiguide">See how it helps <i class="fas fa-arrow-right"></i></button>
             </div>
-            <div><i class="fas fa-certificate"></i><strong>Certificates</strong><span>Level certificates lead to mastery.</span></div>
+            <div class="outcome-clickable">
+                <i class="fas fa-certificate"></i>
+                <strong>Certificates</strong>
+                <span>Level certificates lead to mastery.</span>
+                <button type="button" class="outcome-cta" data-modal="certificates">See the certificate <i class="fas fa-arrow-right"></i></button>
+            </div>
         </div>
     </section>
 </main>
@@ -184,6 +194,80 @@
         </div>
         <div class="journey-foot">
             <button type="button" class="btn primary" data-open-guide><i class="fas fa-message"></i> Ask the Guide</button>
+        </div>
+    </div>
+</div>
+
+<!-- Installable App modal (compact) -->
+<div class="journey-modal" id="installable-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="installable-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">Installable App</span>
+            <h2 id="installable-title">Learn anywhere, on any device</h2>
+            <p>Install Hub Academy like a native app — no app store needed.</p>
+        </div>
+        <div class="journey-gallery two">
+            <figure>
+                <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=400&q=80" alt="On mobile and desktop" loading="lazy">
+                <figcaption>On mobile &amp; desktop</figcaption>
+            </figure>
+            <figure>
+                <img src="https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?auto=format&fit=crop&w=400&q=80" alt="Always in sync" loading="lazy">
+                <figcaption>Always in sync</figcaption>
+            </figure>
+        </div>
+        <div class="journey-blocks">
+            <section class="journey-block">
+                <h3><i class="fas fa-mobile-screen"></i> Why install it</h3>
+                <ul>
+                    <li><strong>One-tap install</strong> — add it to your home screen or desktop and launch like a real app.</li>
+                    <li><strong>Synced everywhere</strong> — your courses and progress follow you across devices.</li>
+                    <li><strong>Fast &amp; focused</strong> — a clean full-screen experience with no browser clutter.</li>
+                    <li><strong>How to install</strong> — use your browser's install icon in the address bar, or the "Install App" button in the menu.</li>
+                </ul>
+            </section>
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/courses">Explore Courses</a>
+        </div>
+    </div>
+</div>
+
+<!-- Certificates modal -->
+<div class="journey-modal" id="certificates-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="certificates-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">Certificates</span>
+            <h2 id="certificates-title">Credentials that prove your skills</h2>
+            <p>Earn verifiable certificates employers can check in seconds.</p>
+        </div>
+        <div class="journey-gallery two">
+            <figure>
+                <img src="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=400&q=80" alt="Recognized credentials" loading="lazy">
+                <figcaption>Recognized credentials</figcaption>
+            </figure>
+            <figure>
+                <img src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=400&q=80" alt="Verifiable by employers" loading="lazy">
+                <figcaption>Verifiable by employers</figcaption>
+            </figure>
+        </div>
+        <div class="journey-blocks">
+            <section class="journey-block">
+                <h3><i class="fas fa-certificate"></i> What you earn</h3>
+                <ul>
+                    <li><strong>Level certificates</strong> at Level 1, 2, and 3 — plus a <strong>Master Certificate</strong> for the full track.</li>
+                    <li><strong>A unique verification ID</strong> on every certificate — anyone can confirm it's authentic.</li>
+                    <li><strong>Shareable &amp; printable</strong> — a polished certificate for your CV, LinkedIn, or employer.</li>
+                </ul>
+            </section>
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/static/certificate-sample.html" target="_blank" rel="noopener"><i class="fas fa-eye"></i> View certificate template</a>
+            <a class="btn secondary" href="/verify" target="_blank" rel="noopener">Verify a certificate</a>
         </div>
     </div>
 </div>
