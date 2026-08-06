@@ -1215,7 +1215,17 @@ def evaluate_certificates(db: Session, student_id: int, course: Course):
 def home(request: Request, db: Session = Depends(get_db)):
     featured = db.query(Course).filter_by(is_published=True, is_featured=True).order_by(Course.created_at.desc()).limit(6).all()
     courses = db.query(Course).filter_by(is_published=True).order_by(Course.created_at.desc()).limit(12).all()
-    return template(request, 'home.html', db, {'featured': featured, 'courses': courses, 'categories': categories(db)})
+    # Courses per certificate level, grouped by expertise area (for the Level modals)
+    level_courses = {}
+    for level in (1, 2, 3):
+        rows = db.query(Course).filter_by(is_published=True, certificate_level=level).order_by(
+            Course.expertise_area, Course.title).all()
+        groups = {}
+        for course in rows:
+            groups.setdefault(course.expertise_area or 'Other', []).append(course)
+        level_courses[level] = groups
+    return template(request, 'home.html', db, {'featured': featured, 'courses': courses,
+                                               'categories': categories(db), 'level_courses': level_courses})
 
 
 @app.get('/courses', response_class=HTMLResponse)

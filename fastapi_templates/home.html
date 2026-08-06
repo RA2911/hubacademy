@@ -19,9 +19,9 @@
             </div>
         </div>
         <aside class="hero-panel">
-            <div class="level-card active"><span>Level 1</span><strong>15 hours</strong><small>Foundations</small></div>
-            <div class="level-card"><span>Level 2</span><strong>15 hours</strong><small>Builder</small></div>
-            <div class="level-card"><span>Level 3</span><strong>15 hours</strong><small>Specialist</small></div>
+            <div class="level-card active"><span>Level 1</span><strong>15 hours</strong><small>Foundations</small><button type="button" class="level-cta" data-modal="level1">Explore Level 1 <i class="fas fa-arrow-right"></i></button></div>
+            <div class="level-card"><span>Level 2</span><strong>15 hours</strong><small>Builder</small><button type="button" class="level-cta" data-modal="level2">Explore Level 2 <i class="fas fa-arrow-right"></i></button></div>
+            <div class="level-card"><span>Level 3</span><strong>15 hours</strong><small>Specialist</small><button type="button" class="level-cta" data-modal="level3">Explore Level 3 <i class="fas fa-arrow-right"></i></button></div>
             <div class="master-card"><i class="fas fa-award"></i><div><strong>Master Certificate</strong><small>Earned after all 3 levels</small></div></div>
         </aside>
     </section>
@@ -272,11 +272,63 @@
     </div>
 </div>
 
+<!-- Level course modals -->
+{% set level_meta = {1: 'Foundations', 2: 'Builder', 3: 'Specialist'} %}
+{% for lvl in [1, 2, 3] %}
+<div class="journey-modal" id="level{{ lvl }}-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="level{{ lvl }}-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">Level {{ lvl }}</span>
+            <h2 id="level{{ lvl }}-title">Level {{ lvl }} Courses</h2>
+            <p>{{ level_meta[lvl] }} · 15 hours across videos, practices, simulations, and evaluation.</p>
+        </div>
+        <div class="level-course-list">
+            {% set groups = level_courses[lvl] if level_courses else {} %}
+            {% if groups %}
+                {% for area, items in groups.items() %}
+                <div class="level-area">
+                    <h4>{{ area }}</h4>
+                    <ul>
+                        {% for course in items %}
+                        <li><a href="/courses/{{ course_slug(course) }}">
+                            <span class="lc-title">{{ course.title }}</span>
+                            <span class="lc-meta">{{ course_price(course) }} <i class="fas fa-arrow-right"></i></span>
+                        </a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="level-empty"><p>No Level {{ lvl }} courses published yet. Check back soon.</p></div>
+            {% endif %}
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/courses">Browse all courses</a>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
 <style>
 .outcome-clickable{display:flex;flex-direction:column;align-items:flex-start;}
 .outcome-cta{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#0f2350;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .15s ease;}
 .outcome-cta:hover{background:#2480DC;transform:translateX(2px);}
 .outcome-cta i{font-size:.78rem;}
+
+.level-cta{margin-top:12px;grid-column:1/-1;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#0f2350;color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:.82rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .15s ease;}
+.level-cta:hover{background:#2480DC;transform:translateX(2px);}
+.level-cta i{font-size:.75rem;}
+.level-course-list{padding:16px 28px 6px;display:grid;gap:20px;max-height:52vh;overflow:auto;}
+.level-area h4{margin:0 0 8px;color:#0f2350;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;}
+.level-area ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;}
+.level-area li a{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #e7eef7;border-radius:12px;text-decoration:none;color:#0f2350;background:#fff;transition:border-color .15s ease,background .15s ease,transform .15s ease;}
+.level-area li a:hover{border-color:#2480DC;background:#f6f9ff;transform:translateX(2px);}
+.lc-title{font-weight:600;}
+.lc-meta{display:inline-flex;align-items:center;gap:8px;color:#5b6b86;font-size:.85rem;white-space:nowrap;}
+.lc-meta i{color:#2480DC;font-size:.78rem;}
+.level-empty{padding:10px 0;color:#5b6b86;}
 
 .journey-modal{position:fixed;inset:0;z-index:2400;display:flex;align-items:flex-start;justify-content:center;padding:32px 20px;overflow-y:auto;}
 .journey-modal[hidden]{display:none;}
