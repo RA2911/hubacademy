@@ -22,7 +22,7 @@
             <div class="level-card active"><span>Level 1</span><strong>15 hours</strong><small>Foundations</small><button type="button" class="level-cta" data-modal="level1">Explore Level 1 <i class="fas fa-arrow-right"></i></button></div>
             <div class="level-card"><span>Level 2</span><strong>15 hours</strong><small>Builder</small><button type="button" class="level-cta" data-modal="level2">Explore Level 2 <i class="fas fa-arrow-right"></i></button></div>
             <div class="level-card"><span>Level 3</span><strong>15 hours</strong><small>Specialist</small><button type="button" class="level-cta" data-modal="level3">Explore Level 3 <i class="fas fa-arrow-right"></i></button></div>
-            <div class="master-card"><i class="fas fa-award"></i><div><strong>Master Certificate</strong><small>Earned after all 3 levels</small></div></div>
+            <div class="master-card"><i class="fas fa-award"></i><div><strong>Master Certificate</strong><small>Earned after all 3 levels</small></div><button type="button" class="master-cta" data-modal="master">Explore <i class="fas fa-arrow-right"></i></button></div>
         </aside>
     </section>
 
@@ -311,6 +311,45 @@
 </div>
 {% endfor %}
 
+<!-- Master Certificate modal -->
+<div class="journey-modal" id="master-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="master-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head master-head">
+            <span class="journey-eyebrow">Master Certificate</span>
+            <h2 id="master-title">The pinnacle credential</h2>
+            <p>Three level certificates in one expertise area combine into a Master Certificate.</p>
+        </div>
+        <div class="master-equation">
+            <div class="lvl-chip"><span>Level 1</span><small>Foundations</small></div>
+            <i class="fas fa-plus"></i>
+            <div class="lvl-chip"><span>Level 2</span><small>Builder</small></div>
+            <i class="fas fa-plus"></i>
+            <div class="lvl-chip"><span>Level 3</span><small>Specialist</small></div>
+            <i class="fas fa-arrow-right eqarrow"></i>
+            <div class="master-medal">
+                <div class="medal-disc"><i class="fas fa-award"></i></div>
+                <span class="medal-label">Master</span>
+            </div>
+        </div>
+        <div class="journey-blocks">
+            <section class="journey-block">
+                <h3><i class="fas fa-crown"></i> Why it matters</h3>
+                <ul>
+                    <li><strong>Automatic award</strong> — finish Level 1, 2, and 3 in the same expertise area and the Master Certificate is granted automatically.</li>
+                    <li><strong>Full-track mastery</strong> — the strongest proof of capability in that field.</li>
+                    <li><strong>Verifiable &amp; shareable</strong> — a unique verification ID employers can confirm instantly.</li>
+                </ul>
+            </section>
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/static/certificate-sample.html" target="_blank" rel="noopener"><i class="fas fa-eye"></i> View certificate template</a>
+            <a class="btn secondary" href="/courses">Explore Courses</a>
+        </div>
+    </div>
+</div>
+
 <style>
 .outcome-clickable{display:flex;flex-direction:column;align-items:flex-start;}
 .outcome-cta{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#0f2350;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .15s ease;}
@@ -329,6 +368,27 @@
 .lc-meta{display:inline-flex;align-items:center;gap:8px;color:#5b6b86;font-size:.85rem;white-space:nowrap;}
 .lc-meta i{color:#2480DC;font-size:.78rem;}
 .level-empty{padding:10px 0;color:#5b6b86;}
+
+/* Master Certificate card button + modal */
+.master-card{flex-wrap:wrap;}
+.master-cta{flex-basis:100%;margin-top:6px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#c9a227,#9c7c14);color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:.82rem;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(201,162,39,.35);transition:transform .15s ease,box-shadow .15s ease;}
+.master-cta:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(201,162,39,.5);}
+.master-cta i{font-size:.75rem;}
+.master-head{background:linear-gradient(135deg,#0f2350,#3a2c00);position:relative;overflow:hidden;}
+.master-head::after{content:"";position:absolute;top:-40%;width:55%;height:180%;background:linear-gradient(120deg,transparent,rgba(240,201,74,.35),transparent);transform:rotate(8deg);animation:masterShine 3.4s ease-in-out infinite;}
+@keyframes masterShine{0%{left:-45%;}60%,100%{left:125%;}}
+.master-head .journey-eyebrow{color:#f0c94a;}
+.master-equation{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:26px 24px 6px;}
+.lvl-chip{background:#f6f9ff;border:1px solid #dbe6f6;border-radius:12px;padding:12px 14px;text-align:center;min-width:80px;}
+.lvl-chip span{display:block;font-weight:700;color:#0f2350;font-size:.9rem;}
+.lvl-chip small{display:block;color:#5b6b86;font-size:.68rem;margin-top:2px;}
+.master-equation .fa-plus{color:#9db3d6;font-size:.85rem;}
+.master-equation .eqarrow{color:#c9a227;font-size:1.1rem;margin:0 2px;}
+.master-medal{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.medal-disc{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:1.6rem;background:radial-gradient(circle at 32% 28%,#f7e07a,#c9a227 55%,#9c7c14);box-shadow:0 8px 22px rgba(201,162,39,.5),inset 0 2px 6px rgba(255,255,255,.5);position:relative;animation:medalPulse 2.4s ease-in-out infinite;}
+.medal-disc::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px dashed rgba(201,162,39,.5);}
+@keyframes medalPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+.medal-label{font-weight:800;color:#9c7c14;letter-spacing:.08em;text-transform:uppercase;font-size:.72rem;}
 
 .journey-modal{position:fixed;inset:0;z-index:2400;display:flex;align-items:flex-start;justify-content:center;padding:32px 20px;overflow-y:auto;}
 .journey-modal[hidden]{display:none;}
