@@ -3,7 +3,7 @@
 {% block content %}
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
 <main>
-    <section class="hero">
+    <section class="hero hero-levels">
         <div class="hero-copy">
             <span class="eyebrow">Professional learning platform</span>
             <h1>Build high-demand skills through guided levels, practical sessions, and verifiable certificates.</h1>
@@ -362,15 +362,18 @@
 .outcome-cta:hover{background:#2480DC;transform:translateX(2px);}
 .outcome-cta i{font-size:.78rem;}
 
-.level-image-panel{position:relative;display:block;overflow:hidden;border-radius:24px;background:#f8fbff;box-shadow:0 20px 50px rgba(15,35,80,.14);}
-.levels-visual{display:block;width:100%;height:100%;min-height:420px;object-fit:cover;border-radius:24px;}
-.level-hotspot{position:absolute;width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.72);border-radius:50%;background:linear-gradient(135deg,#0f2350,#147FB8);color:#fff;box-shadow:0 12px 28px rgba(15,35,80,.28);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
+.hero-levels{grid-template-columns:minmax(0,.85fr) minmax(520px,1.15fr);}
+.level-image-panel{position:relative;display:block;overflow:visible;border-radius:24px;background:#f8fbff;padding-right:58px;box-shadow:0 20px 50px rgba(15,35,80,.14);}
+.level-image-panel::after{content:"";position:absolute;top:18px;right:0;bottom:18px;width:46px;border-radius:18px;background:linear-gradient(180deg,#f7fbff,#eaf4fb);border:1px solid rgba(15,35,80,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.75);}
+.levels-visual{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;border-radius:24px;background:#fff;}
+.level-hotspot{position:absolute;right:8px;z-index:2;width:30px;height:30px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.82);border-radius:50%;background:linear-gradient(135deg,#0f2350,#147FB8);color:#fff;box-shadow:0 8px 18px rgba(15,35,80,.22);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
 .level-hotspot:hover{transform:translateY(-2px) scale(1.05);background:linear-gradient(135deg,#147FB8,#16A6AC);box-shadow:0 16px 34px rgba(20,127,184,.36);}
 .level-hotspot:focus-visible{outline:3px solid rgba(22,166,172,.45);outline-offset:3px;}
-.level-hotspot i{font-size:.9rem;}
-.level-hotspot-1{right:16%;bottom:10%;}
-.level-hotspot-2{right:20%;bottom:43%;}
-.level-hotspot-3{right:20%;top:12%;}
+.level-hotspot i{font-size:.75rem;}
+.level-hotspot-1{bottom:14%;}
+.level-hotspot-2{top:50%;transform:translateY(-50%);}
+.level-hotspot-2:hover{transform:translateY(calc(-50% - 2px)) scale(1.05);}
+.level-hotspot-3{top:15%;}
 
 .level-cta{margin-top:12px;grid-column:1/-1;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#0f2350;color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:.82rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .15s ease;}
 .level-cta:hover{background:#2480DC;transform:translateX(2px);}
@@ -434,11 +437,16 @@
     .journey-head,.journey-gallery,.journey-blocks,.journey-foot{padding-left:20px;padding-right:20px;}
     .journey-gallery img{height:72px;}
     .journey-head h2{font-size:1.4rem;}
-    .levels-visual{min-height:300px;}
-    .level-hotspot{width:36px;height:36px;}
-    .level-hotspot-1{right:12%;bottom:9%;}
-    .level-hotspot-2{right:14%;bottom:43%;}
-    .level-hotspot-3{right:14%;top:12%;}
+    .level-image-panel{padding-right:44px;border-radius:18px;}
+    .level-image-panel::after{top:12px;right:0;bottom:12px;width:34px;border-radius:14px;}
+    .levels-visual{border-radius:18px;}
+    .level-hotspot{right:5px;width:24px;height:24px;}
+    .level-hotspot i{font-size:.62rem;}
+    .level-hotspot-1{bottom:14%;}
+    .level-hotspot-3{top:15%;}
+}
+@media(max-width:1000px){
+    .hero-levels{grid-template-columns:1fr;}
 }
 </style>
 
