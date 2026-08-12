@@ -1970,13 +1970,39 @@ def admin_create_program(request: Request, name: str = Form(...), description: s
     return RedirectResponse('/admin/programs', status_code=303)
 
 
+def cascade_delete_course(db: Session, course: Course):
+    """Delete a course and every dependent row (lessons, materials, progress,
+    quizzes, attempts, objectives, enrollments, purchases, certificates)."""
+    lesson_ids = [row[0] for row in db.query(Lesson.id).filter(Lesson.course_id == course.id).all()]
+    if lesson_ids:
+        quiz_ids = [row[0] for row in db.query(Quiz.id).filter(Quiz.lesson_id.in_(lesson_ids)).all()]
+        if quiz_ids:
+            db.query(QuizAttempt).filter(QuizAttempt.quiz_id.in_(quiz_ids)).delete(synchronize_session=False)
+            db.query(Quiz).filter(Quiz.id.in_(quiz_ids)).delete(synchronize_session=False)
+        db.query(LessonMaterial).filter(LessonMaterial.lesson_id.in_(lesson_ids)).delete(synchronize_session=False)
+        db.query(LessonProgress).filter(LessonProgress.lesson_id.in_(lesson_ids)).delete(synchronize_session=False)
+        db.query(Lesson).filter(Lesson.id.in_(lesson_ids)).delete(synchronize_session=False)
+    db.query(SessionObjective).filter(SessionObjective.course_id == course.id).delete(synchronize_session=False)
+    db.query(Enrollment).filter(Enrollment.course_id == course.id).delete(synchronize_session=False)
+    db.query(Purchase).filter(Purchase.course_id == course.id).delete(synchronize_session=False)
+    db.query(CertificateAward).filter(CertificateAward.source_course_id == course.id).delete(synchronize_session=False)
+    db.delete(course)
+
+
 @app.post('/admin/programs/{program_id}/delete')
 def admin_delete_program(program_id: int, request: Request, db: Session = Depends(get_db)):
     require_admin(request, db)
     program = db.get(Program, program_id)
     if program:
-        db.delete(program)
-        db.commit()
+        try:
+            for course in db.query(Course).filter(Course.program_id == program_id).all():
+                cascade_delete_course(db, course)
+            db.delete(program)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception('Failed to delete program %s', program_id)
+            return RedirectResponse('/admin/programs?error=1', status_code=303)
     return RedirectResponse('/admin/programs', status_code=303)
 
 
@@ -2063,9 +2089,36 @@ def admin_delete_course(course_id: int, request: Request, db: Session = Depends(
     require_admin(request, db)
     course = db.get(Course, course_id)
     if course:
-        db.delete(course)
-        db.commit()
+        try:
+            cascade_delete_course(db, course)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception('Failed to delete course %s', course_id)
+            return RedirectResponse('/admin/courses?error=1', status_code=303)
     return RedirectResponse('/admin/courses', status_code=303)
+
+
+@app.post('/admin/lessons/{lesson_id}/clear')
+def admin_clear_module(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    """Wipe a module's content (materials, sessions, quizzes, progress) but keep the module slot."""
+    require_admin(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404)
+    module_number = current_module_number_for_lesson(db, lesson)
+    quiz_ids = [row[0] for row in db.query(Quiz.id).filter(Quiz.lesson_id == lesson_id).all()]
+    if quiz_ids:
+        db.query(QuizAttempt).filter(QuizAttempt.quiz_id.in_(quiz_ids)).delete(synchronize_session=False)
+        db.query(Quiz).filter(Quiz.id.in_(quiz_ids)).delete(synchronize_session=False)
+    db.query(LessonMaterial).filter(LessonMaterial.lesson_id == lesson_id).delete(synchronize_session=False)
+    db.query(LessonProgress).filter(LessonProgress.lesson_id == lesson_id).delete(synchronize_session=False)
+    db.query(SessionObjective).filter(
+        SessionObjective.course_id == lesson.course_id,
+        SessionObjective.module_number == module_number,
+    ).delete(synchronize_session=False)
+    db.commit()
+    return RedirectResponse(f'/admin/courses/{lesson.course_id}/lessons', status_code=303)
 
 
 @app.post('/admin/courses/{course_id}/bulk-prepare')

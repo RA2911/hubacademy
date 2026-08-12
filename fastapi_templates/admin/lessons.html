@@ -27,15 +27,18 @@
 
 <section class="detail-block">
 {% for lesson in lessons %}
-<form class="module-row" method="POST" action="/admin/lessons/{{ lesson.id }}">
-    <span>{{ '%02d'|format(lesson.lesson_number) }}</span>
-    <div>
-        <label>Title<input name="title" value="{{ lesson.title }}" required></label>
-        <label>Description<input name="description" value="{{ lesson.description or '' }}"></label>
-        <button class="market-btn primary" type="submit">Save</button>
-        <a class="market-btn" href="/admin/lessons/{{ lesson.id }}/materials">Materials</a>
-    </div>
-</form>
+<div class="module-row-wrap">
+    <form class="module-row" method="POST" action="/admin/lessons/{{ lesson.id }}">
+        <span>{{ '%02d'|format(lesson.lesson_number) }}</span>
+        <div>
+            <label>Title<input name="title" value="{{ lesson.title }}" required></label>
+            <label>Description<input name="description" value="{{ lesson.description or '' }}"></label>
+            <button class="market-btn primary" type="submit">Save</button>
+            <a class="market-btn" href="/admin/lessons/{{ lesson.id }}/materials">Materials</a>
+            <button class="market-btn" type="submit" formaction="/admin/lessons/{{ lesson.id }}/clear" formnovalidate onclick="return confirm('Clear all materials, sessions and quizzes in this module? The module stays but its content is wiped. This cannot be undone.');" style="background:#d64d4d;color:#fff">Clear content</button>
+        </div>
+    </form>
+</div>
 {% endfor %}
 </section>
 

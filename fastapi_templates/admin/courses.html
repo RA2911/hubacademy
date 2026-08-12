@@ -1,6 +1,7 @@
 {% extends 'admin/base.html' %}
 {% block admin_title %}Courses{% endblock %}
 {% block admin_content %}
+{% if request.query_params.get('error') %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:10px 14px;border-radius:8px">Could not delete that course. Please try again or check the logs.</p>{% endif %}
 <a class="market-btn primary" href="/admin/courses/new">New Course</a>
 <div class="course-grid premium-grid" style="margin-top:20px">
 {% for course in courses %}
@@ -13,6 +14,9 @@
             <a class="market-btn" href="/admin/courses/{{ course.id }}/edit">Edit</a>
             <a class="market-btn" href="/admin/courses/{{ course.id }}/lessons">Lessons</a>
             <a class="market-btn" href="/courses/{{ course_slug(course) }}">Public</a>
+            <form method="POST" action="/admin/courses/{{ course.id }}/delete" onsubmit="return confirm('Delete &quot;{{ course.title }}&quot; and ALL its lessons, materials, quizzes, enrollments and certificates? This cannot be undone.');" style="display:inline">
+                <button class="market-btn" type="submit" style="background:#d64d4d;color:#fff">Delete</button>
+            </form>
         </div>
     </div>
 </article>
