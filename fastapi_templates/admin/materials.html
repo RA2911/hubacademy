@@ -5,8 +5,8 @@
     <section class="detail-block">
         <div class="band-head compact">
             <div>
-                <span class="eyebrow">R2 Uploads</span>
-                <h2>Course Material Manager</h2>
+                <span class="eyebrow">R2 Storage</span>
+                <h2>Storage &amp; Sync</h2>
             </div>
             <div class="admin-inline-actions">
                 <form method="POST" action="/admin/lessons/{{ lesson.id }}/materials/sync-r2">
@@ -18,24 +18,6 @@
         {% if request.query_params.get('synced') %}
         <p class="sync-result">{{ request.query_params.get('synced') }} R2 files registered in this lesson.</p>
         {% endif %}
-
-        <div class="upload-type-grid">
-            {% for type_key, type_label in material_type_options %}
-            <article class="upload-panel" data-type="{{ type_key }}">
-                <div class="upload-panel-head">
-                    <strong>{{ type_label }}</strong>
-                    <span>{{ grouped_materials.get(type_key, [])|length }} saved</span>
-                </div>
-                <label>Files<input class="material-file-input" type="file" multiple></label>
-                <label>Folder package<input class="material-folder-input" type="file" webkitdirectory directory multiple></label>
-                <div class="upload-actions">
-                    <button class="market-btn primary queue-upload" type="button" {% if not r2_ready %}disabled{% endif %}>Upload selected</button>
-                    <button class="market-btn clear-selection" type="button">Clear</button>
-                </div>
-                <ul class="upload-queue"></ul>
-            </article>
-            {% endfor %}
-        </div>
     </section>
 
     <section class="detail-block">
@@ -180,45 +162,9 @@
         item.classList.add('done');
     }
 
-    manager.querySelectorAll('.upload-panel').forEach((panel) => {
-        const input = panel.querySelector('.material-file-input');
-        const folderInput = panel.querySelector('.material-folder-input');
-        const uploadButton = panel.querySelector('.queue-upload');
-        const clearButton = panel.querySelector('.clear-selection');
-        input.addEventListener('change', () => {
-            if (input.files.length) folderInput.value = '';
-            renderQueue(panel);
-        });
-        folderInput.addEventListener('change', () => {
-            if (folderInput.files.length) input.value = '';
-            renderQueue(panel);
-        });
-        clearButton.addEventListener('click', () => {
-            input.value = '';
-            folderInput.value = '';
-            renderQueue(panel);
-        });
-        uploadButton.addEventListener('click', async () => {
-            const selectedInput = activeInput(panel);
-            const files = Array.from(selectedInput.files || []);
-            const rows = Array.from(panel.querySelectorAll('.upload-queue li'));
-            if (!files.length) return;
-            const batchId = packageId();
-            uploadButton.disabled = true;
-            for (let i = 0; i < files.length; i += 1) {
-                try {
-                    await uploadFile(panel, files[i], rows[i], batchId);
-                } catch (error) {
-                    rows[i].querySelector('b').textContent = error.message;
-                    rows[i].classList.add('failed');
-                }
-            }
-            window.location.reload();
-        });
-    });
 
     /* ===== One-click: upload an entire module folder, auto-routed by subfolder ===== */
-    const validTypes = new Set(Array.from(manager.querySelectorAll('.upload-panel')).map(function (p) { return p.dataset.type; }));
+    const validTypes = new Set([{% for type_key, _type_label in material_type_options %}"{{ type_key }}"{% if not loop.last %}, {% endif %}{% endfor %}]);
     const bulkInput = manager.querySelector('.module-bulk-input');
     const bulkBtn = manager.querySelector('.module-bulk-upload');
     const bulkClear = manager.querySelector('.module-bulk-clear');
