@@ -41,6 +41,24 @@
     <section class="detail-block">
         <div class="band-head compact">
             <div>
+                <span class="eyebrow">One-click bulk</span>
+                <h2>Upload entire module folder</h2>
+            </div>
+        </div>
+        <p class="muted-line">Pick the whole module folder from your computer. Every file is auto-routed to the correct material type by the subfolder it sits in (<code>html</code>, <code>video</code>, <code>simulation</code>, <code>case_study</code>, <code>toolkit</code>, <code>module_intro_video</code>, <code>case_analysis</code>, <code>general_simulation</code>). Reference files (<code>.md</code>/<code>.txt</code> and anything in <code>_reference</code>) are skipped automatically.</p>
+        <div class="module-bulk">
+            <label>Module folder<input class="module-bulk-input" type="file" webkitdirectory directory multiple></label>
+            <div class="upload-actions">
+                <button class="market-btn primary module-bulk-upload" type="button" {% if not r2_ready %}disabled{% endif %}>Upload all materials</button>
+                <button class="market-btn module-bulk-clear" type="button">Clear</button>
+            </div>
+            <ul class="upload-queue module-bulk-queue"></ul>
+        </div>
+    </section>
+
+    <section class="detail-block">
+        <div class="band-head compact">
+            <div>
                 <span class="eyebrow">Module {{ current_module_number }}</span>
                 <h2>Session Objectives</h2>
             </div>
@@ -198,6 +216,72 @@
             window.location.reload();
         });
     });
+
+    /* ===== One-click: upload an entire module folder, auto-routed by subfolder ===== */
+    const validTypes = new Set(Array.from(manager.querySelectorAll('.upload-panel')).map(function (p) { return p.dataset.type; }));
+    const bulkInput = manager.querySelector('.module-bulk-input');
+    const bulkBtn = manager.querySelector('.module-bulk-upload');
+    const bulkClear = manager.querySelector('.module-bulk-clear');
+    const bulkQueue = manager.querySelector('.module-bulk-queue');
+
+    function typeForFile(file) {
+        const parts = (file.webkitRelativePath || file.name).replace(/\\/g, '/').split('/');
+        if (parts.indexOf('_reference') !== -1) return null;
+        const name = parts[parts.length - 1];
+        if (/\.(md|txt)$/i.test(name) || name.startsWith('_') || name.startsWith('.')) return null;
+        for (let i = parts.length - 2; i >= 0; i -= 1) {
+            if (validTypes.has(parts[i])) return parts[i];
+        }
+        return null;
+    }
+    function renderBulk() {
+        if (!bulkQueue) return;
+        bulkQueue.innerHTML = '';
+        Array.from((bulkInput && bulkInput.files) || []).forEach(function (f) {
+            const t = typeForFile(f);
+            const li = document.createElement('li');
+            li.innerHTML = '<span>' + (f.webkitRelativePath || f.name) + '</span>' +
+                (t ? '<small>&rarr; ' + t + '</small><b>Ready</b>' : '<small>skipped</small><b>&mdash;</b>');
+            if (!t) li.style.opacity = '.5';
+            bulkQueue.appendChild(li);
+        });
+    }
+    if (bulkInput) {
+        bulkInput.addEventListener('change', renderBulk);
+        bulkClear.addEventListener('click', function () { bulkInput.value = ''; bulkQueue.innerHTML = ''; });
+        bulkBtn.addEventListener('click', async function () {
+            const files = Array.from(bulkInput.files || []);
+            const rows = Array.from(bulkQueue.querySelectorAll('li'));
+            if (!files.length) return;
+            const batchId = packageId();
+            bulkBtn.disabled = true;
+            let done = 0, skipped = 0, failed = 0;
+            for (let i = 0; i < files.length; i += 1) {
+                const t = typeForFile(files[i]);
+                if (!t) { skipped += 1; continue; }
+                const data = new FormData();
+                data.append('material_type', t);
+                data.append('relative_path', files[i].name);
+                data.append('package_id', batchId);
+                data.append('file', files[i]);
+                if (rows[i]) rows[i].querySelector('b').textContent = 'Uploading...';
+                try {
+                    const response = await fetch('/admin/lessons/' + lessonId + '/materials/upload', { method: 'POST', body: data });
+                    let result = {};
+                    try { result = await response.json(); } catch (e) { result = {}; }
+                    if (!response.ok || !result.ok) throw new Error(result.error || ('HTTP ' + response.status));
+                    if (rows[i]) { rows[i].querySelector('b').textContent = 'Saved (' + t + ')'; rows[i].classList.add('done'); }
+                    done += 1;
+                } catch (error) {
+                    if (rows[i]) { rows[i].querySelector('b').textContent = error.message; rows[i].classList.add('failed'); }
+                    failed += 1;
+                }
+            }
+            bulkBtn.disabled = false;
+            alert('Uploaded ' + done + ' file(s); skipped ' + skipped + ' reference file(s)' + (failed ? '; ' + failed + ' failed' : '') + '.');
+            window.location.reload();
+        });
+    }
 })();
 </script>
 {% endblock %}
