@@ -16,6 +16,13 @@
         </div>
     </header>
 
+    {% if course.syllabus_file or course.clos_file %}
+    <section class="course-docs" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px">
+        {% if course.syllabus_file %}<a class="btn secondary" href="/courses/{{ course.id }}/document/syllabus" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Syllabus</a>{% endif %}
+        {% if course.clos_file %}<a class="btn secondary" href="/courses/{{ course.id }}/document/clos" target="_blank" rel="noopener"><i class="fas fa-list-check"></i> Learning Outcomes (CLOs)</a>{% endif %}
+    </section>
+    {% endif %}
+
     <section class="journey-map" aria-label="Course journey">
         {% for module in journey.modules %}
         {% set module_done = namespace(count=0) %}

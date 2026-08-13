@@ -41,4 +41,39 @@
     <button class="market-btn primary" type="submit">Save Course</button>
 </form>
 </section>
+
+{% if course %}
+<section class="detail-block">
+    <div class="band-head compact"><div><span class="eyebrow">Course-wide</span><h2>Course Documents</h2></div></div>
+    <p class="muted-line">Upload one Syllabus and one CLOs/CBOs PDF for the whole course (covers all 5 modules). Stored in R2.</p>
+    {% set doc = request.query_params.get('doc') %}
+    {% if doc == 'ok' %}<p class="sync-result">Document uploaded.</p>{% endif %}
+    {% if doc == 'pdf' %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:8px 12px;border-radius:8px">Only PDF files are allowed.</p>{% endif %}
+    {% if doc == 'nor2' %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:8px 12px;border-radius:8px">R2 storage is not configured.</p>{% endif %}
+    {% if doc == 'fail' %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:8px 12px;border-radius:8px">Upload failed. Check R2 and try again.</p>{% endif %}
+    <div style="display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-top:10px">
+        <form method="POST" action="/admin/courses/{{ course.id }}/documents/upload" enctype="multipart/form-data" class="auth-public-card">
+            <input type="hidden" name="doc_type" value="syllabus">
+            <label>Syllabus (PDF)<input type="file" name="file" accept="application/pdf,.pdf" required></label>
+            <div class="upload-actions">
+                <button class="market-btn primary" type="submit" {% if not r2_ready %}disabled{% endif %}>Upload Syllabus</button>
+                {% if course.syllabus_file %}<a class="market-btn" href="/courses/{{ course.id }}/document/syllabus" target="_blank">View current</a>{% endif %}
+            </div>
+            {% if course.syllabus_file %}<span class="form-hint">A syllabus is uploaded. Uploading again replaces it.</span>{% endif %}
+        </form>
+        <form method="POST" action="/admin/courses/{{ course.id }}/documents/upload" enctype="multipart/form-data" class="auth-public-card">
+            <input type="hidden" name="doc_type" value="clos">
+            <label>CLOs / CBOs (PDF)<input type="file" name="file" accept="application/pdf,.pdf" required></label>
+            <div class="upload-actions">
+                <button class="market-btn primary" type="submit" {% if not r2_ready %}disabled{% endif %}>Upload CLOs</button>
+                {% if course.clos_file %}<a class="market-btn" href="/courses/{{ course.id }}/document/clos" target="_blank">View current</a>{% endif %}
+            </div>
+            {% if course.clos_file %}<span class="form-hint">CLOs are uploaded. Uploading again replaces them.</span>{% endif %}
+        </form>
+    </div>
+    {% if not r2_ready %}<p class="form-hint">R2 storage is not configured — uploads are disabled.</p>{% endif %}
+</section>
+{% else %}
+<section class="detail-block"><p class="muted-line">Save the course first, then upload its Syllabus and CLOs here.</p></section>
+{% endif %}
 {% endblock %}

@@ -2018,7 +2018,7 @@ def admin_courses(request: Request, db: Session = Depends(get_db)):
 def admin_new_course(request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
     programs = db.query(Program).order_by(Program.name).all()
-    return template(request, 'admin/course_form.html', db, {'admin': admin, 'course': None, 'programs': programs})
+    return template(request, 'admin/course_form.html', db, {'admin': admin, 'course': None, 'programs': programs, 'r2_ready': r2_enabled()})
 
 
 @app.get('/admin/courses/{course_id}/edit')
@@ -2028,7 +2028,7 @@ def admin_edit_course(course_id: int, request: Request, db: Session = Depends(ge
     if not course:
         raise HTTPException(status_code=404)
     programs = db.query(Program).order_by(Program.name).all()
-    return template(request, 'admin/course_form.html', db, {'admin': admin, 'course': course, 'programs': programs})
+    return template(request, 'admin/course_form.html', db, {'admin': admin, 'course': course, 'programs': programs, 'r2_ready': r2_enabled()})
 
 
 def price_cents(value):
@@ -2119,6 +2119,59 @@ def admin_clear_module(lesson_id: int, request: Request, db: Session = Depends(g
     ).delete(synchronize_session=False)
     db.commit()
     return RedirectResponse(f'/admin/courses/{lesson.course_id}/lessons', status_code=303)
+
+
+COURSE_DOC_FIELDS = {'syllabus': 'syllabus_file', 'clos': 'clos_file'}
+
+
+@app.post('/admin/courses/{course_id}/documents/upload')
+async def admin_upload_course_document(course_id: int, request: Request, doc_type: str = Form(...),
+                                       file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload a course-wide Syllabus or CLOs PDF to R2 (one per course)."""
+    require_admin(request, db)
+    course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    field = COURSE_DOC_FIELDS.get((doc_type or '').strip().lower())
+    if not field:
+        return RedirectResponse(f'/admin/courses/{course_id}/edit?doc=bad', status_code=303)
+    if not r2_enabled():
+        return RedirectResponse(f'/admin/courses/{course_id}/edit?doc=nor2', status_code=303)
+    filename = (file.filename or '').strip()
+    if not filename.lower().endswith('.pdf'):
+        await file.close()
+        return RedirectResponse(f'/admin/courses/{course_id}/edit?doc=pdf', status_code=303)
+    content_type = file.content_type or guess_content_type(filename)
+    key = object_key(filename, material_type=f'course-{field}')
+    try:
+        file.file.seek(0)
+        upload_fileobj(key, file.file, content_type)
+    except Exception as exc:
+        logger.exception('Course document upload failed: %s', exc)
+        return RedirectResponse(f'/admin/courses/{course_id}/edit?doc=fail', status_code=303)
+    finally:
+        await file.close()
+    setattr(course, field, key)
+    db.commit()
+    return RedirectResponse(f'/admin/courses/{course_id}/edit?doc=ok', status_code=303)
+
+
+@app.get('/courses/{course_id}/document/{kind}')
+def course_document(course_id: int, kind: str, request: Request, db: Session = Depends(get_db)):
+    """Serve a course-wide document (syllabus/clos) via a presigned R2 URL to admins or logged-in students."""
+    field = COURSE_DOC_FIELDS.get((kind or '').strip().lower())
+    if not field:
+        raise HTTPException(status_code=404)
+    course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    if not (admin_from_request(request, db) or student_from_request(request, db)):
+        return RedirectResponse(f'/login?next=/courses/{course_id}/document/{kind}', status_code=303)
+    key = getattr(course, field, None)
+    if not key:
+        raise HTTPException(status_code=404)
+    label = 'Syllabus' if kind.strip().lower() == 'syllabus' else 'CLOs'
+    return RedirectResponse(presigned_download_url(key, f'{label}-{course_slug(course)}.pdf'), status_code=303)
 
 
 @app.post('/admin/courses/{course_id}/bulk-prepare')
