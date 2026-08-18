@@ -208,6 +208,13 @@ DEFAULT_COURSE_IMAGES = [
     'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=900&q=80',
 ]
 
+# Title-specific bundled images (always load; meaningful; no recycling).
+COURSE_IMAGE_LOCAL = [
+    (('agentic', 'ai agent'), '/static/images/course-ai-agents.jpg'),
+    (('engineering leadership',), '/static/images/course-engineering.jpg'),
+    (('ai leadership', 'ai strategy'), '/static/images/course-ai-leadership.jpg'),
+]
+
 
 def deterministic_choice(items, seed):
     digest = hashlib.sha256(seed.encode('utf-8')).hexdigest()
@@ -223,6 +230,10 @@ def course_image_url(image_url, seed):
 def course_image(course):
     if course.thumbnail_url:
         return course.thumbnail_url
+    title_hay = ((course.title or '') + ' ' + (course.expertise_area or '')).lower()
+    for keywords, local_image in COURSE_IMAGE_LOCAL:
+        if any(keyword in title_hay for keyword in keywords):
+            return local_image
     haystack = ' '.join([
         course.title or '',
         course.expertise_area or '',
