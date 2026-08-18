@@ -3,8 +3,8 @@
 {% block content %}
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
 <main>
-    <section class="hero hero-centered">
-        <div class="hero-panel level-image-panel level-image-center" aria-label="Learning levels">
+    <section class="hero hero-media">
+        <div class="hero-panel level-image-panel hero-image-side" aria-label="Learning levels">
             <img class="levels-visual" src="/static/images/Levels.png" alt="Your learning journey: Level 1 Foundations, Level 2 Builder, Level 3 Specialist">
             <button type="button" class="level-hotspot level-hotspot-1" data-modal="level1" aria-label="Explore Level 1">
                 <i class="fas fa-arrow-right"></i>
@@ -16,17 +16,23 @@
                 <i class="fas fa-arrow-right"></i>
             </button>
         </div>
-        <div class="hero-copy">
-            <span class="eyebrow">Professional learning platform</span>
-            <form class="searchbar" action="/courses" method="GET">
-                <i class="fas fa-search"></i>
-                <input name="q" type="search" placeholder="Search AI agents, cybersecurity, analytics...">
-                <button type="submit">Search</button>
-            </form>
-            <div class="hero-actions">
-                <a class="btn primary" href="/courses">Explore Courses</a>
-                <a class="btn secondary" href="#certification">View Certificate Pathway</a>
-            </div>
+        <div class="hero-video" aria-label="Introduction video">
+            {# When the video is ready, replace this placeholder div with:
+               <video class="hero-video-el" autoplay muted loop playsinline><source src="/static/videos/hero.mp4" type="video/mp4"></video> #}
+            <div class="hero-video-placeholder"><i class="fas fa-circle-play"></i><span>Intro video coming soon</span></div>
+        </div>
+    </section>
+
+    <section class="hero-copy-band">
+        <span class="eyebrow">Professional learning platform</span>
+        <form class="searchbar" action="/courses" method="GET">
+            <i class="fas fa-search"></i>
+            <input name="q" type="search" placeholder="Search AI agents, cybersecurity, analytics...">
+            <button type="submit">Search</button>
+        </form>
+        <div class="hero-actions">
+            <a class="btn primary" href="/courses">Explore Courses</a>
+            <a class="btn secondary" href="#certification">View Certificate Pathway</a>
         </div>
     </section>
 
@@ -41,8 +47,8 @@
             <button type="button" class="popular-link" data-modal="topic-ai-leadership">
                 <span>AI Leadership &amp; AI Strategy</span><i class="fas fa-arrow-right"></i>
             </button>
-            <button type="button" class="popular-link" data-modal="topic-personal-leadership">
-                <span>Personal Leadership &amp; Executive Presence</span><i class="fas fa-arrow-right"></i>
+            <button type="button" class="popular-link" data-modal="topic-engineering-leadership">
+                <span>Engineering Leadership for Future Leaders</span><i class="fas fa-arrow-right"></i>
             </button>
             <button type="button" class="popular-link" data-modal="topic-ai-agents">
                 <span>AI Agents &amp; Agentic AI for Business</span><i class="fas fa-arrow-right"></i>
@@ -381,7 +387,7 @@
     </div>
 </div>
 
-<!-- Most Popular Training topic modals -->
+<!-- Most Popular Training course modals -->
 <div class="journey-modal" id="topic-ai-leadership-modal" hidden>
     <div class="journey-backdrop" data-close></div>
     <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-ai-leadership-title">
@@ -389,33 +395,45 @@
         <div class="journey-head">
             <span class="journey-eyebrow">Most Popular Training</span>
             <h2 id="topic-ai-leadership-title">AI Leadership &amp; AI Strategy</h2>
-            <p>Courses covered in this topic.</p>
+            <p>Lead your organization's AI transformation with a clear, executable strategy.</p>
         </div>
         <div class="topic-course-list">
-            <!-- COURSES: AI Leadership & AI Strategy -->
-            <div class="level-empty"><p>Course list coming soon.</p></div>
+            <ul class="topic-bullets">
+                <li>Build an enterprise AI vision and roadmap aligned to business goals.</li>
+                <li>Evaluate AI use cases, ROI, and build-vs-buy decisions.</li>
+                <li>Govern AI responsibly across risk, ethics, and compliance.</li>
+                <li>Lead cross-functional AI teams and change management.</li>
+                <li>Turn data and models into measurable business value.</li>
+            </ul>
         </div>
         <div class="journey-foot">
-            <a class="btn primary" href="/courses">Browse all courses</a>
+            <a class="btn primary" href="/register">Subscribe to the course</a>
+            <a class="btn secondary" href="/courses">Browse all courses</a>
         </div>
     </div>
 </div>
 
-<div class="journey-modal" id="topic-personal-leadership-modal" hidden>
+<div class="journey-modal" id="topic-engineering-leadership-modal" hidden>
     <div class="journey-backdrop" data-close></div>
-    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-personal-leadership-title">
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-engineering-leadership-title">
         <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
         <div class="journey-head">
             <span class="journey-eyebrow">Most Popular Training</span>
-            <h2 id="topic-personal-leadership-title">Personal Leadership &amp; Executive Presence</h2>
-            <p>Courses covered in this topic.</p>
+            <h2 id="topic-engineering-leadership-title">Engineering Leadership for Future Leaders</h2>
+            <p>Step up from engineer to leader with the skills to run high-performing teams.</p>
         </div>
         <div class="topic-course-list">
-            <!-- COURSES: Personal Leadership & Executive Presence -->
-            <div class="level-empty"><p>Course list coming soon.</p></div>
+            <ul class="topic-bullets">
+                <li>Transition from individual contributor to technical leader.</li>
+                <li>Build, coach, and retain high-performing engineering teams.</li>
+                <li>Drive delivery with modern planning and execution practices.</li>
+                <li>Communicate with stakeholders and influence without authority.</li>
+                <li>Balance technical debt, quality, and business priorities.</li>
+            </ul>
         </div>
         <div class="journey-foot">
-            <a class="btn primary" href="/courses">Browse all courses</a>
+            <a class="btn primary" href="/register">Subscribe to the course</a>
+            <a class="btn secondary" href="/courses">Browse all courses</a>
         </div>
     </div>
 </div>
@@ -427,14 +445,20 @@
         <div class="journey-head">
             <span class="journey-eyebrow">Most Popular Training</span>
             <h2 id="topic-ai-agents-title">AI Agents &amp; Agentic AI for Business</h2>
-            <p>Courses covered in this topic.</p>
+            <p>Design and deploy AI agents that automate real business workflows.</p>
         </div>
         <div class="topic-course-list">
-            <!-- COURSES: AI Agents & Agentic AI for Business -->
-            <div class="level-empty"><p>Course list coming soon.</p></div>
+            <ul class="topic-bullets">
+                <li>Understand agentic AI: planning, tools, memory, and autonomy.</li>
+                <li>Identify high-value workflows to automate with agents.</li>
+                <li>Build and orchestrate multi-agent systems safely.</li>
+                <li>Integrate agents with your existing tools and data.</li>
+                <li>Measure, monitor, and scale agents in production.</li>
+            </ul>
         </div>
         <div class="journey-foot">
-            <a class="btn primary" href="/courses">Browse all courses</a>
+            <a class="btn primary" href="/register">Subscribe to the course</a>
+            <a class="btn secondary" href="/courses">Browse all courses</a>
         </div>
     </div>
 </div>
@@ -488,6 +512,21 @@
 .popular-link:hover{border-color:#16A6AC;transform:translateY(-2px);box-shadow:0 18px 40px rgba(22,166,172,.18);}
 .popular-link i{color:#16A6AC;flex:0 0 auto;}
 .topic-course-list{padding:16px 28px 6px;display:grid;gap:10px;max-height:52vh;overflow:auto;}
+.topic-bullets{list-style:none;margin:0;padding:0;display:grid;gap:11px;}
+.topic-bullets li{position:relative;padding-left:28px;color:#4a5a75;line-height:1.5;}
+.topic-bullets li::before{content:"\f00c";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;left:0;top:2px;color:#16A6AC;font-size:.82rem;}
+
+/* Split hero: image left, video right */
+.hero-media{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;}
+.hero-image-side{max-width:none;width:100%;margin:0;}
+.hero-video{width:100%;}
+.hero-video .hero-video-el,.hero-video-placeholder{width:100%;aspect-ratio:16/9;border-radius:20px;display:block;object-fit:cover;background:#0f2350;box-shadow:0 20px 50px rgba(15,35,80,.16);}
+.hero-video-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#cfe0f4;border:1px dashed rgba(199,224,244,.4);background:linear-gradient(135deg,#0f2350,#16A6AC);font-weight:600;letter-spacing:.02em;}
+.hero-video-placeholder i{font-size:2.6rem;color:#fff;opacity:.9;}
+.hero-copy-band{max-width:640px;margin:26px auto 0;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;}
+.hero-copy-band .searchbar{width:100%;max-width:560px;}
+.hero-copy-band .hero-actions{justify-content:center;flex-wrap:wrap;}
+@media(max-width:880px){.hero-media{grid-template-columns:1fr;}}
 
 /* Professional Master Certificate card button + modal */
 .master-card{flex-wrap:wrap;}
