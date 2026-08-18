@@ -17,13 +17,13 @@
 .quiz-modal-panel{width:min(720px,94vw);height:min(88vh,860px);grid-template-rows:auto minmax(0,1fr);border-radius:16px;overflow:hidden;}
 
 /* ===== Quiz — branded design ===== */
-.quiz-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;border-bottom:0;background:linear-gradient(120deg,#0f2350 0%,#1c4079 55%,#16A6AC 140%);color:#fff;}
-.quiz-head-id{display:flex;align-items:center;gap:13px;}
-.quiz-logo{width:40px;height:40px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;box-shadow:0 6px 16px rgba(0,0,0,.22);}
-.quiz-head strong{display:block;color:#fff;font-size:1.12rem;letter-spacing:.01em;}
-.quiz-head small{display:block;color:#c7d9ef;font-size:.78rem;margin-top:2px;}
-.quiz-head-close{color:rgba(255,255,255,.85)!important;}
-.quiz-head-close:hover{color:#fff!important;}
+.quiz-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 22px;border-bottom:0;background:linear-gradient(120deg,#0f2350 0%,#1c4079 55%,#16A6AC 140%);color:#fff;}
+.quiz-head-id{display:flex;align-items:center;gap:14px;}
+.quiz-logo{width:46px;height:46px;object-fit:contain;background:#fff;border-radius:12px;padding:5px;box-shadow:0 6px 16px rgba(0,0,0,.22);}
+.quiz-head strong{display:block;color:#fff;font-size:1.18rem;letter-spacing:.01em;}
+.quiz-head small{display:block;color:#c7d9ef;font-size:.8rem;margin-top:3px;}
+.quiz-head-close{flex:0 0 auto;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff!important;display:grid;place-items:center;font-size:1.15rem;border:0;cursor:pointer;transition:background .15s ease;}
+.quiz-head-close:hover{background:rgba(255,255,255,.32);}
 
 .quiz-modal-body{overflow:auto;padding:22px;background:#eef3fa;}
 .quiz-modal-body .quiz-workbench{display:flex;flex-direction:column;gap:18px;}
@@ -52,7 +52,14 @@
 .quiz-modal-body .quiz-result.pass .result-badge{background:#e7f7f0;color:#17a673;}
 .quiz-modal-body .quiz-result.fail .result-badge{background:#fdecec;color:#c0392b;}
 .quiz-modal-body .quiz-result h3{margin:0;color:#0f2350;font-size:1.3rem;}
-.quiz-modal-body .quiz-result p{color:#4a5a75;line-height:1.6;margin:0;text-align:left;max-width:46ch;}
+.quiz-modal-body .fb-section{width:100%;text-align:left;border-radius:12px;padding:14px 16px;}
+.quiz-modal-body .fb-section h4{margin:0 0 8px;font-size:.92rem;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.04em;}
+.quiz-modal-body .fb-section ul{margin:0;padding-left:20px;display:grid;gap:6px;}
+.quiz-modal-body .fb-section li{color:#3a4a63;line-height:1.5;font-size:.9rem;}
+.quiz-modal-body .fb-strengths{background:#e7f7f0;border:1px solid #bfe9d6;}
+.quiz-modal-body .fb-strengths h4{color:#17a673;}
+.quiz-modal-body .fb-improve{background:#fff5e6;border:1px solid #f6dcae;}
+.quiz-modal-body .fb-improve h4{color:#c47d1a;}
 .quiz-modal-body .quiz-result .market-btn{margin-top:6px;padding:12px 30px;border:0;border-radius:12px;color:#fff;background:linear-gradient(135deg,#2480DC,#16A6AC);font-weight:700;}
 </style>
 <main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
@@ -545,12 +552,13 @@
             });
             quizSubmitted = true;
             const passed = data.score >= quizPassScore;
+            const bullets = (arr) => (arr || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
             quizBox.innerHTML = `<div class="quiz-result ${passed ? 'pass' : 'fail'}">
                 <div class="result-ring" style="--pct:${data.score};--ring:${passed ? '#17a673' : '#e0803a'}"><span>${data.score}%</span></div>
                 <span class="result-badge">${passed ? '<i class="fas fa-circle-check"></i> Passed' : '<i class="fas fa-rotate-right"></i> Keep going'}</span>
                 <h3>${passed ? 'Module complete!' : 'Not quite there yet'}</h3>
-                <p>${escapeHtml(data.feedback || '')}</p>
-                ${data.recommendations ? `<p>${escapeHtml(data.recommendations)}</p>` : ''}
+                ${(data.strengths && data.strengths.length) ? `<div class="fb-section fb-strengths"><h4><i class="fas fa-circle-check"></i> Strengths</h4><ul>${bullets(data.strengths)}</ul></div>` : ''}
+                ${(data.improvements && data.improvements.length) ? `<div class="fb-section fb-improve"><h4><i class="fas fa-arrow-trend-up"></i> Improvements</h4><ul>${bullets(data.improvements)}</ul></div>` : ''}
                 <button class="market-btn" type="button" id="quiz-done-btn">Done</button>
             </div>`;
             document.getElementById('quiz-done-btn').addEventListener('click', closeQuizModal);

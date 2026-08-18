@@ -863,30 +863,45 @@ Return only valid JSON:
 
 
 def ai_generate_feedback(db, lesson, score, questions, answers):
-    prompt = f"""A student completed a quiz for this lesson.
+    prompt = f"""A learner just completed a quiz for this lesson.
 
 Lesson: {lesson.title}
 Score: {score}%
 Questions and correct answers:
 {json.dumps(questions, ensure_ascii=False)}
-Student answers by question index:
+Learner answers by question index:
 {json.dumps(answers, ensure_ascii=False)}
 
-Return only valid JSON:
+Address the learner directly as "You". Be concise and encouraging.
+Return only valid JSON with two short bullet lists. Each bullet is ONE short sentence (max ~14 words), starting with "You".
+Give 2-3 strengths and 2-3 improvements (fewer if the quiz was short).
 {{
-  "feedback": "specific feedback on strengths and mistakes",
-  "recommendations": "specific next steps to improve"
+  "strengths": ["You ...", "You ..."],
+  "improvements": ["You ...", "You ..."]
 }}"""
     response = openai_chat_completion(
         openai_client(db, lesson.course),
         [{'role': 'user', 'content': prompt}],
-        max_tokens=700,
+        max_tokens=500,
         temperature=0.5,
     )
     data = parse_json_response(response.choices[0].message.content, {})
+
+    def clean_bullets(value):
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, list):
+            return []
+        return [str(item).strip() for item in value if str(item).strip()][:3]
+
+    strengths = clean_bullets(data.get('strengths')) or ['You completed the quiz — nice work.']
+    improvements = clean_bullets(data.get('improvements')) or ['You should review the lesson materials before your next attempt.']
     return {
-        'feedback': data.get('feedback') or 'Quiz completed. Review the explanations and retry with stronger focus on weak areas.',
-        'recommendations': data.get('recommendations') or 'Review the lesson materials and applications before the next attempt.',
+        'strengths': strengths,
+        'improvements': improvements,
+        # joined text kept for the stored attempt history
+        'feedback': ' • '.join(strengths),
+        'recommendations': ' • '.join(improvements),
     }
 
 
@@ -1823,7 +1838,12 @@ async def learner_submit_quiz(quiz_id: int, request: Request, db: Session = Depe
         ai_feedback = ai_generate_feedback(db, quiz.lesson, score, questions, answers)
     except Exception as exc:
         logger.exception('Quiz feedback failed: %s', exc)
-        ai_feedback = {'feedback': 'Quiz completed. Review the explanations for missed questions.', 'recommendations': 'Review the lesson and try another quiz attempt if available.'}
+        ai_feedback = {
+            'strengths': ['You completed the quiz.'],
+            'improvements': ['You should review the explanations for the questions you missed.'],
+            'feedback': 'You completed the quiz.',
+            'recommendations': 'You should review the explanations for the questions you missed.',
+        }
     attempt = QuizAttempt(
         student_id=student.id,
         quiz_id=quiz.id,
@@ -1852,6 +1872,8 @@ async def learner_submit_quiz(quiz_id: int, request: Request, db: Session = Depe
         'ok': True,
         'score': score,
         'passed': score >= QUIZ_PASS_SCORE,
+        'strengths': ai_feedback.get('strengths', []),
+        'improvements': ai_feedback.get('improvements', []),
         'feedback': ai_feedback['feedback'],
         'recommendations': ai_feedback['recommendations'],
         'questions': questions,
