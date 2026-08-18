@@ -1,8 +1,26 @@
 {% extends 'base.html' %}
 {% block title %}Module {{ current_module_number }} - {{ lesson.title }}{% endblock %}
 {% block content %}
+<style>
+.topbar .nav-links{display:none!important;}
+.ai-guide{display:none!important;}
+.eval-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:12px;}
+.eval-desc{margin:0;color:#6a7c92;line-height:1.5;flex:1;min-width:220px;}
+.eval-attempts{white-space:nowrap;font-weight:700;color:#0f2a52;background:#eef2f7;border:1px solid #e2e9f2;border-radius:999px;padding:7px 15px;}
+.eval-actions{display:flex;justify-content:flex-end;margin-top:14px;}
+#avatar-modal{display:flex;align-items:center;justify-content:center;}
+#avatar-modal[hidden]{display:none;}
+.avatar-modal-panel{width:min(560px,94vw);height:min(80vh,680px);}
+#avatar-frame{width:100%;height:100%;border:0;background:#0b1220;}
+#quiz-modal{display:flex;align-items:center;justify-content:center;}
+#quiz-modal[hidden]{display:none;}
+.quiz-modal-panel{width:min(720px,94vw);height:min(88vh,860px);grid-template-rows:58px minmax(0,1fr);}
+.quiz-modal-body{overflow:auto;padding:20px 22px;}
+</style>
 <main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
-    <header class="module-hero">
+    {% set hero_banners = {1:'banner1.jpg', 2:'banner2.jpg', 3:'banner3.jpg', 4:'banner4.jpg', 5:'banner5.jpg'} %}
+    {% set hero_banner = hero_banners[((current_module_number - 1) % 5) + 1] %}
+    <header class="module-hero" style="background-image:linear-gradient(90deg, rgba(16,24,40,.86) 0%, rgba(16,24,40,.55) 45%, rgba(16,24,40,.25) 100%), url('/static/images/banners/{{ hero_banner }}')">
         <div>
             <a class="studio-back" href="/learn/course/{{ lesson.course_id }}"><i class="fas fa-arrow-left"></i> Journey</a>
             <h1>{{ lesson.title }}</h1>
@@ -45,36 +63,36 @@
             {% for session in module_sessions %}
             <section class="module-session-card session-color-{{ ((loop.index - 1) % 5) + 1 }}" data-session="{{ session.label }}">
                 <div class="module-session-head">
-                    <span>{{ session.label }}</span>
+                    <span>{{ loop.index }}</span>
                     <div>
-                        <h3>Session {{ session.label }}</h3>
-                        <p>{{ session.objective }}</p>
+                        <h3>Stage {{ loop.index }}</h3>
+                        {% if session.objective %}<p>{{ session.objective }}</p>{% endif %}
                     </div>
                 </div>
                 <div class="session-resource-grid">
                     {% for material in session.session %}
-                    <button class="module-launch" type="button" data-key="session-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Session {{ session.label }}">
-                        <i class="fas fa-desktop"></i><strong>Session {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    <button class="module-launch" type="button" data-key="session-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Main Concepts">
+                        <i class="fas fa-desktop"></i><strong>Main Concepts</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.video %}
-                    <button class="module-launch" type="button" data-key="video-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Video {{ session.label }}">
-                        <i class="fas fa-circle-play"></i><strong>Video {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    <button class="module-launch" type="button" data-key="video-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Overview">
+                        <i class="fas fa-circle-play"></i><strong>Overview</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.simulation %}
-                    <button class="module-launch" type="button" data-key="simulation-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Simulation {{ session.label }}">
-                        <i class="fas fa-vial"></i><strong>Simulation {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    <button class="module-launch" type="button" data-key="simulation-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Simulation">
+                        <i class="fas fa-vial"></i><strong>Simulation</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.application %}
-                    <button class="module-launch application-launch" type="button" data-key="application-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Application {{ session.label }}">
-                        <i class="fas fa-briefcase"></i><strong>Application {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    <button class="module-launch application-launch" type="button" data-key="application-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Application">
+                        <i class="fas fa-briefcase"></i><strong>Application</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.case %}
-                    <button class="module-launch case-launch" type="button" data-key="case-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Case {{ session.label }}">
-                        <i class="fas fa-clipboard-check"></i><strong>Case {{ session.label }}</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    <button class="module-launch case-launch" type="button" data-key="case-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Business Case">
+                        <i class="fas fa-clipboard-check"></i><strong>Business Case</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                 </div>
@@ -84,6 +102,18 @@
                 <p class="studio-empty">No visible session resources have been added for this module.</p>
             </section>
             {% endfor %}
+
+            <section class="module-section ai-material">
+                <div class="module-section-head">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    <div><h3>AI Study Tools</h3><p>Flashcards and Audio Sessions for this module.</p></div>
+                </div>
+                <div class="tool-console compact-tools">
+                    <button class="tool-command" type="button" id="flashcards-btn"><i class="fas fa-layer-group"></i><strong>Flashcards</strong><span>Generate recall cards</span></button>
+                    <button class="tool-command" type="button" id="audio-btn"><i class="fas fa-headphones"></i><strong>Audio Sessions</strong><span>Sessions spoken recap</span></button>
+                    <button class="tool-command" type="button" id="avatar-btn"><i class="fas fa-user-tie"></i><strong>Video Avatar</strong><span>Talk to your course guide</span></button>
+                </div>
+            </section>
 
             {% if module_extras.case_analysis or module_extras.general_simulation %}
             <section class="module-section module-final-practice">
@@ -109,14 +139,16 @@
             <section class="module-section evaluation-material module-evaluation">
                 <div class="module-section-head">
                     <i class="fas fa-clipboard-check"></i>
-                    <div><h3>Module Evaluation</h3><p>Pass the AI quiz to complete Module {{ current_module_number }} and unlock the next module.</p></div>
+                    <div><h3>Module Evaluation</h3></div>
+                </div>
+                <div class="eval-bar">
+                    <p class="eval-desc">Pass the AI quiz to complete Module {{ current_module_number }} and unlock the next module.</p>
+                    <span class="eval-attempts">{{ quiz_attempts_remaining }} attempt{{ '' if quiz_attempts_remaining == 1 else 's' }} remaining</span>
+                </div>
+                <div class="eval-actions">
+                    <button class="market-btn primary" type="button" id="quiz-generate-btn" {% if quiz_attempts_remaining <= 0 %}disabled{% endif %}>Generate Quiz</button>
                 </div>
                 <div class="module-quiz">
-                    <div class="assessment-actions">
-                        <div><strong>{{ quiz_attempts_remaining }}</strong><span>quiz attempt{{ '' if quiz_attempts_remaining == 1 else 's' }} remaining</span></div>
-                        <button class="market-btn primary" type="button" id="quiz-generate-btn" {% if quiz_attempts_remaining <= 0 %}disabled{% endif %}>Generate AI Quiz</button>
-                    </div>
-                    <div id="quiz-box" class="quiz-workbench"></div>
                     <div class="attempt-list studio-attempts">
                         {% for attempt in quiz_attempts %}
                         <article>
@@ -131,16 +163,6 @@
                 </div>
             </section>
 
-            <section class="module-section ai-material">
-                <div class="module-section-head">
-                    <i class="fas fa-wand-magic-sparkles"></i>
-                    <div><h3>AI Study Tools</h3><p>Flashcards and OpenAI audio summary for this module.</p></div>
-                </div>
-                <div class="tool-console compact-tools">
-                    <button class="tool-command" type="button" id="flashcards-btn"><i class="fas fa-layer-group"></i><strong>Flashcards</strong><span>Generate recall cards</span></button>
-                    <button class="tool-command" type="button" id="audio-btn"><i class="fas fa-headphones"></i><strong>Audio Summary</strong><span>OpenAI spoken recap</span></button>
-                </div>
-            </section>
         </div>
     </section>
 
@@ -164,6 +186,31 @@
             </div>
         </header>
         <iframe id="resource-frame" title="Lesson resource"></iframe>
+    </section>
+</div>
+
+<div class="studio-modal" id="quiz-modal" hidden>
+    <section class="studio-modal-panel quiz-modal-panel">
+        <header>
+            <strong>Module Evaluation Quiz</strong>
+            <button class="icon-link" type="button" id="quiz-close" title="Close"><i class="fas fa-xmark"></i></button>
+        </header>
+        <div class="quiz-modal-body">
+            <div id="quiz-box" class="quiz-workbench"></div>
+        </div>
+    </section>
+</div>
+
+<div class="studio-modal" id="avatar-modal" hidden>
+    <section class="studio-modal-panel avatar-modal-panel">
+        <header>
+            <strong>Course Video Avatar</strong>
+            <div>
+                <a class="icon-link" id="avatar-newtab" href="#" target="_blank" rel="noopener" title="Open in new tab"><i class="fas fa-up-right-from-square"></i></a>
+                <button class="icon-link" type="button" id="avatar-close" title="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+        </header>
+        <iframe id="avatar-frame" title="Course video avatar" allow="camera; microphone; autoplay; fullscreen"></iframe>
     </section>
 </div>
 
@@ -337,7 +384,7 @@
     document.getElementById('flashcards-btn').addEventListener('click', generateFlashcards);
 
     async function generateAudioSummary() {
-        openAiModal('Audio Summary', 'audio');
+        openAiModal('Audio Sessions', 'audio');
         if (currentAudioUrl) {
             URL.revokeObjectURL(currentAudioUrl);
             currentAudioUrl = null;
@@ -380,9 +427,46 @@
 
     document.getElementById('audio-btn').addEventListener('click', generateAudioSummary);
 
-    document.getElementById('quiz-generate-btn').addEventListener('click', async (event) => {
-        event.target.disabled = true;
-        quizBox.innerHTML = '<p>Generating quiz...</p>';
+    /* ===== Video Avatar (D-ID agent, sandboxed in an iframe modal) ===== */
+    const avatarBtn = document.getElementById('avatar-btn');
+    const avatarModal = document.getElementById('avatar-modal');
+    const avatarFrame = document.getElementById('avatar-frame');
+    const avatarCloseBtn = document.getElementById('avatar-close');
+    const AVATAR_URL = 'https://studio.d-id.com/agents/share?id=v2_agt_V-Xrep2q&utm_source=copy&key=Y2tfS3IzdFBtNkttTnNOSHFzTkJobXRK';
+    if (avatarBtn && avatarModal && avatarFrame) {
+        const newTab = document.getElementById('avatar-newtab');
+        if (newTab) newTab.href = AVATAR_URL;
+        const openAvatar = () => {
+            if (!avatarFrame.getAttribute('src')) avatarFrame.src = AVATAR_URL;
+            avatarModal.hidden = false;
+        };
+        const closeAvatar = () => {
+            avatarModal.hidden = true;
+            avatarFrame.src = '';
+        };
+        avatarBtn.addEventListener('click', openAvatar);
+        avatarCloseBtn.addEventListener('click', closeAvatar);
+        avatarModal.addEventListener('click', (event) => { if (event.target === avatarModal) closeAvatar(); });
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !avatarModal.hidden) closeAvatar(); });
+    }
+
+    const quizModal = document.getElementById('quiz-modal');
+    const quizClose = document.getElementById('quiz-close');
+    let quizSubmitted = false;
+    let quizGenerating = false;
+    function closeQuizModal() {
+        quizModal.hidden = true;
+        if (quizSubmitted) window.location.reload();
+    }
+    if (quizClose) quizClose.addEventListener('click', closeQuizModal);
+    if (quizModal) quizModal.addEventListener('click', (event) => { if (event.target === quizModal) closeQuizModal(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && quizModal && !quizModal.hidden) closeQuizModal(); });
+
+    document.getElementById('quiz-generate-btn').addEventListener('click', async () => {
+        quizModal.hidden = false;
+        if (activeQuiz || quizGenerating) return;
+        quizGenerating = true;
+        quizBox.innerHTML = '<div class="ai-loading"><i class="fas fa-clipboard-check"></i><p>Generating quiz...</p></div>';
         try {
             activeQuiz = await postJson(`/learn/lesson/${lessonId}/quiz/generate`);
             quizBox.innerHTML = `<form id="active-quiz-form">${activeQuiz.questions.map((q, i) => `
@@ -395,9 +479,10 @@
             </form>`;
             document.getElementById('active-quiz-form').addEventListener('submit', submitQuiz);
         } catch (error) {
-            quizBox.innerHTML = `<p>${error.message}</p>`;
-            event.target.disabled = false;
+            quizBox.innerHTML = `<div class="ai-error"><strong>Quiz failed</strong><p>${escapeHtml(error.message)}</p></div>`;
+            activeQuiz = null;
         }
+        quizGenerating = false;
     });
 
     async function submitQuiz(event) {
@@ -407,15 +492,17 @@
             const selected = event.target.querySelector(`input[name="q${i}"]:checked`);
             if (selected) answers[i] = Number(selected.value);
         });
-        quizBox.insertAdjacentHTML('beforeend', '<p>Scoring and generating feedback...</p>');
+        quizBox.insertAdjacentHTML('beforeend', '<div class="ai-loading"><i class="fas fa-spinner fa-spin"></i><p>Scoring and generating feedback...</p></div>');
         try {
             const data = await postJson(`/learn/quiz/${activeQuiz.quiz_id}/submit`, {
                 answers,
                 keep_quiz: document.getElementById('keep-quiz').checked
             });
-            quizBox.innerHTML = `<div class="quiz-result"><strong>Score: ${data.score}%</strong><p>${data.feedback}</p><p>${data.recommendations}</p></div>`;
+            quizSubmitted = true;
+            quizBox.innerHTML = `<div class="quiz-result"><strong>Score: ${data.score}%</strong><p>${data.feedback}</p><p>${data.recommendations}</p><button class="market-btn primary" type="button" id="quiz-done-btn">Done</button></div>`;
+            document.getElementById('quiz-done-btn').addEventListener('click', closeQuizModal);
         } catch (error) {
-            quizBox.innerHTML = `<p>${error.message}</p>`;
+            quizBox.innerHTML = `<div class="ai-error"><strong>Could not score quiz</strong><p>${escapeHtml(error.message)}</p></div>`;
         }
     }
 })();

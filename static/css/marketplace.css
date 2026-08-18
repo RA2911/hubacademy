@@ -2184,6 +2184,8 @@ a {
     padding: 34px;
     border-radius: 8px;
     background: linear-gradient(135deg, #101828 0%, var(--module) 100%);
+    background-size: cover;
+    background-position: center;
     color: #fff;
 }
 
