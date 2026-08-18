@@ -4,18 +4,6 @@
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
 <main>
     <section class="hero hero-centered">
-        <div class="hero-copy">
-            <span class="eyebrow">Professional learning platform</span>
-            <form class="searchbar" action="/courses" method="GET">
-                <i class="fas fa-search"></i>
-                <input name="q" type="search" placeholder="Search AI agents, cybersecurity, analytics...">
-                <button type="submit">Search</button>
-            </form>
-            <div class="hero-actions">
-                <a class="btn primary" href="/courses">Explore Courses</a>
-                <a class="btn secondary" href="#certification">View Certificate Pathway</a>
-            </div>
-        </div>
         <div class="hero-panel level-image-panel level-image-center" aria-label="Learning levels">
             <img class="levels-visual" src="/static/images/Levels.png" alt="Your learning journey: Level 1 Foundations, Level 2 Builder, Level 3 Specialist">
             <button type="button" class="level-hotspot level-hotspot-1" data-modal="level1" aria-label="Explore Level 1">
@@ -27,6 +15,18 @@
             <button type="button" class="level-hotspot level-hotspot-3" data-modal="level3" aria-label="Explore Level 3">
                 <i class="fas fa-arrow-right"></i>
             </button>
+        </div>
+        <div class="hero-copy">
+            <span class="eyebrow">Professional learning platform</span>
+            <form class="searchbar" action="/courses" method="GET">
+                <i class="fas fa-search"></i>
+                <input name="q" type="search" placeholder="Search AI agents, cybersecurity, analytics...">
+                <button type="submit">Search</button>
+            </form>
+            <div class="hero-actions">
+                <a class="btn primary" href="/courses">Explore Courses</a>
+                <a class="btn secondary" href="#certification">View Certificate Pathway</a>
+            </div>
         </div>
     </section>
 
