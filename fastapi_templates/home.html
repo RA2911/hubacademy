@@ -3,6 +3,9 @@
 {% block content %}
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
 <main>
+    <div class="hero-title-band">
+        <h1 class="hero-title">Skill up. <span>Stand out.</span></h1>
+    </div>
     <section class="hero hero-media">
         <div class="hero-panel level-image-panel hero-image-side" aria-label="Learning levels">
             <img class="levels-visual" src="/static/images/Levels.png" alt="Your learning journey: Level 1 Foundations, Level 2 Builder, Level 3 Specialist">
@@ -515,6 +518,11 @@
 .topic-bullets{list-style:none;margin:0;padding:0;display:grid;gap:11px;}
 .topic-bullets li{position:relative;padding-left:28px;color:#4a5a75;line-height:1.5;}
 .topic-bullets li::before{content:"\f00c";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;left:0;top:2px;color:#16A6AC;font-size:.82rem;}
+
+/* Hero title */
+.hero-title-band{text-align:center;margin:0 auto 26px;}
+.hero-title{margin:0;font-weight:800;line-height:1.05;letter-spacing:-.01em;color:#0f2350;font-size:clamp(2.2rem,5vw,3.6rem);}
+.hero-title span{background:linear-gradient(135deg,#2480DC,#16A6AC);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#16A6AC;}
 
 /* Split hero: image left, video right */
 .hero-media{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;}
