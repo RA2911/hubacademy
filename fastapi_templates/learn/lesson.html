@@ -15,7 +15,23 @@
 #quiz-modal{display:flex;align-items:center;justify-content:center;}
 #quiz-modal[hidden]{display:none;}
 .quiz-modal-panel{width:min(720px,94vw);height:min(88vh,860px);grid-template-rows:58px minmax(0,1fr);}
-.quiz-modal-body{overflow:auto;padding:20px 22px;}
+.quiz-modal-body{overflow:auto;padding:20px 22px;background:#f6f9ff;}
+/* ===== Quiz (in modal) — clean redesign ===== */
+.quiz-modal-body .quiz-workbench{display:flex;flex-direction:column;gap:16px;}
+.quiz-modal-body .quiz-workbench form{display:flex;flex-direction:column;gap:16px;}
+.quiz-modal-body .quiz-workbench fieldset{border:1px solid #e7eef7;border-radius:14px;padding:18px 18px 10px;margin:0;background:#fff;box-shadow:0 6px 18px rgba(15,35,80,.05);}
+.quiz-modal-body .quiz-workbench legend{font-weight:700;color:#0f2350;font-size:1rem;line-height:1.45;padding:0 6px;}
+.quiz-modal-body .quiz-workbench fieldset label{display:flex;align-items:center;gap:12px;margin:9px 0;padding:12px 14px;border:1.5px solid #e2e9f2;border-radius:10px;cursor:pointer;color:#24324a;font-size:.94rem;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease;}
+.quiz-modal-body .quiz-workbench fieldset label:hover{border-color:#2480DC;background:#f6f9ff;}
+.quiz-modal-body .quiz-workbench fieldset label:has(input:checked){border-color:#2480DC;background:#eaf2fd;box-shadow:0 0 0 3px rgba(36,128,220,.12);}
+.quiz-modal-body .quiz-workbench input[type=radio]{width:18px;height:18px;accent-color:#2480DC;flex:0 0 auto;}
+.quiz-modal-body .quiz-workbench .keep-quiz{display:flex;align-items:center;gap:10px;margin:0;padding:12px 14px;border:1px dashed #cdd8ea;border-radius:10px;background:#fbfcfe;color:#5b6b86;font-size:.86rem;cursor:pointer;}
+.quiz-modal-body .quiz-workbench .keep-quiz input{width:16px;height:16px;accent-color:#2480DC;}
+.quiz-modal-body .quiz-workbench > form > button[type=submit]{width:100%;padding:14px;font-size:.98rem;}
+.quiz-modal-body .quiz-result{border:1px solid #e7eef7;border-radius:16px;padding:26px;background:linear-gradient(180deg,#f6f9ff,#fff);text-align:center;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 30px rgba(15,35,80,.07);}
+.quiz-modal-body .quiz-result strong{font-size:2.1rem;color:#2480DC;font-weight:800;}
+.quiz-modal-body .quiz-result p{color:#4a5a75;line-height:1.55;margin:0;text-align:left;}
+.quiz-modal-body .quiz-result .market-btn{align-self:center;margin-top:6px;}
 </style>
 <main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
     {% set hero_banners = {1:'banner1.jpg', 2:'banner2.jpg', 3:'banner3.jpg', 4:'banner4.jpg', 5:'banner5.jpg'} %}
