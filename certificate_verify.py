@@ -27,7 +27,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(cfg.BASE_DIR, 'fastapi_templates'))
 
 MASTER_CERTIFICATE_LEVEL = 4
-HUB_LOGO = os.path.join(cfg.BASE_DIR, 'static', 'images', 'hub_academy_logo.jpg')
+HUB_LOGO = os.path.join(cfg.BASE_DIR, 'static', 'images', 'hub_logo_new.png')
 
 
 # ---------------------------------------------------------------------------
