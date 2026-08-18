@@ -14,24 +14,46 @@
 #avatar-frame{width:100%;height:100%;border:0;background:#0b1220;}
 #quiz-modal{display:flex;align-items:center;justify-content:center;}
 #quiz-modal[hidden]{display:none;}
-.quiz-modal-panel{width:min(720px,94vw);height:min(88vh,860px);grid-template-rows:58px minmax(0,1fr);}
-.quiz-modal-body{overflow:auto;padding:20px 22px;background:#f6f9ff;}
-/* ===== Quiz (in modal) — clean redesign ===== */
-.quiz-modal-body .quiz-workbench{display:flex;flex-direction:column;gap:16px;}
-.quiz-modal-body .quiz-workbench form{display:flex;flex-direction:column;gap:16px;}
-.quiz-modal-body .quiz-workbench fieldset{border:1px solid #e7eef7;border-radius:14px;padding:18px 18px 10px;margin:0;background:#fff;box-shadow:0 6px 18px rgba(15,35,80,.05);}
-.quiz-modal-body .quiz-workbench legend{font-weight:700;color:#0f2350;font-size:1rem;line-height:1.45;padding:0 6px;}
-.quiz-modal-body .quiz-workbench fieldset label{display:flex;align-items:center;gap:12px;margin:9px 0;padding:12px 14px;border:1.5px solid #e2e9f2;border-radius:10px;cursor:pointer;color:#24324a;font-size:.94rem;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease;}
-.quiz-modal-body .quiz-workbench fieldset label:hover{border-color:#2480DC;background:#f6f9ff;}
-.quiz-modal-body .quiz-workbench fieldset label:has(input:checked){border-color:#2480DC;background:#eaf2fd;box-shadow:0 0 0 3px rgba(36,128,220,.12);}
-.quiz-modal-body .quiz-workbench input[type=radio]{width:18px;height:18px;accent-color:#2480DC;flex:0 0 auto;}
-.quiz-modal-body .quiz-workbench .keep-quiz{display:flex;align-items:center;gap:10px;margin:0;padding:12px 14px;border:1px dashed #cdd8ea;border-radius:10px;background:#fbfcfe;color:#5b6b86;font-size:.86rem;cursor:pointer;}
-.quiz-modal-body .quiz-workbench .keep-quiz input{width:16px;height:16px;accent-color:#2480DC;}
-.quiz-modal-body .quiz-workbench > form > button[type=submit]{width:100%;padding:14px;font-size:.98rem;}
-.quiz-modal-body .quiz-result{border:1px solid #e7eef7;border-radius:16px;padding:26px;background:linear-gradient(180deg,#f6f9ff,#fff);text-align:center;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 30px rgba(15,35,80,.07);}
-.quiz-modal-body .quiz-result strong{font-size:2.1rem;color:#2480DC;font-weight:800;}
-.quiz-modal-body .quiz-result p{color:#4a5a75;line-height:1.55;margin:0;text-align:left;}
-.quiz-modal-body .quiz-result .market-btn{align-self:center;margin-top:6px;}
+.quiz-modal-panel{width:min(720px,94vw);height:min(88vh,860px);grid-template-rows:auto minmax(0,1fr);border-radius:16px;overflow:hidden;}
+
+/* ===== Quiz — branded design ===== */
+.quiz-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;border-bottom:0;background:linear-gradient(120deg,#0f2350 0%,#1c4079 55%,#16A6AC 140%);color:#fff;}
+.quiz-head-id{display:flex;align-items:center;gap:13px;}
+.quiz-logo{width:40px;height:40px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;box-shadow:0 6px 16px rgba(0,0,0,.22);}
+.quiz-head strong{display:block;color:#fff;font-size:1.12rem;letter-spacing:.01em;}
+.quiz-head small{display:block;color:#c7d9ef;font-size:.78rem;margin-top:2px;}
+.quiz-head-close{color:rgba(255,255,255,.85)!important;}
+.quiz-head-close:hover{color:#fff!important;}
+
+.quiz-modal-body{overflow:auto;padding:22px;background:#eef3fa;}
+.quiz-modal-body .quiz-workbench{display:flex;flex-direction:column;gap:18px;}
+.quiz-modal-body .quiz-workbench form{display:flex;flex-direction:column;gap:18px;}
+.quiz-modal-body .quiz-workbench fieldset{position:relative;border:1px solid #e2e9f2;border-radius:16px;padding:20px 20px 12px;margin:0;background:#fff;box-shadow:0 10px 26px rgba(15,35,80,.07);overflow:hidden;}
+.quiz-modal-body .quiz-workbench fieldset::before{content:"";position:absolute;top:0;left:0;bottom:0;width:5px;background:linear-gradient(180deg,#2480DC,#16A6AC);}
+.quiz-modal-body .quiz-workbench legend{display:flex;align-items:center;gap:12px;font-weight:700;color:#0f2350;font-size:1.02rem;line-height:1.45;padding:0;margin-left:6px;}
+.quiz-modal-body .q-num{flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:.9rem;font-weight:800;color:#fff;background:linear-gradient(135deg,#2480DC,#0f2350);box-shadow:0 6px 14px rgba(36,128,220,.35);}
+.quiz-modal-body .quiz-workbench fieldset label.opt{display:flex;align-items:center;gap:13px;margin:10px 0 0;padding:13px 15px;border:1.5px solid #e2e9f2;border-radius:12px;cursor:pointer;color:#24324a;font-size:.95rem;background:#fff;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease,transform .12s ease;}
+.quiz-modal-body .quiz-workbench label.opt input[type=radio]{position:absolute;opacity:0;pointer-events:none;}
+.quiz-modal-body .opt-badge{flex:0 0 auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:.85rem;color:#5b6b86;background:#eef3fa;border:1px solid #dbe5f2;transition:all .15s ease;}
+.quiz-modal-body label.opt:hover{border-color:#2480DC;background:#f6f9ff;transform:translateX(2px);}
+.quiz-modal-body label.opt:has(input:checked){border-color:#2480DC;background:#eaf2fd;box-shadow:0 0 0 3px rgba(36,128,220,.14);}
+.quiz-modal-body label.opt:has(input:checked) .opt-badge{background:linear-gradient(135deg,#2480DC,#16A6AC);color:#fff;border-color:transparent;}
+.quiz-modal-body .keep-quiz{display:flex;align-items:center;gap:10px;margin:0;padding:12px 15px;border:1px dashed #c4d3e8;border-radius:12px;background:#fff;color:#5b6b86;font-size:.86rem;cursor:pointer;}
+.quiz-modal-body .keep-quiz input{width:16px;height:16px;accent-color:#2480DC;}
+.quiz-modal-body .quiz-workbench > form > button[type=submit]{width:100%;padding:15px;font-size:1rem;font-weight:700;border:0;border-radius:12px;color:#fff;background:linear-gradient(135deg,#2480DC,#16A6AC);box-shadow:0 12px 26px rgba(36,128,220,.32);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;}
+.quiz-modal-body .quiz-workbench > form > button[type=submit]:hover{transform:translateY(-2px);box-shadow:0 18px 34px rgba(36,128,220,.42);}
+
+/* result */
+.quiz-modal-body .quiz-result{border:1px solid #e2e9f2;border-radius:18px;padding:30px 26px;background:#fff;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 16px 40px rgba(15,35,80,.1);}
+.quiz-modal-body .result-ring{width:132px;height:132px;border-radius:50%;display:grid;place-items:center;font-size:2.3rem;font-weight:800;color:#0f2350;background:conic-gradient(var(--ring,#2480DC) calc(var(--pct,0)*1%),#e6edf6 0);position:relative;}
+.quiz-modal-body .result-ring::after{content:"";position:absolute;inset:12px;border-radius:50%;background:#fff;box-shadow:inset 0 2px 8px rgba(15,35,80,.06);}
+.quiz-modal-body .result-ring span{position:relative;z-index:1;}
+.quiz-modal-body .result-badge{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.82rem;padding:7px 16px;border-radius:999px;text-transform:uppercase;letter-spacing:.05em;}
+.quiz-modal-body .quiz-result.pass .result-badge{background:#e7f7f0;color:#17a673;}
+.quiz-modal-body .quiz-result.fail .result-badge{background:#fdecec;color:#c0392b;}
+.quiz-modal-body .quiz-result h3{margin:0;color:#0f2350;font-size:1.3rem;}
+.quiz-modal-body .quiz-result p{color:#4a5a75;line-height:1.6;margin:0;text-align:left;max-width:46ch;}
+.quiz-modal-body .quiz-result .market-btn{margin-top:6px;padding:12px 30px;border:0;border-radius:12px;color:#fff;background:linear-gradient(135deg,#2480DC,#16A6AC);font-weight:700;}
 </style>
 <main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
     {% set hero_banners = {1:'banner1.jpg', 2:'banner2.jpg', 3:'banner3.jpg', 4:'banner4.jpg', 5:'banner5.jpg'} %}
@@ -207,9 +229,15 @@
 
 <div class="studio-modal" id="quiz-modal" hidden>
     <section class="studio-modal-panel quiz-modal-panel">
-        <header>
-            <strong>Module Evaluation Quiz</strong>
-            <button class="icon-link" type="button" id="quiz-close" title="Close"><i class="fas fa-xmark"></i></button>
+        <header class="quiz-head">
+            <div class="quiz-head-id">
+                <img class="quiz-logo" src="/static/images/hub_logo_new.png" alt="Hub Academy">
+                <div>
+                    <strong>Module Evaluation</strong>
+                    <small>Module {{ current_module_number }} · pass mark {{ quiz_pass_score }}%</small>
+                </div>
+            </div>
+            <button class="icon-link quiz-head-close" type="button" id="quiz-close" title="Close"><i class="fas fa-xmark"></i></button>
         </header>
         <div class="quiz-modal-body">
             <div id="quiz-box" class="quiz-workbench"></div>
@@ -247,6 +275,7 @@
 (function () {
     const shell = document.querySelector('.module-studio');
     const lessonId = shell.dataset.lessonId;
+    const quizPassScore = {{ quiz_pass_score if quiz_pass_score is defined else 60 }};
     const modal = document.getElementById('resource-modal');
     const frame = document.getElementById('resource-frame');
     const modalTitle = document.getElementById('resource-modal-title');
@@ -487,11 +516,11 @@
             activeQuiz = await postJson(`/learn/lesson/${lessonId}/quiz/generate`);
             quizBox.innerHTML = `<form id="active-quiz-form">${activeQuiz.questions.map((q, i) => `
                 <fieldset>
-                    <legend>${i + 1}. ${q.question}</legend>
-                    ${q.options.map((option, j) => `<label><input type="radio" name="q${i}" value="${j}" required> ${option}</label>`).join('')}
+                    <legend><span class="q-num">${i + 1}</span><span>${escapeHtml(q.question)}</span></legend>
+                    ${q.options.map((option, j) => `<label class="opt"><input type="radio" name="q${i}" value="${j}" required><span class="opt-badge">${String.fromCharCode(65 + j)}</span><span class="opt-text">${escapeHtml(option)}</span></label>`).join('')}
                 </fieldset>`).join('')}
                 <label class="keep-quiz"><input type="checkbox" id="keep-quiz" checked> Keep this generated quiz after finishing</label>
-                <button class="market-btn primary" type="submit">Submit Quiz</button>
+                <button type="submit">Submit Quiz</button>
             </form>`;
             document.getElementById('active-quiz-form').addEventListener('submit', submitQuiz);
         } catch (error) {
@@ -515,7 +544,15 @@
                 keep_quiz: document.getElementById('keep-quiz').checked
             });
             quizSubmitted = true;
-            quizBox.innerHTML = `<div class="quiz-result"><strong>Score: ${data.score}%</strong><p>${data.feedback}</p><p>${data.recommendations}</p><button class="market-btn primary" type="button" id="quiz-done-btn">Done</button></div>`;
+            const passed = data.score >= quizPassScore;
+            quizBox.innerHTML = `<div class="quiz-result ${passed ? 'pass' : 'fail'}">
+                <div class="result-ring" style="--pct:${data.score};--ring:${passed ? '#17a673' : '#e0803a'}"><span>${data.score}%</span></div>
+                <span class="result-badge">${passed ? '<i class="fas fa-circle-check"></i> Passed' : '<i class="fas fa-rotate-right"></i> Keep going'}</span>
+                <h3>${passed ? 'Module complete!' : 'Not quite there yet'}</h3>
+                <p>${escapeHtml(data.feedback || '')}</p>
+                ${data.recommendations ? `<p>${escapeHtml(data.recommendations)}</p>` : ''}
+                <button class="market-btn" type="button" id="quiz-done-btn">Done</button>
+            </div>`;
             document.getElementById('quiz-done-btn').addEventListener('click', closeQuizModal);
         } catch (error) {
             quizBox.innerHTML = `<div class="ai-error"><strong>Could not score quiz</strong><p>${escapeHtml(error.message)}</p></div>`;
