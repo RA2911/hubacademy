@@ -1347,7 +1347,7 @@ def login_page(request: Request, next: str = '/learn/dashboard'):
 def login(request: Request, username: str = Form(...), password: str = Form(...), next: str = Form('/learn/dashboard'), db: Session = Depends(get_db)):
     student = db.query(Student).filter((Student.username == username.strip()) | (Student.email == username.strip().lower())).first()
     if not student or not verify_password(password, student.password_hash):
-        return RedirectResponse(f'/login?next={next}', status_code=303)
+        return RedirectResponse(f'/login?next={next}&login=failed', status_code=303)
     request.session['student_id'] = student.id
     student.last_login = datetime.utcnow()
     db.commit()
