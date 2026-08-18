@@ -395,7 +395,7 @@
     <div class="journey-backdrop" data-close></div>
     <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-ai-leadership-title">
         <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
-        <div class="journey-head">
+        <div class="journey-head topic-head" style="background-image:linear-gradient(120deg,rgba(15,35,80,.92),rgba(15,35,80,.52)),url('/static/images/course-ai-leadership.jpg');">
             <span class="journey-eyebrow">Most Popular Training</span>
             <h2 id="topic-ai-leadership-title">AI Leadership &amp; AI Strategy</h2>
             <p>Lead your organization's AI transformation with a clear, executable strategy.</p>
@@ -420,7 +420,7 @@
     <div class="journey-backdrop" data-close></div>
     <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-engineering-leadership-title">
         <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
-        <div class="journey-head">
+        <div class="journey-head topic-head" style="background-image:linear-gradient(120deg,rgba(15,35,80,.92),rgba(15,35,80,.52)),url('/static/images/course-engineering.jpg');">
             <span class="journey-eyebrow">Most Popular Training</span>
             <h2 id="topic-engineering-leadership-title">Engineering Leadership for Future Leaders</h2>
             <p>Step up from engineer to leader with the skills to run high-performing teams.</p>
@@ -445,7 +445,7 @@
     <div class="journey-backdrop" data-close></div>
     <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-ai-agents-title">
         <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
-        <div class="journey-head">
+        <div class="journey-head topic-head" style="background-image:linear-gradient(120deg,rgba(15,35,80,.92),rgba(15,35,80,.52)),url('/static/images/course-ai-agents.jpg');">
             <span class="journey-eyebrow">Most Popular Training</span>
             <h2 id="topic-ai-agents-title">AI Agents &amp; Agentic AI for Business</h2>
             <p>Design and deploy AI agents that automate real business workflows.</p>
@@ -519,13 +519,16 @@
 .topic-bullets li{position:relative;padding-left:28px;color:#4a5a75;line-height:1.5;}
 .topic-bullets li::before{content:"\f00c";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;left:0;top:2px;color:#16A6AC;font-size:.82rem;}
 
+/* Topic modal header image */
+.topic-head{background-size:cover!important;background-position:center!important;min-height:150px;}
+
 /* Hero title */
-.hero-title-band{text-align:center;margin:0 auto 26px;}
+.hero-title-band{text-align:center;margin:0 auto;padding:34px 20px 4px;}
 .hero-title{margin:0;font-weight:800;line-height:1.05;letter-spacing:-.01em;color:#0f2350;font-size:clamp(2.2rem,5vw,3.6rem);}
 .hero-title span{background:linear-gradient(135deg,#2480DC,#16A6AC);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#16A6AC;}
 
 /* Split hero: image left, video right */
-.hero-media{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;}
+.hero-media{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;padding:12px 28px 44px;}
 .hero-image-side{max-width:none;width:100%;margin:0;}
 .hero-video{width:100%;}
 .hero-video .hero-video-el,.hero-video-placeholder{width:100%;aspect-ratio:16/9;border-radius:20px;display:block;object-fit:cover;background:#0f2350;box-shadow:0 20px 50px rgba(15,35,80,.16);}
