@@ -943,7 +943,9 @@ def step_state(progress):
 
 
 def session_unlocked(previous_progress):
-    return previous_progress is None or previous_progress.is_completed
+    # A module unlocks only when the previous module is completed.
+    # (A missing progress row means the previous module was never finished -> stay locked.)
+    return bool(previous_progress and previous_progress.is_completed)
 
 
 def journey_for_course(db: Session, course: Course, student_id: int):
@@ -955,7 +957,7 @@ def journey_for_course(db: Session, course: Course, student_id: int):
     modules = []
     previous_progress = None
     total_done = 0
-    for lesson in lessons:
+    for idx, lesson in enumerate(lessons):
         current_progress = progress.get(lesson.id)
         if current_progress and current_progress.is_completed:
             total_done += 1
@@ -965,7 +967,7 @@ def journey_for_course(db: Session, course: Course, student_id: int):
         modules[module_number - 1]['sessions'].append({
             'lesson': lesson,
             'progress': current_progress,
-            'unlocked': session_unlocked(previous_progress),
+            'unlocked': idx == 0 or session_unlocked(previous_progress),
             'session_number': lesson_session_number(lesson),
             'duration_minutes': lesson_duration_minutes(lesson),
             'steps': step_state(current_progress),
