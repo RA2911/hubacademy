@@ -3,11 +3,9 @@
 {% block content %}
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
 <main>
-    <section class="hero hero-levels">
+    <section class="hero hero-centered">
         <div class="hero-copy">
             <span class="eyebrow">Professional learning platform</span>
-            <h1>Build high-demand skills through guided levels and practical sessions.</h1>
-            <p>Choose an expertise area, complete structured 15-hour levels, and progress from Level 1 to Level 3 before earning a Professional Master Certificate.</p>
             <form class="searchbar" action="/courses" method="GET">
                 <i class="fas fa-search"></i>
                 <input name="q" type="search" placeholder="Search AI agents, cybersecurity, analytics...">
@@ -18,7 +16,7 @@
                 <a class="btn secondary" href="#certification">View Certificate Pathway</a>
             </div>
         </div>
-        <aside class="hero-panel level-image-panel" aria-label="Learning levels">
+        <div class="hero-panel level-image-panel level-image-center" aria-label="Learning levels">
             <img class="levels-visual" src="/static/images/Levels.png" alt="Your learning journey: Level 1 Foundations, Level 2 Builder, Level 3 Specialist">
             <button type="button" class="level-hotspot level-hotspot-1" data-modal="level1" aria-label="Explore Level 1">
                 <i class="fas fa-arrow-right"></i>
@@ -29,7 +27,27 @@
             <button type="button" class="level-hotspot level-hotspot-3" data-modal="level3" aria-label="Explore Level 3">
                 <i class="fas fa-arrow-right"></i>
             </button>
-        </aside>
+        </div>
+    </section>
+
+    <section class="section popular-training">
+        <div class="section-head">
+            <div>
+                <span class="eyebrow">Explore</span>
+                <h2>Most Popular Training</h2>
+            </div>
+        </div>
+        <div class="popular-links">
+            <button type="button" class="popular-link" data-modal="topic-ai-leadership">
+                <span>AI Leadership &amp; AI Strategy</span><i class="fas fa-arrow-right"></i>
+            </button>
+            <button type="button" class="popular-link" data-modal="topic-personal-leadership">
+                <span>Personal Leadership &amp; Executive Presence</span><i class="fas fa-arrow-right"></i>
+            </button>
+            <button type="button" class="popular-link" data-modal="topic-ai-agents">
+                <span>AI Agents &amp; Agentic AI for Business</span><i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
     </section>
 
     <section class="section" id="expertise">
@@ -363,6 +381,64 @@
     </div>
 </div>
 
+<!-- Most Popular Training topic modals -->
+<div class="journey-modal" id="topic-ai-leadership-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-ai-leadership-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">Most Popular Training</span>
+            <h2 id="topic-ai-leadership-title">AI Leadership &amp; AI Strategy</h2>
+            <p>Courses covered in this topic.</p>
+        </div>
+        <div class="topic-course-list">
+            <!-- COURSES: AI Leadership & AI Strategy -->
+            <div class="level-empty"><p>Course list coming soon.</p></div>
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/courses">Browse all courses</a>
+        </div>
+    </div>
+</div>
+
+<div class="journey-modal" id="topic-personal-leadership-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-personal-leadership-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">Most Popular Training</span>
+            <h2 id="topic-personal-leadership-title">Personal Leadership &amp; Executive Presence</h2>
+            <p>Courses covered in this topic.</p>
+        </div>
+        <div class="topic-course-list">
+            <!-- COURSES: Personal Leadership & Executive Presence -->
+            <div class="level-empty"><p>Course list coming soon.</p></div>
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/courses">Browse all courses</a>
+        </div>
+    </div>
+</div>
+
+<div class="journey-modal" id="topic-ai-agents-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="journey-panel" role="dialog" aria-modal="true" aria-labelledby="topic-ai-agents-title">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <div class="journey-head">
+            <span class="journey-eyebrow">Most Popular Training</span>
+            <h2 id="topic-ai-agents-title">AI Agents &amp; Agentic AI for Business</h2>
+            <p>Courses covered in this topic.</p>
+        </div>
+        <div class="topic-course-list">
+            <!-- COURSES: AI Agents & Agentic AI for Business -->
+            <div class="level-empty"><p>Course list coming soon.</p></div>
+        </div>
+        <div class="journey-foot">
+            <a class="btn primary" href="/courses">Browse all courses</a>
+        </div>
+    </div>
+</div>
+
 <style>
 .outcome-clickable{display:flex;flex-direction:column;align-items:flex-start;}
 .outcome-cta{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#0f2350;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .15s ease;}
@@ -400,6 +476,18 @@
 .lc-meta{display:inline-flex;align-items:center;gap:8px;color:#5b6b86;font-size:.85rem;white-space:nowrap;}
 .lc-meta i{color:#2480DC;font-size:.78rem;}
 .level-empty{padding:10px 0;color:#5b6b86;}
+
+/* Centered hero + Most Popular Training */
+.hero-centered{grid-template-columns:1fr;justify-items:center;text-align:center;gap:24px;}
+.hero-centered .hero-copy{max-width:640px;width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;}
+.hero-centered .searchbar{width:100%;max-width:560px;margin:0 auto;}
+.hero-centered .hero-actions{justify-content:center;}
+.level-image-center{max-width:940px;width:100%;margin:0 auto;}
+.popular-links{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-top:12px;}
+.popular-link{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 22px;border:1px solid #e7eef7;border-radius:16px;background:#fff;color:#0f2350;font-size:1.02rem;font-weight:700;text-align:left;cursor:pointer;box-shadow:0 12px 30px rgba(15,35,80,.07);transition:border-color .15s ease,transform .15s ease,box-shadow .15s ease;}
+.popular-link:hover{border-color:#16A6AC;transform:translateY(-2px);box-shadow:0 18px 40px rgba(22,166,172,.18);}
+.popular-link i{color:#16A6AC;flex:0 0 auto;}
+.topic-course-list{padding:16px 28px 6px;display:grid;gap:10px;max-height:52vh;overflow:auto;}
 
 /* Professional Master Certificate card button + modal */
 .master-card{flex-wrap:wrap;}
