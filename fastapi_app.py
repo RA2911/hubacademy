@@ -67,6 +67,7 @@ EXPERTISE_AREAS = [
     {'name': 'Automation & Workflow Design', 'slug': 'automation-workflow-design'},
     {'name': 'Digital Transformation Leadership', 'slug': 'digital-transformation-leadership'},
     {'name': 'Sustainability & Green Business', 'slug': 'sustainability-green-business'},
+    {'name': 'Aviation Management & Operations', 'slug': 'aviation-management-operations'},
 ]
 
 CERTIFICATE_LEVELS = [
