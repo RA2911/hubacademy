@@ -1590,6 +1590,61 @@ async def assistant(request: Request, db: Session = Depends(get_db)):
         return {'answer': fallback, 'mode': mode, 'audio_available': False, 'video_available': False}
 
 
+@app.post('/learn/feedback')
+async def exercise_feedback(request: Request, db: Session = Depends(get_db)):
+    """Give a learner concise feedback on an interactive exercise submission.
+    Used by Application HTML exercises via a 'Get Feedback' button."""
+    data = await request.json()
+    title = (data.get('title') or 'this exercise').strip()
+    criteria = (data.get('criteria') or '').strip()
+    content = (data.get('content') or '').strip()
+    if len(content) < 5:
+        return JSONResponse({'error': 'Fill in your answers first, then ask for feedback.'}, status_code=400)
+    try:
+        client = openai_client(db)
+        system = (
+            "You are an expert reviewer and coach for a business course on AI agents. "
+            "Give concise, encouraging, specific feedback addressed directly to the learner as 'You'. "
+            "Judge the submission against the criteria provided and what the learner actually wrote. "
+            "Return ONLY valid JSON: {\"strengths\": [\"You ...\"], \"improvements\": [\"You ...\"]} "
+            "with 2 to 4 short one-sentence bullets in each list."
+        )
+        user = f"Exercise: {title}\n\nWhat good looks like (criteria):\n{criteria or 'Be clear, specific, and practical.'}\n\nThe learner's submission:\n{content[:6000]}"
+        models = []
+        for model in ['gpt-4o', cfg.OPENAI_MODEL, 'gpt-4o-mini']:
+            if model and model not in models:
+                models.append(model)
+        response, last_error = None, None
+        for model in models:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[{'role': 'system', 'content': system}, {'role': 'user', 'content': user}],
+                    max_tokens=500, temperature=0.4,
+                )
+                break
+            except Exception as exc:
+                last_error = exc
+        if response is None:
+            raise last_error or RuntimeError('OpenAI chat completion failed.')
+        parsed = parse_json_response(response.choices[0].message.content, {})
+
+        def clean(value):
+            if isinstance(value, str):
+                value = [value]
+            if not isinstance(value, list):
+                return []
+            return [str(item).strip() for item in value if str(item).strip()][:4]
+
+        return {
+            'strengths': clean(parsed.get('strengths')) or ['You made a solid start on this exercise.'],
+            'improvements': clean(parsed.get('improvements')) or ['You could add more detail and be more specific.'],
+        }
+    except Exception as exc:
+        logger.exception('exercise feedback failed: %s', exc)
+        return JSONResponse({'error': 'Feedback is unavailable right now. Please try again.'}, status_code=502)
+
+
 @app.get('/learn/dashboard')
 def learner_dashboard(request: Request, db: Session = Depends(get_db)):
     student = student_from_request(request, db)
