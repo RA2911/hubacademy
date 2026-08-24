@@ -228,7 +228,12 @@ def course_image_url(image_url, seed):
 
 def course_image(course):
     if course.thumbnail_url:
-        return course.thumbnail_url
+        url = course.thumbnail_url
+        # Pasted URLs and local static paths are used as-is; an R2 object key is
+        # served (presigned) through our own /courses/<id>/thumbnail route.
+        if url.startswith(('http://', 'https://', '/')):
+            return url
+        return f'/courses/{course.id}/thumbnail'
     title_hay = ((course.title or '') + ' ' + (course.expertise_area or '')).lower()
     for keywords, local_image in COURSE_IMAGE_LOCAL:
         if any(keyword in title_hay for keyword in keywords):
@@ -2159,7 +2164,8 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     course.is_published = bool(is_published)
     course.is_featured = bool(is_featured)
     course.allow_free_enrollment = bool(allow_free_enrollment)
-    if not course_id:
+    is_new = not course_id
+    if is_new:
         db.add(course)
         db.flush()
     blocked_extras = normalize_course_modules(db, course, num_lessons)
@@ -2170,6 +2176,10 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
             'extras': blocked_extras,
         }, status_code=409)
     db.commit()
+    # Send a freshly-created course to its edit page so the admin can upload a
+    # cover image and documents right away; edits go back to the course list.
+    if is_new:
+        return RedirectResponse(f'/admin/courses/{course.id}/edit?created=1', status_code=303)
     return RedirectResponse('/admin/courses', status_code=303)
 
 
@@ -2261,6 +2271,50 @@ def course_document(course_id: int, kind: str, request: Request, db: Session = D
         raise HTTPException(status_code=404)
     label = 'Syllabus' if kind.strip().lower() == 'syllabus' else 'CLOs'
     return RedirectResponse(presigned_download_url(key, f'{label}-{course_slug(course)}.pdf'), status_code=303)
+
+
+THUMB_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
+
+
+@app.post('/admin/courses/{course_id}/thumbnail/upload')
+async def admin_upload_course_thumbnail(course_id: int, request: Request,
+                                        file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload a course cover image (one per course) to R2; stored as an object key in thumbnail_url."""
+    require_admin(request, db)
+    course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    if not r2_enabled():
+        return RedirectResponse(f'/admin/courses/{course_id}/edit?thumb=nor2', status_code=303)
+    filename = (file.filename or '').strip()
+    if not filename.lower().endswith(THUMB_EXTENSIONS):
+        await file.close()
+        return RedirectResponse(f'/admin/courses/{course_id}/edit?thumb=type', status_code=303)
+    content_type = file.content_type or guess_content_type(filename)
+    key = object_key(filename, material_type='course-thumbnail')
+    try:
+        file.file.seek(0)
+        upload_fileobj(key, file.file, content_type)
+    except Exception as exc:
+        logger.exception('Course thumbnail upload failed: %s', exc)
+        return RedirectResponse(f'/admin/courses/{course_id}/edit?thumb=fail', status_code=303)
+    finally:
+        await file.close()
+    course.thumbnail_url = key
+    db.commit()
+    return RedirectResponse(f'/admin/courses/{course_id}/edit?thumb=ok', status_code=303)
+
+
+@app.get('/courses/{course_id}/thumbnail')
+def course_thumbnail(course_id: int, request: Request, db: Session = Depends(get_db)):
+    """Serve a course cover image via a presigned R2 URL (public — cover art is not sensitive)."""
+    course = db.get(Course, course_id)
+    if not course or not course.thumbnail_url:
+        raise HTTPException(status_code=404)
+    key = course.thumbnail_url
+    if key.startswith(('http://', 'https://', '/')):
+        return RedirectResponse(key, status_code=303)
+    return RedirectResponse(presigned_download_url(key, f'cover-{course_slug(course)}'), status_code=303)
 
 
 @app.post('/admin/courses/{course_id}/bulk-prepare')

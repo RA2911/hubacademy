@@ -1,6 +1,9 @@
 {% extends 'admin/base.html' %}
 {% block admin_title %}{{ 'Edit Course' if course else 'New Course' }}{% endblock %}
 {% block admin_content %}
+{% if request.query_params.get('created') %}
+<p class="sync-result">Course created. Now add a cover image and documents below.</p>
+{% endif %}
 <section class="detail-block">
 <form method="POST" action="/admin/courses" class="auth-public-card">
     <input type="hidden" name="course_id" value="{{ course.id if course else 0 }}">
@@ -13,7 +16,7 @@
     <label>Description<input name="description" value="{{ course.description if course else '' }}"></label>
     <label>Sales Copy<input name="sales_copy" value="{{ course.sales_copy if course else '' }}"></label>
     <label>Slug<input name="slug" value="{{ course.slug if course else '' }}"></label>
-    <label>Thumbnail URL<input name="thumbnail_url" value="{{ course.thumbnail_url if course else '' }}"></label>
+    <label>Cover image URL <span class="form-hint" style="text-transform:none;font-weight:400">(optional — or upload an image file below)</span><input name="thumbnail_url" value="{{ course.thumbnail_url if course and course.thumbnail_url and (course.thumbnail_url.startswith('http') or course.thumbnail_url.startswith('/')) else '' }}" placeholder="https://..."></label>
     <label>Level<input name="level" value="{{ course.level if course else '' }}"></label>
     <label>Expertise Area
         <select name="expertise_area">
@@ -43,6 +46,30 @@
 </section>
 
 {% if course %}
+<section class="detail-block">
+    <div class="band-head compact"><div><span class="eyebrow">Cover</span><h2>Course Image</h2></div></div>
+    <p class="muted-line">Upload a photo for this course. It appears as the thumbnail on the dashboard, course list and public course page. JPG, PNG, WebP or GIF.</p>
+    {% set thumb = request.query_params.get('thumb') %}
+    {% if thumb == 'ok' %}<p class="sync-result">Cover image updated.</p>{% endif %}
+    {% if thumb == 'type' %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:8px 12px;border-radius:8px">Please upload a JPG, PNG, WebP or GIF image.</p>{% endif %}
+    {% if thumb == 'nor2' %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:8px 12px;border-radius:8px">Image storage (R2) is not configured, so file uploads are off. You can still paste an image URL in the form above.</p>{% endif %}
+    {% if thumb == 'fail' %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:8px 12px;border-radius:8px">Upload failed. Please try again.</p>{% endif %}
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        {% if course.thumbnail_url %}
+        <img id="cover-preview" src="{{ course_image(course) }}" alt="Cover" style="width:220px;height:130px;object-fit:cover;border-radius:12px;border:1px solid #e2e9f2">
+        {% else %}
+        <div id="cover-preview-ph" style="width:220px;height:130px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#0f2350,#1d4ed8);color:rgba(255,255,255,.9);font-size:2rem"><i class="fas fa-image"></i></div>
+        <img id="cover-preview" src="" alt="Cover" style="display:none;width:220px;height:130px;object-fit:cover;border-radius:12px;border:1px solid #e2e9f2">
+        {% endif %}
+        <form method="POST" action="/admin/courses/{{ course.id }}/thumbnail/upload" enctype="multipart/form-data" class="auth-public-card" style="flex:1;min-width:240px">
+            <label>Cover image<input type="file" name="file" accept="image/*" required
+                   onchange="var p=document.getElementById('cover-preview');var ph=document.getElementById('cover-preview-ph');if(this.files[0]){p.src=URL.createObjectURL(this.files[0]);p.style.display='block';if(ph)ph.style.display='none';}"></label>
+            <button class="market-btn primary" type="submit" {% if not r2_ready %}disabled{% endif %}>{{ 'Replace image' if course.thumbnail_url else 'Upload image' }}</button>
+            {% if not r2_ready %}<span class="form-hint">Image storage (R2) is not configured — file uploads are disabled. Paste a URL in the form above instead.</span>{% endif %}
+        </form>
+    </div>
+</section>
+
 <section class="detail-block">
     <div class="band-head compact"><div><span class="eyebrow">Course-wide</span><h2>Course Documents</h2></div></div>
     <p class="muted-line">Upload one Syllabus and one CLOs/CBOs PDF for the whole course (covers all 5 modules). Stored in R2.</p>
@@ -74,6 +101,6 @@
     {% if not r2_ready %}<p class="form-hint">R2 storage is not configured — uploads are disabled.</p>{% endif %}
 </section>
 {% else %}
-<section class="detail-block"><p class="muted-line">Save the course first, then upload its Syllabus and CLOs here.</p></section>
+<section class="detail-block"><p class="muted-line">Save the course first, then upload its cover image, Syllabus and CLOs here.</p></section>
 {% endif %}
 {% endblock %}

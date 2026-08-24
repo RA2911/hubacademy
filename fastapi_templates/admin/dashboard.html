@@ -1,14 +1,102 @@
 {% extends 'admin/base.html' %}
 {% block admin_title %}Dashboard{% endblock %}
 {% block admin_content %}
-<div class="outcome-grid">
-    <div><h3>{{ stats.programs }}</h3><p>Programs</p></div>
-    <div><h3>{{ stats.courses }}</h3><p>Courses</p></div>
-    <div><h3>{{ stats.students }}</h3><p>Students</p></div>
-    <div><h3>{{ stats.enrollments }}</h3><p>Enrollments</p></div>
+
+<!-- Search -->
+<form class="dash-search" method="GET" action="/admin/courses">
+    <i class="fas fa-magnifying-glass"></i>
+    <input type="text" name="q" placeholder="Search courses by title, level or expertise…" aria-label="Search courses">
+    <button type="submit" class="market-btn primary">Search</button>
+</form>
+
+<!-- KPI cards -->
+<div class="kpi-grid">
+    <a class="kpi kpi-blue" href="/admin/programs">
+        <span class="kpi-ic"><i class="fas fa-layer-group"></i></span>
+        <div><strong>{{ stats.programs }}</strong><span>Programs</span></div>
+    </a>
+    <a class="kpi kpi-teal" href="/admin/courses">
+        <span class="kpi-ic"><i class="fas fa-book-open"></i></span>
+        <div><strong>{{ stats.courses }}</strong><span>Courses</span></div>
+    </a>
+    <a class="kpi kpi-violet" href="/admin/students">
+        <span class="kpi-ic"><i class="fas fa-user-graduate"></i></span>
+        <div><strong>{{ stats.students }}</strong><span>Students</span></div>
+    </a>
+    <a class="kpi kpi-amber" href="/admin/enrollments">
+        <span class="kpi-ic"><i class="fas fa-user-check"></i></span>
+        <div><strong>{{ stats.enrollments }}</strong><span>Enrollments</span></div>
+    </a>
 </div>
-<div class="detail-block">
-    <h2>Recent Courses</h2>
-    <div class="course-grid">{% for course in recent_courses %}{% include 'course_card.html' %}{% endfor %}</div>
+
+<!-- Quick actions -->
+<div class="quick-row">
+    <a class="quick-btn" href="/admin/courses/new"><i class="fas fa-plus"></i> New Course</a>
+    <a class="quick-btn" href="/admin/programs"><i class="fas fa-layer-group"></i> Programs</a>
+    <a class="quick-btn" href="/admin/students"><i class="fas fa-user-graduate"></i> Students</a>
+    <a class="quick-btn" href="/admin/enrollments"><i class="fas fa-user-check"></i> Enrollments</a>
+    <a class="quick-btn" href="/admin/progression"><i class="fas fa-chart-line"></i> Progression</a>
 </div>
+
+<!-- Recent courses -->
+<section class="detail-block">
+    <div class="dash-head">
+        <h2>Recent Courses</h2>
+        <a class="market-btn" href="/admin/courses">All Courses</a>
+    </div>
+    <div class="dash-course-grid">
+    {% for course in recent_courses %}
+        <a class="dash-course-tile" href="/admin/courses/{{ course.id }}/edit">
+            <div class="dash-course-thumb">
+                <img src="{{ course_image(course) }}" alt="{{ course.title }}" loading="lazy" onerror="this.style.display='none'">
+                <span class="dash-course-badge {{ 'pub' if course.is_published else 'draft' }}">{{ 'Published' if course.is_published else 'Draft' }}</span>
+            </div>
+            <div class="dash-course-info">
+                <strong>{{ course.title }}</strong>
+                <span>{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1,2,3] %} · Level {{ course.certificate_level }}{% endif %}</span>
+            </div>
+        </a>
+    {% else %}
+        <p class="muted-line">No courses yet. Create one from the Courses page.</p>
+    {% endfor %}
+    </div>
+</section>
+
+<style>
+.dash-search{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e9f2;border-radius:14px;padding:8px 10px 8px 16px;margin-bottom:22px;box-shadow:0 8px 22px rgba(15,42,82,.06);}
+.dash-search i{color:#7488a5;font-size:.95rem;}
+.dash-search input{flex:1;border:none;outline:none;font-size:1rem;color:#0f2a52;background:transparent;padding:8px 2px;}
+.dash-search input::placeholder{color:#9aa8bd;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-bottom:20px;}
+.kpi{display:flex;align-items:center;gap:16px;padding:20px 22px;border-radius:16px;color:#fff;text-decoration:none;box-shadow:0 12px 30px rgba(15,42,82,.16);transition:transform .15s,box-shadow .15s;}
+.kpi:hover{transform:translateY(-3px);box-shadow:0 18px 38px rgba(15,42,82,.24);}
+.kpi-ic{width:52px;height:52px;flex:none;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.22);font-size:1.3rem;}
+.kpi strong{display:block;font-size:2.1rem;font-weight:800;line-height:1;}
+.kpi span{font-size:.85rem;opacity:.92;}
+.kpi-blue{background:linear-gradient(135deg,#2563eb,#1e3a8a);}
+.kpi-teal{background:linear-gradient(135deg,#0d9488,#115e59);}
+.kpi-violet{background:linear-gradient(135deg,#7c3aed,#4c1d95);}
+.kpi-amber{background:linear-gradient(135deg,#d97706,#92400e);}
+
+.quick-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px;}
+.quick-btn{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #dbe4f0;color:#26456f;font-weight:600;font-size:.88rem;padding:10px 16px;border-radius:10px;text-decoration:none;transition:all .15s;}
+.quick-btn i{color:#2563eb;}
+.quick-btn:hover{border-color:#2563eb;color:#1e3a8a;box-shadow:0 8px 18px rgba(37,99,235,.14);}
+
+.detail-block{background:#fff;border:1px solid #e2e9f2;border-radius:16px;padding:22px 24px;box-shadow:0 8px 22px rgba(15,42,82,.05);}
+.dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:6px;}
+.dash-head h2{color:#0f2a52;margin:0;font-size:1.3rem;}
+.dash-course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;margin-top:16px;}
+.dash-course-tile{display:block;border-radius:14px;overflow:hidden;background:#fff;border:1px solid #e2e9f2;text-decoration:none;color:inherit;box-shadow:0 8px 20px rgba(15,42,82,.06);transition:transform .15s,box-shadow .15s;}
+.dash-course-tile:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(15,42,82,.15);}
+.dash-course-thumb{height:124px;position:relative;overflow:hidden;background:linear-gradient(135deg,#e9eef5,#dbe4f0);}
+.dash-course-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
+.dash-course-badge{position:absolute;top:8px;left:8px;z-index:1;font-size:.66rem;font-weight:700;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
+.dash-course-badge.pub{background:#d5f5e0;color:#1b7a34;}
+.dash-course-badge.draft{background:#fdeccf;color:#a5701a;}
+.dash-course-info{padding:12px 14px;}
+.dash-course-info strong{display:block;color:#0f2a52;font-size:.98rem;line-height:1.3;}
+.dash-course-info span{font-size:.8rem;color:#6a7c92;}
+</style>
 {% endblock %}

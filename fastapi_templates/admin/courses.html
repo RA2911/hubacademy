@@ -2,24 +2,140 @@
 {% block admin_title %}Courses{% endblock %}
 {% block admin_content %}
 {% if request.query_params.get('error') %}<p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:10px 14px;border-radius:8px">Could not delete that course. Please try again or check the logs.</p>{% endif %}
-<a class="market-btn primary" href="/admin/courses/new">New Course</a>
-<div class="course-grid premium-grid" style="margin-top:20px">
+
+<div class="acourse-topbar">
+    <a class="market-btn primary" href="/admin/courses/new"><i class="fas fa-plus"></i> New Course</a>
+</div>
+
+<!-- Search + filters -->
+<div class="acourse-toolbar" id="acourse-toolbar">
+    <div class="acourse-search">
+        <i class="fas fa-magnifying-glass"></i>
+        <input type="text" id="cq" placeholder="Search by title, expertise or level…" value="{{ request.query_params.get('q', '') }}">
+    </div>
+    <select id="cf-program" class="acourse-select">
+        <option value="all">All programs</option>
+        {% for program in programs %}<option value="{{ program.id }}">{{ program.name }}</option>{% endfor %}
+    </select>
+    <select id="cf-level" class="acourse-select">
+        <option value="all">All levels</option>
+        <option value="0">No certificate level</option>
+        <option value="1">Level 1</option>
+        <option value="2">Level 2</option>
+        <option value="3">Level 3</option>
+    </select>
+    <select id="cf-status" class="acourse-select">
+        <option value="all">Published &amp; Draft</option>
+        <option value="pub">Published only</option>
+        <option value="draft">Draft only</option>
+    </select>
+    <button type="button" id="cf-clear" class="acourse-select acourse-clear">Clear</button>
+</div>
+<p class="acourse-count"><span id="cq-count">{{ courses|length }}</span> of {{ courses|length }} courses</p>
+
+<div class="acourse-grid" id="acourse-grid">
 {% for course in courses %}
-<article class="course-card">
-    <div class="course-card-body">
-        <div class="course-meta"><span>{{ course.level or 'Self-paced' }}</span><span>{{ course_price(course) }}</span><span>{{ 'Published' if course.is_published else 'Draft' }}</span></div>
+<article class="acourse-card"
+         data-search="{{ ((course.title or '') ~ ' ' ~ (course.expertise_area or '') ~ ' ' ~ (course.level or '') ~ ' ' ~ (course.description or '') ~ ' ' ~ (course.sales_copy or ''))|lower }}"
+         data-program="{{ course.program_id }}"
+         data-level="{{ course.certificate_level or 0 }}"
+         data-status="{{ 'pub' if course.is_published else 'draft' }}">
+    <a class="acourse-thumb" href="/admin/courses/{{ course.id }}/edit">
+        <img class="acourse-img" alt="{{ course.title }}" src="{{ course_image(course) }}" loading="lazy" onerror="this.style.display='none'">
+        <span class="acourse-badge {{ 'pub' if course.is_published else 'draft' }}">{{ 'Published' if course.is_published else 'Draft' }}</span>
+        <span class="acourse-prog"><i class="fas fa-layer-group"></i> {{ course.program.name if course.program else 'No program' }}</span>
+    </a>
+    <div class="acourse-body">
+        <span class="acourse-meta">{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1,2,3] %} · Level {{ course.certificate_level }}{% endif %} · {{ course_price(course) }}</span>
         <h3>{{ course.title }}</h3>
-        <p>{{ course.description or course.sales_copy or '' }}</p>
-        <div class="card-bottom">
+        <p>{{ (course.description or course.sales_copy or '')|truncate(90) }}</p>
+        <div class="acourse-actions">
             <a class="market-btn" href="/admin/courses/{{ course.id }}/edit">Edit</a>
             <a class="market-btn" href="/admin/courses/{{ course.id }}/lessons">Lessons</a>
-            <a class="market-btn" href="/courses/{{ course_slug(course) }}">Public</a>
+            <a class="market-btn" href="/courses/{{ course_slug(course) }}" target="_blank">Public</a>
             <form method="POST" action="/admin/courses/{{ course.id }}/delete" onsubmit="return confirm('Delete &quot;{{ course.title }}&quot; and ALL its lessons, materials, quizzes, enrollments and certificates? This cannot be undone.');" style="display:inline">
-                <button class="market-btn" type="submit" style="background:#d64d4d;color:#fff">Delete</button>
+                <button class="market-btn danger" type="submit">Delete</button>
             </form>
         </div>
     </div>
 </article>
 {% endfor %}
 </div>
+<p class="acourse-empty" id="acourse-empty" style="display:none">No courses match your search.</p>
+
+<style>
+.acourse-topbar{display:flex;justify-content:flex-end;}
+.acourse-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 8px;}
+.acourse-search{flex:1;min-width:240px;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e9f2;border-radius:12px;padding:8px 14px;box-shadow:0 6px 16px rgba(15,42,82,.05);}
+.acourse-search i{color:#7488a5;font-size:.9rem;}
+.acourse-search input{flex:1;border:none;outline:none;font-size:.95rem;color:#0f2a52;background:transparent;padding:4px 2px;}
+.acourse-search input::placeholder{color:#9aa8bd;}
+.acourse-select{border:1px solid #cdd9e8;background:#fff;color:#26456f;font-size:.88rem;font-weight:600;padding:10px 14px;border-radius:10px;cursor:pointer;}
+.acourse-select:focus{outline:none;border-color:#2563eb;}
+.acourse-clear{color:#8595ab;}
+.acourse-clear:hover{border-color:#d64d4d;color:#d64d4d;}
+.acourse-count{color:#6a7c92;font-size:.82rem;margin:2px 2px 12px;font-weight:600;}
+
+.acourse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;}
+.acourse-card{background:#fff;border:1px solid #e2e9f2;border-radius:16px;overflow:hidden;box-shadow:0 8px 22px rgba(15,42,82,.06);display:flex;flex-direction:column;}
+.acourse-thumb{height:150px;position:relative;overflow:hidden;display:block;background:linear-gradient(135deg,#0f2350,#1d4ed8);}
+.acourse-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:1;}
+.acourse-badge{position:absolute;top:10px;left:10px;z-index:2;font-size:.68rem;font-weight:700;padding:4px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
+.acourse-badge.pub{background:#d5f5e0;color:#1b7a34;}
+.acourse-badge.draft{background:#fdeccf;color:#a5701a;}
+.acourse-prog{position:absolute;bottom:10px;left:10px;z-index:2;display:inline-flex;align-items:center;gap:5px;max-width:80%;font-size:.66rem;font-weight:700;color:#fff;background:rgba(9,18,36,.62);padding:4px 9px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.acourse-prog i{font-size:.62rem;opacity:.85;}
+.acourse-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
+.acourse-meta{font-size:.75rem;color:#6a7c92;font-weight:600;}
+.acourse-body h3{color:#0f2a52;margin:0;font-size:1.08rem;line-height:1.3;}
+.acourse-body p{color:#6a7c92;font-size:.85rem;margin:0;line-height:1.45;flex:1;}
+.acourse-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.acourse-actions .market-btn{font-size:.82rem;padding:7px 12px;}
+.acourse-actions .market-btn.danger{background:#d64d4d;border-color:#d64d4d;color:#fff;}
+.acourse-empty{color:#6a7c92;padding:20px 2px;font-weight:600;}
+</style>
+
+<script>
+(function () {
+    const q = document.getElementById('cq');
+    const fProgram = document.getElementById('cf-program');
+    const fLevel = document.getElementById('cf-level');
+    const fStatus = document.getElementById('cf-status');
+    const clear = document.getElementById('cf-clear');
+    const cards = Array.from(document.querySelectorAll('.acourse-card'));
+    const empty = document.getElementById('acourse-empty');
+    const count = document.getElementById('cq-count');
+    if (!q) return;
+
+    function apply() {
+        const term = q.value.trim().toLowerCase();
+        const prog = fProgram.value;
+        const lvl = fLevel.value;
+        const status = fStatus.value;
+        let shown = 0;
+        cards.forEach(c => {
+            const okText = !term || c.dataset.search.indexOf(term) !== -1;
+            const okProg = prog === 'all' || c.dataset.program === prog;
+            const okLvl = lvl === 'all' || c.dataset.level === lvl;
+            const okStatus = status === 'all' || c.dataset.status === status;
+            const show = okText && okProg && okLvl && okStatus;
+            c.style.display = show ? '' : 'none';
+            if (show) shown += 1;
+        });
+        count.textContent = shown;
+        empty.style.display = shown ? 'none' : '';
+    }
+
+    [q, fProgram, fLevel, fStatus].forEach(el => {
+        el.addEventListener('input', apply);
+        el.addEventListener('change', apply);
+    });
+    clear.addEventListener('click', function () {
+        q.value = ''; fProgram.value = 'all'; fLevel.value = 'all'; fStatus.value = 'all';
+        apply(); q.focus();
+    });
+    // Apply immediately in case a ?q= search term arrived from the dashboard.
+    apply();
+})();
+</script>
 {% endblock %}
