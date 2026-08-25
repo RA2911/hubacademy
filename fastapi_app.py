@@ -2439,6 +2439,80 @@ def factory_sample_images(course):
     return out
 
 
+import secrets as _secrets
+
+
+@app.post('/api/factory/deliver')
+async def factory_deliver_course(request: Request, db: Session = Depends(get_db)):
+    """The external generator app delivers a finished course into this platform.
+
+    Auth: header 'X-Factory-Key' must equal FACTORY_API_KEY.
+    Body JSON:
+      {
+        "student_email": "user@example.com",     # required — the login they paid with
+        "student_name":  "Full Name",            # optional (used if we create the account)
+        "title":         "AI Strategy Mastery",  # required
+        "description":   "...",
+        "topic":         "AI Strategy",
+        "level":         "Intermediate",         # Beginner|Intermediate|Advanced
+        "lessons": [ {"title": "...", "content_html": "<section>...</section>",
+                       "objectives": ["..."]}, ... ]   # required, 1+
+      }
+    Creates the course + lessons, enrols the student, and returns the course URL.
+    The student then logs in with that email and finds the course in My Learning.
+    """
+    if not cfg.FACTORY_API_KEY:
+        return JSONResponse({'error': 'Delivery API is not configured (set FACTORY_API_KEY).'}, status_code=503)
+    if request.headers.get('X-Factory-Key') != cfg.FACTORY_API_KEY:
+        return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+    data = await request.json()
+    email = (data.get('student_email') or '').strip().lower()
+    title = (data.get('title') or '').strip()
+    lessons_in = data.get('lessons') or []
+    if not email or not title or not lessons_in:
+        return JSONResponse({'error': 'student_email, title and at least one lesson are required.'}, status_code=400)
+
+    level = data.get('level') if data.get('level') in LEVEL_TO_CERT else 'Beginner'
+    topic = (data.get('topic') or title).strip()[:200]
+
+    student = db.query(Student).filter_by(email=email).first()
+    created_account, temp_password = False, None
+    if not student:
+        temp_password = _secrets.token_urlsafe(9)
+        student = Student(username=username_from_email(db, email),
+                          full_name=(data.get('student_name') or email.split('@')[0]).strip()[:120],
+                          email=email, password_hash=hash_password(temp_password), is_active=True)
+        db.add(student)
+        db.flush()
+        created_account = True
+
+    program = get_or_create_factory_program(db)
+    course = Course(program_id=program.id, title=title[:200],
+                    description=(data.get('description') or '').strip()[:2000] or None,
+                    slug=slugify(title)[:200] or f'delivered-{normalize_topic(topic)}',
+                    expertise_area=topic[:120], certificate_level=LEVEL_TO_CERT[level],
+                    num_lessons=len(lessons_in), learning_hours=len(lessons_in) * 2,
+                    is_published=False, is_ai_generated=True, generation_status='delivered',
+                    source_topic=normalize_topic(topic), source_level=level,
+                    source_profile=(data.get('profile') or 'delivered'), created_at=datetime.utcnow())
+    db.add(course)
+    db.flush()
+    if db.query(Course).filter(Course.slug == course.slug, Course.id != course.id).first():
+        course.slug = f'{course.slug}-{course.id}'
+    for index, item in enumerate(lessons_in):
+        db.add(Lesson(course_id=course.id, lesson_number=index + 1, module_number=index + 1,
+                      title=(item.get('title') or f'Lesson {index + 1}')[:200],
+                      description=json.dumps(item.get('objectives') or [], ensure_ascii=False),
+                      content_html=item.get('content_html') or '', generation_status='ready'))
+    enroll_student(db, student.id, course.id)
+    db.commit()
+    result = {'ok': True, 'course_id': course.id, 'course_url': f'/learn/factory/course/{course.id}',
+              'student_id': student.id, 'account_created': created_account}
+    if temp_password:
+        result['temporary_password'] = temp_password
+    return result
+
+
 @app.post('/learn/factory/course/{course_id}/generate-next')
 def learner_factory_generate_next(course_id: int, request: Request, db: Session = Depends(get_db)):
     course = db.get(Course, course_id)

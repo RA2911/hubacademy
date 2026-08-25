@@ -76,7 +76,7 @@
                 <i class="fas {{ 'fa-award' if card.quiz.average >= 60 else 'fa-chart-line' }}"></i>
                 <span>{{ 'Certificate score reached' if card.quiz.average >= 60 else 'Needs 60% quiz average' }}</span>
             </div>
-            <a class="market-btn primary" href="/learn/course/{{ card.enrollment.course.id }}">Continue</a>
+            <a class="market-btn primary" href="{{ '/learn/factory/course/' ~ card.enrollment.course.id if card.enrollment.course.is_ai_generated else '/learn/course/' ~ card.enrollment.course.id }}">Continue</a>
         </div>
     </article>
     {% else %}

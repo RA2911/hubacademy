@@ -26,6 +26,10 @@ R2_BUCKET = os.environ.get('R2_BUCKET', '')
 R2_PUBLIC_BASE_URL = os.environ.get('R2_PUBLIC_BASE_URL', '')
 R2_PRESIGN_EXPIRES_SECONDS = int(os.environ.get('R2_PRESIGN_EXPIRES_SECONDS', '3600'))
 
+# Shared secret the external AI course-generator app uses to deliver finished
+# courses into this platform (see POST /api/factory/deliver).
+FACTORY_API_KEY = os.environ.get('FACTORY_API_KEY', '')
+
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 STRIPE_MONTHLY_PRICE_ID = os.environ.get('STRIPE_MONTHLY_PRICE_ID', '')

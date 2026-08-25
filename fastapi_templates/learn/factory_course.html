@@ -4,13 +4,14 @@
 {% set total = lessons|length %}
 {% set first = lessons[0] if lessons else None %}
 {% set img0 = images[0] if images else '' %}
+{% set delivered = course.generation_status == 'delivered' %}
 <main class="sm">
   <header class="sm-hero reveal in" style="--img:url('{{ img0 }}')">
     <div class="sm-hero-inner">
       <span class="sm-chip"><i class="fas fa-wand-magic-sparkles"></i> Personalized course · {{ course.source_level }}</span>
       <h1>{{ course.title }}</h1>
       <p>{{ course.description }}</p>
-      {% if first %}<a class="sm-btn light" href="/learn/factory/lesson/{{ first.id }}">Start free preview <i class="fas fa-arrow-right"></i></a>{% endif %}
+      {% if first %}<a class="sm-btn light" href="/learn/factory/lesson/{{ first.id }}">{{ 'Start course' if delivered else 'Start free preview' }} <i class="fas fa-arrow-right"></i></a>{% endif %}
     </div>
   </header>
 
@@ -18,18 +19,20 @@
     <h2>Course lessons</h2>
     <ol class="sm-lesson-list">
       {% for l in lessons %}
-      <li class="sm-lrow {{ 'open' if l.lesson_number == 1 else 'locked' }}">
+      {% set open = delivered or l.lesson_number == 1 %}
+      <li class="sm-lrow {{ 'open' if open else 'locked' }}">
         <span class="sm-lnum">{{ loop.index }}</span>
         <div class="sm-lbody"><strong>{{ l.title }}</strong>
-          <span>{% if l.lesson_number == 1 %}Free preview — available now{% else %}Unlock with subscription{% endif %}</span>
+          <span>{% if delivered %}Available now{% elif l.lesson_number == 1 %}Free preview — available now{% else %}Unlock with subscription{% endif %}</span>
         </div>
-        {% if l.lesson_number == 1 %}<a class="sm-btn small" href="/learn/factory/lesson/{{ l.id }}">Open</a>
+        {% if open %}<a class="sm-btn small" href="/learn/factory/lesson/{{ l.id }}">Open</a>
         {% else %}<span class="sm-lockic"><i class="fas fa-lock"></i></span>{% endif %}
       </li>
       {% endfor %}
     </ol>
   </section>
 
+  {% if not delivered %}
   <section id="sm-unlock" class="sm-unlock reveal in">
     <div class="sm-unlock-card">
       <span class="sm-chip glow"><i class="fas fa-lock-open"></i> Unlock the full course</span>
@@ -41,6 +44,7 @@
       </div>
     </div>
   </section>
+  {% endif %}
 </main>
 
 <style>
