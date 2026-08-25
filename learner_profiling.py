@@ -338,7 +338,11 @@ def build_learning_plan(courses, topic, topic_band):
             'status': 'passed' if i < start_index else ('current' if i == start_index else 'upcoming'),
         })
     total_weeks = sum(s['weeks'] for s in stages if s['status'] != 'passed')
-    return {'stages': stages, 'start': topic_band, 'matched': matched, 'total_weeks': total_weeks}
+    # "covered" = the catalog has a relevant course at the learner's level or above
+    # (i.e. a real path forward exists). If not, we offer a custom-built course.
+    covered = matched and any(s['courses'] for s in stages if s['status'] in ('current', 'upcoming'))
+    return {'stages': stages, 'start': topic_band, 'matched': matched,
+            'total_weeks': total_weeks, 'covered': covered}
 
 
 def suggest_courses(courses, topic, band):

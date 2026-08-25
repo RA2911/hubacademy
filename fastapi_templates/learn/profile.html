@@ -95,7 +95,8 @@
         </div>
     </article>
 
-    <!-- Progression plan (timeline) -->
+    <!-- Progression plan (timeline) — only when your catalog has matching courses -->
+    {% if plan.matched %}
     <section class="lp-plan">
         <div class="band-head"><div><span class="eyebrow">Your progression plan{% if topic %} · {{ topic }}{% endif %}</span><h2>Start at {{ topic_band }} → Advanced{% if plan.total_weeks %} · about {{ plan.total_weeks }} weeks{% endif %}</h2></div></div>
         <p class="lp-plan-note no-print">Based on your {{ topic or 'topic' }} knowledge check, you're placed at <strong>{{ topic_band }}</strong>. Work through the stages in order — earlier stages are optional if you're already comfortable. Suggestions only; you can change anything.</p>
@@ -127,17 +128,19 @@
             </li>
         {% endfor %}
         </ol>
-        {% if not plan.matched %}<p class="lp-plan-note no-print">We didn't find courses tightly matched to "{{ topic }}" yet — so build your own below.</p>{% endif %}
     </section>
+    {% endif %}
 
-    <!-- Build a custom course -->
+    <!-- Build a custom course — only when your catalog doesn't cover this topic/level -->
+    {% if not plan.covered %}
     <section class="lp-custom no-print">
         <div>
-            <strong><i class="fas fa-wand-magic-sparkles"></i> Want a course built just for you?</strong>
+            <strong><i class="fas fa-wand-magic-sparkles"></i> {% if plan.matched %}No course at your level yet — build one for you{% else %}We don't teach "{{ topic or 'this topic' }}" yet — build it for you{% endif %}</strong>
             <span>We'll generate a personalized {{ topic or 'course' }} course at your {{ topic_band }} level, taught the way you learn best.</span>
         </div>
         <button type="button" class="market-btn primary" id="lp-build-btn" data-topic="{{ topic }}" data-level="{{ topic_band }}">Build my custom course</button>
     </section>
+    {% endif %}
     <script>
     (function () {
         var b = document.getElementById('lp-build-btn'); if (!b) return;
