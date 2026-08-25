@@ -2401,7 +2401,7 @@ async def learner_factory_build(request: Request, db: Session = Depends(get_db))
                       generation_status='queued'))
     db.flush()
 
-    # Build lesson 1 immediately so the learner can start right away
+    # Build lesson 1 immediately as a free preview so the learner can start now
     first = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).first()
     if first:
         first.generation_status = 'building'
@@ -2411,10 +2411,32 @@ async def learner_factory_build(request: Request, db: Session = Depends(get_db))
             logger.exception('First lesson build failed: %s', exc)
             first.generation_status = 'failed'
             first.review_notes = str(exc)[:300]
+    # Freemium model: only Lesson 1 is generated as a preview. The rest stay
+    # locked until the learner registers & subscribes; the full course is then
+    # delivered to their account (produced separately).
+    db.query(Lesson).filter(Lesson.course_id == course.id, Lesson.generation_status == 'queued')\
+        .update({'generation_status': 'locked'}, synchronize_session=False)
+    course.generation_status = 'sample'
     if student:
         enroll_student(db, student.id, course.id)
     db.commit()
     return {'ok': True, 'redirect': f'/learn/factory/course/{course.id}'}
+
+
+def factory_sample_images(course):
+    """A few topical images for the sample page — reuses the app's course art."""
+    images = []
+    try:
+        images.append(course_image(course))
+    except Exception:
+        pass
+    images.extend(DEFAULT_COURSE_IMAGES)
+    seen, out = set(), []
+    for url in images:
+        if url and url not in seen:
+            seen.add(url)
+            out.append(url)
+    return out
 
 
 @app.post('/learn/factory/course/{course_id}/generate-next')
@@ -2451,7 +2473,8 @@ def learner_factory_course(course_id: int, request: Request, db: Session = Depen
         raise HTTPException(status_code=404)
     lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
     return template(request, 'learn/factory_course.html', db,
-                    {'student': student_from_request(request, db), 'course': course, 'lessons': lessons})
+                    {'student': student_from_request(request, db), 'course': course, 'lessons': lessons,
+                     'images': factory_sample_images(course)})
 
 
 @app.get('/learn/factory/lesson/{lesson_id}', response_class=HTMLResponse)
@@ -2460,9 +2483,11 @@ def learner_factory_lesson(lesson_id: int, request: Request, db: Session = Depen
     if not lesson or not lesson.course or not lesson.course.is_ai_generated:
         raise HTTPException(status_code=404)
     lessons = db.query(Lesson).filter_by(course_id=lesson.course_id).order_by(Lesson.lesson_number).all()
+    objectives = parse_json_response(lesson.description, []) if lesson.description else []
     return template(request, 'learn/factory_lesson.html', db,
                     {'student': student_from_request(request, db), 'course': lesson.course,
-                     'lesson': lesson, 'lessons': lessons})
+                     'lesson': lesson, 'lessons': lessons, 'objectives': objectives,
+                     'images': factory_sample_images(lesson.course)})
 
 
 @app.get('/admin/ai-factory', response_class=HTMLResponse)
