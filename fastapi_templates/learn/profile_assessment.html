@@ -10,64 +10,95 @@
 <script id="lpa-topics" type="application/json">{{ expertise_areas|map(attribute='name')|list|tojson }}</script>
 <script>
 (function () {
-    const TASKS = JSON.parse(document.getElementById('lpa-tasks').textContent);
+    const CAPACITY = JSON.parse(document.getElementById('lpa-tasks').textContent);
     const TOPICS = JSON.parse(document.getElementById('lpa-topics').textContent);
     const card = document.getElementById('lpa-card');
     const bar = document.getElementById('lpa-bar');
-    const answers = {};
+    const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+
     let topic = '';
-    let idx = -1;          // -1 = topic screen
+    let items = [];          // full ordered list of question items
+    let pos = 0;             // index into items
+    const topicAns = {};     // id -> response (topic questions)
+    const capAns = {};       // id -> response (capacity tasks)
     let shownAt = 0;
 
-    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    const setBar = pct => { bar.style.width = pct + '%'; };
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const setBar = p => { bar.style.width = Math.max(0, Math.min(100, p)) + '%'; };
 
+    // ---------- Screen 1: topic ----------
     function renderTopic() {
-        setBar(4);
+        setBar(5);
         const opts = TOPICS.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
         card.innerHTML = `
-            <span class="lpa-step">Step 1 of ${TASKS.length + 1}</span>
-            <h2>What do you most want to study right now?</h2>
-            <p class="lpa-sub">We'll tailor your suggested courses to this. You can change it anytime.</p>
-            <label class="lpa-label">Choose a topic
+            <span class="lpa-step">Step 1 · Your goal</span>
+            <h2>What do you most want to learn right now?</h2>
+            <p class="lpa-sub">First we'll check what you already know about it, then how you learn best — so we can place you at the right level.</p>
+            <label class="lpa-label">Topic
                 <select id="lpa-topic-select">
                     <option value="">Select a topic…</option>
                     ${opts}
                     <option value="__other">Something else…</option>
                 </select>
             </label>
-            <label class="lpa-label" id="lpa-topic-other-wrap" style="display:none">Your topic
-                <input type="text" id="lpa-topic-other" placeholder="e.g. AI Strategy, Leadership…">
+            <label class="lpa-label" id="lpa-other-wrap" style="display:none">Type your topic
+                <input type="text" id="lpa-topic-other" placeholder="e.g. AI Strategy, Cybersecurity, Leadership…">
             </label>
-            <div class="lpa-actions">
-                <button class="market-btn primary" id="lpa-topic-next">Start assessment <i class="fas fa-arrow-right"></i></button>
-            </div>`;
+            <div class="lpa-actions"><button class="market-btn primary" id="lpa-start">Start <i class="fas fa-arrow-right"></i></button></div>`;
         const sel = document.getElementById('lpa-topic-select');
-        const otherWrap = document.getElementById('lpa-topic-other-wrap');
+        const otherWrap = document.getElementById('lpa-other-wrap');
         sel.addEventListener('change', () => { otherWrap.style.display = sel.value === '__other' ? '' : 'none'; });
-        document.getElementById('lpa-topic-next').addEventListener('click', () => {
+        document.getElementById('lpa-start').addEventListener('click', () => {
             topic = sel.value === '__other' ? (document.getElementById('lpa-topic-other').value || '').trim() : sel.value;
-            if (!topic) { sel.focus(); sel.style.borderColor = '#d64d4d'; return; }
-            idx = 0; renderTask();
+            if (!topic) { sel.style.borderColor = '#d64d4d'; sel.focus(); return; }
+            loadTopicQuestions();
         });
     }
 
-    function renderTask() {
-        const t = TASKS[idx];
-        setBar(Math.round((idx + 1) / (TASKS.length + 1) * 100));
+    // ---------- Loading AI topic questions ----------
+    function loadTopicQuestions() {
+        setBar(10);
+        card.innerHTML = `<div class="lpa-loading"><span class="lpa-spinner"></span><h2>Preparing your ${esc(topic)} check…</h2><p>Building a few questions to see what you already know.</p></div>`;
+        fetch('/learn/profile/topic-questions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: topic })
+        }).then(r => r.json()).then(d => {
+            const topicQs = (d && d.questions) ? d.questions.map(q => ({ ...q, kind: 'topic' })) : [];
+            const capacityQs = CAPACITY.map(q => ({ ...q, kind: 'capacity' }));
+            items = topicQs.concat(capacityQs);
+            pos = 0; renderItem();
+        }).catch(() => {
+            items = CAPACITY.map(q => ({ ...q, kind: 'capacity' }));
+            pos = 0; renderItem();
+        });
+    }
+
+    // ---------- Question screens ----------
+    function renderItem() {
+        const it = items[pos];
+        const isFirstCapacity = it.kind === 'capacity' && (pos === 0 || items[pos - 1].kind === 'topic');
+        setBar(12 + (pos + 1) / (items.length + 1) * 88);
+
+        let sectionTag = it.kind === 'topic'
+            ? `<span class="lpa-step lpa-step-topic">Part 1 · ${esc(topic)} knowledge</span>`
+            : `<span class="lpa-step lpa-step-cap">Part 2 · How you learn</span>`;
+
+        let intro = isFirstCapacity ? `<p class="lpa-partnote">Nice — now a few short tasks about how you think and learn. There are no trick questions.</p>` : '';
+
         let body;
-        if (t.type === 'mcq') {
-            body = `<div class="lpa-options">` + t.options.map((o, i) =>
-                `<label class="lpa-opt"><input type="radio" name="opt" value="${i}"><span>${esc(o)}</span></label>`).join('') + `</div>`;
+        if (it.type === 'mcq') {
+            body = `<div class="lpa-options" id="lpa-options">` + it.options.map((o, i) =>
+                `<button type="button" class="lpa-opt" data-val="${esc(o)}"><span class="lpa-opt-key">${LETTERS[i]}</span><span class="lpa-opt-text">${esc(o)}</span></button>`).join('') + `</div>`;
         } else {
             body = `<textarea id="lpa-open" class="lpa-open" rows="5" placeholder="Type your answer in 2–3 sentences…"></textarea>`;
         }
+
         card.innerHTML = `
-            <span class="lpa-step">Task ${idx + 1} of ${TASKS.length} · ${esc(t.level)}</span>
-            <h2>${esc(t.prompt)}</h2>
+            ${sectionTag}
+            ${intro}
+            <h2>${esc(it.prompt)}</h2>
             ${body}
-            ${t.hint ? `<button type="button" class="lpa-hint-btn" id="lpa-hint-btn"><i class="fas fa-lightbulb"></i> Show a hint</button>
-                        <p class="lpa-hint" id="lpa-hint" hidden>${esc(t.hint)}</p>` : ''}
+            ${it.hint ? `<button type="button" class="lpa-hint-btn" id="lpa-hint-btn"><i class="fas fa-lightbulb"></i> Show a hint</button><p class="lpa-hint" id="lpa-hint" hidden>${esc(it.hint)}</p>` : ''}
             <div class="lpa-conf">
                 <span>How sure are you?</span>
                 <div class="lpa-conf-opts">
@@ -77,18 +108,21 @@
                 </div>
             </div>
             <div class="lpa-actions">
-                <button class="market-btn primary" id="lpa-next">${idx === TASKS.length - 1 ? 'See my profile' : 'Next'} <i class="fas fa-arrow-right"></i></button>
+                <button class="market-btn primary" id="lpa-next">${pos === items.length - 1 ? 'See my results' : 'Next'} <i class="fas fa-arrow-right"></i></button>
             </div>
-            <p class="lpa-err" id="lpa-err" hidden>Please answer and pick how sure you are.</p>`;
+            <p class="lpa-err" id="lpa-err" hidden>Please answer and choose how sure you are.</p>`;
 
-        let hintUsed = false;
-        let confidence = null;
+        let selected = null, hintUsed = false, confidence = null;
+
+        if (it.type === 'mcq') {
+            card.querySelectorAll('.lpa-opt').forEach(btn => btn.addEventListener('click', () => {
+                card.querySelectorAll('.lpa-opt').forEach(b => b.classList.remove('sel'));
+                btn.classList.add('sel');
+                selected = btn.dataset.val;
+            }));
+        }
         const hintBtn = document.getElementById('lpa-hint-btn');
-        if (hintBtn) hintBtn.addEventListener('click', () => {
-            document.getElementById('lpa-hint').hidden = false;
-            hintBtn.style.display = 'none';
-            hintUsed = true;
-        });
+        if (hintBtn) hintBtn.addEventListener('click', () => { document.getElementById('lpa-hint').hidden = false; hintBtn.style.display = 'none'; hintUsed = true; });
         card.querySelectorAll('.lpa-conf-opts button').forEach(b => b.addEventListener('click', () => {
             confidence = parseInt(b.dataset.c, 10);
             card.querySelectorAll('.lpa-conf-opts button').forEach(x => x.classList.remove('sel'));
@@ -97,34 +131,24 @@
 
         shownAt = Date.now();
         document.getElementById('lpa-next').addEventListener('click', () => {
-            let answer;
-            if (t.type === 'mcq') {
-                const picked = card.querySelector('input[name="opt"]:checked');
-                if (!picked) return showErr();
-                answer = picked.value;
-            } else {
-                answer = (document.getElementById('lpa-open').value || '').trim();
-                if (!answer) return showErr();
-            }
-            if (!confidence) return showErr();
-            answers[t.id] = { id: t.id, answer: answer, time_ms: Date.now() - shownAt, hint_used: hintUsed, confidence: confidence };
-            idx += 1;
-            if (idx >= TASKS.length) submit(); else renderTask();
+            let answer = selected;
+            if (it.type !== 'mcq') answer = (document.getElementById('lpa-open').value || '').trim();
+            if (!answer || !confidence) { document.getElementById('lpa-err').hidden = false; return; }
+            const rec = { id: it.id, answer: answer, time_ms: Date.now() - shownAt, hint_used: hintUsed, confidence: confidence };
+            (it.kind === 'topic' ? topicAns : capAns)[it.id] = rec;
+            pos += 1;
+            if (pos >= items.length) submit(); else renderItem();
         });
     }
 
-    function showErr() { const e = document.getElementById('lpa-err'); if (e) e.hidden = false; }
-
     function submit() {
         setBar(100);
-        card.innerHTML = `<div class="lpa-loading"><span class="lpa-spinner"></span><h2>Building your learning profile…</h2><p>Analysing your answers and matching a strategy.</p></div>`;
+        card.innerHTML = `<div class="lpa-loading"><span class="lpa-spinner"></span><h2>Building your learning profile…</h2><p>Placing your level and matching a plan.</p></div>`;
         fetch('/learn/profile/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ topic: topic, responses: Object.values(answers) })
-        }).then(r => r.json()).then(d => {
-            window.location.href = (d && d.redirect) ? d.redirect : '/learn/profile';
-        }).catch(() => { window.location.href = '/learn/profile'; });
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: topic, topic_responses: Object.values(topicAns), responses: Object.values(capAns) })
+        }).then(r => r.json()).then(d => { window.location.href = (d && d.redirect) ? d.redirect : '/learn/profile'; })
+          .catch(() => { window.location.href = '/learn/profile'; });
     }
 
     renderTopic();
@@ -132,35 +156,44 @@
 </script>
 
 <style>
-.lpa-wrap{max-width:720px;margin:0 auto;padding:34px 22px 70px;}
+.lpa-wrap{max-width:680px;margin:0 auto;padding:34px 22px 70px;}
 .lpa-progress{height:8px;border-radius:999px;background:#e6ecf5;overflow:hidden;margin-bottom:22px;}
-.lpa-progress i{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#22c55e);border-radius:999px;transition:width .3s ease;}
-.lpa-card{background:#fff;border:1px solid #e2e9f2;border-radius:18px;padding:30px 28px;box-shadow:0 12px 34px rgba(15,42,82,.08);}
-.lpa-step{display:inline-block;font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#2563eb;background:#eaf1ff;padding:5px 11px;border-radius:999px;margin-bottom:14px;}
-.lpa-card h2{color:#0f2350;font-size:1.32rem;line-height:1.4;margin:0 0 18px;}
-.lpa-sub{color:#54617a;margin:-8px 0 18px;font-size:.95rem;}
-.lpa-label{display:block;font-size:.82rem;font-weight:600;color:#0f2350;margin-bottom:14px;}
-.lpa-label select,.lpa-label input{width:100%;margin-top:6px;padding:12px 13px;border:1px solid #cdd9e8;border-radius:10px;font-size:.98rem;font-family:inherit;color:#0f2350;}
-.lpa-options{display:grid;gap:10px;}
-.lpa-opt{display:flex;align-items:flex-start;gap:11px;padding:14px 15px;border:1px solid #dbe4f0;border-radius:12px;cursor:pointer;transition:all .12s;font-size:.98rem;color:#26364f;}
-.lpa-opt:hover{border-color:#2563eb;background:#f7faff;}
-.lpa-opt input{margin-top:3px;accent-color:#2563eb;}
-.lpa-opt:has(input:checked){border-color:#2563eb;background:#eef4ff;box-shadow:0 0 0 2px rgba(37,99,235,.15);}
-.lpa-open{width:100%;padding:13px;border:1px solid #cdd9e8;border-radius:12px;font-family:inherit;font-size:.98rem;resize:vertical;color:#0f2350;}
-.lpa-hint-btn{background:none;border:none;color:#2563eb;font-weight:600;font-size:.88rem;cursor:pointer;padding:12px 0 0;}
-.lpa-hint{background:#fff8e6;border:1px solid #f3e2b3;color:#7a5c12;padding:11px 14px;border-radius:10px;font-size:.9rem;margin-top:10px;}
-.lpa-conf{margin-top:22px;padding-top:18px;border-top:1px solid #eef2f8;}
-.lpa-conf>span{display:block;font-size:.82rem;font-weight:600;color:#54617a;margin-bottom:9px;}
+.lpa-progress i{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#22c55e);border-radius:999px;transition:width .35s ease;}
+.lpa-card{background:#fff;border:1px solid #e2e9f2;border-radius:18px;padding:32px 30px;box-shadow:0 12px 34px rgba(15,42,82,.08);}
+.lpa-step{display:inline-block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 12px;border-radius:999px;margin-bottom:16px;}
+.lpa-step-topic{color:#7c3aed;background:#f1e9ff;}
+.lpa-step-cap{color:#2563eb;background:#eaf1ff;}
+.lpa-card h2{color:#0f2350;font-size:1.32rem;line-height:1.45;margin:0 0 20px;}
+.lpa-sub,.lpa-partnote{color:#54617a;margin:-8px 0 20px;font-size:.95rem;line-height:1.5;}
+.lpa-partnote{background:#f5f8fd;border-left:3px solid #2563eb;padding:10px 14px;border-radius:8px;}
+.lpa-label{display:block;font-size:.82rem;font-weight:700;color:#0f2350;margin-bottom:16px;}
+.lpa-label select,.lpa-label input{width:100%;margin-top:7px;padding:13px 14px;border:1px solid #cdd9e8;border-radius:11px;font-size:1rem;font-family:inherit;color:#0f2350;background:#fff;}
+.lpa-label select:focus,.lpa-label input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.14);}
+
+.lpa-options{display:grid;gap:11px;}
+.lpa-opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:15px 16px;border:1.5px solid #dbe4f0;border-radius:13px;background:#fff;cursor:pointer;transition:all .12s;font-family:inherit;}
+.lpa-opt:hover{border-color:#93b4f5;background:#f7faff;}
+.lpa-opt.sel{border-color:#2563eb;background:#eef4ff;box-shadow:0 0 0 3px rgba(37,99,235,.16);}
+.lpa-opt-key{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:#eef2f8;color:#42506a;font-weight:700;font-size:.9rem;}
+.lpa-opt.sel .lpa-opt-key{background:#2563eb;color:#fff;}
+.lpa-opt-text{color:#26364f;font-size:.98rem;line-height:1.4;}
+.lpa-open{width:100%;padding:14px;border:1.5px solid #cdd9e8;border-radius:12px;font-family:inherit;font-size:1rem;resize:vertical;color:#0f2350;}
+.lpa-open:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.14);}
+
+.lpa-hint-btn{background:none;border:none;color:#2563eb;font-weight:600;font-size:.88rem;cursor:pointer;padding:14px 0 0;}
+.lpa-hint{background:#fff8e6;border:1px solid #f3e2b3;color:#7a5c12;padding:12px 14px;border-radius:10px;font-size:.9rem;margin-top:10px;}
+.lpa-conf{margin-top:24px;padding-top:20px;border-top:1px solid #eef2f8;}
+.lpa-conf>span{display:block;font-size:.82rem;font-weight:700;color:#54617a;margin-bottom:10px;}
 .lpa-conf-opts{display:flex;gap:9px;flex-wrap:wrap;}
-.lpa-conf-opts button{border:1px solid #cdd9e8;background:#fff;color:#3a4a66;font-size:.86rem;font-weight:600;padding:8px 15px;border-radius:999px;cursor:pointer;transition:all .12s;}
+.lpa-conf-opts button{border:1px solid #cdd9e8;background:#fff;color:#3a4a66;font-size:.86rem;font-weight:600;padding:9px 16px;border-radius:999px;cursor:pointer;transition:all .12s;font-family:inherit;}
 .lpa-conf-opts button:hover{border-color:#2563eb;color:#2563eb;}
 .lpa-conf-opts button.sel{background:#2563eb;border-color:#2563eb;color:#fff;}
-.lpa-actions{margin-top:24px;display:flex;justify-content:flex-end;}
+.lpa-actions{margin-top:26px;display:flex;justify-content:flex-end;}
 .lpa-err{color:#d64d4d;font-size:.86rem;font-weight:600;margin:12px 0 0;text-align:right;}
-.lpa-loading{text-align:center;padding:24px 0;}
+.lpa-loading{text-align:center;padding:30px 0;}
 .lpa-loading h2{margin:18px 0 6px;}
 .lpa-loading p{color:#54617a;margin:0;}
-.lpa-spinner{display:inline-block;width:40px;height:40px;border:4px solid #e6ecf5;border-top-color:#2563eb;border-radius:50%;animation:lpaspin .8s linear infinite;}
+.lpa-spinner{display:inline-block;width:42px;height:42px;border:4px solid #e6ecf5;border-top-color:#2563eb;border-radius:50%;animation:lpaspin .8s linear infinite;}
 @keyframes lpaspin{to{transform:rotate(360deg);}}
 </style>
 {% endblock %}

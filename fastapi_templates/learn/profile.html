@@ -60,7 +60,7 @@
                 <text x="100" y="92" class="lp-gauge-num" id="lp-gauge-num">0</text>
                 <text x="100" y="120" class="lp-gauge-lbl">/ 100</text>
             </svg>
-            <span class="lp-band lp-band-{{ band|lower }}">{{ band }} learner</span>
+            <span class="lp-band lp-band-{{ (band or 'Beginner')|lower }}">Capacity: {{ band or 'Beginner' }}</span>
         </article>
 
         <!-- Radar chart -->
@@ -95,15 +95,39 @@
         </div>
     </article>
 
-    <!-- Suggested courses -->
-    <section class="lp-suggest">
-        <div class="band-head"><div><span class="eyebrow">Suggested for you</span><h2>Courses that fit your profile</h2></div></div>
-        <p class="lp-suggest-note no-print">Matched to your topic and level. Suggestions only — enroll in whatever you like.</p>
-        <div class="course-grid premium-grid">
-            {% for course in suggested %}{% include 'course_card.html' %}{% else %}
-            <div class="empty-cinema"><h3>No matches yet.</h3><p>Browse the full catalog to pick your next course.</p><a class="market-btn primary no-print" href="/courses">Browse Courses</a></div>
-            {% endfor %}
-        </div>
+    <!-- Progression plan (timeline) -->
+    <section class="lp-plan">
+        <div class="band-head"><div><span class="eyebrow">Your progression plan{% if topic %} · {{ topic }}{% endif %}</span><h2>Start at {{ topic_band }} → Advanced{% if plan.total_weeks %} · about {{ plan.total_weeks }} weeks{% endif %}</h2></div></div>
+        <p class="lp-plan-note no-print">Based on your {{ topic or 'topic' }} knowledge check, you're placed at <strong>{{ topic_band }}</strong>. Work through the stages in order — earlier stages are optional if you're already comfortable. Suggestions only; you can change anything.</p>
+        <ol class="lp-timeline">
+        {% for stage in plan.stages %}
+            <li class="lp-stage lp-stage-{{ stage.status }}">
+                <div class="lp-stage-mark"><span>{{ loop.index }}</span></div>
+                <div class="lp-stage-body">
+                    <div class="lp-stage-head">
+                        <h3>{{ stage.band }}</h3>
+                        {% if stage.status == 'current' %}<span class="lp-chip current">Start here</span>
+                        {% elif stage.status == 'passed' %}<span class="lp-chip passed">Optional — you tested above this</span>
+                        {% else %}<span class="lp-chip">Then</span>{% endif %}
+                        {% if stage.weeks %}<span class="lp-weeks"><i class="fas fa-clock"></i> ~{{ stage.weeks }} weeks</span>{% endif %}
+                    </div>
+                    {% if stage.courses %}
+                    <div class="lp-stage-courses">
+                        {% for course in stage.courses %}
+                        <a class="lp-course" href="/courses/{{ course_slug(course) }}">
+                            <img src="{{ course_image(course) }}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+                            <div><strong>{{ course.title }}</strong><span>{{ course.expertise_area or 'Course' }} · {{ course.learning_hours or 15 }}h</span></div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="lp-stage-empty">No course at this level for this topic yet.</p>
+                    {% endif %}
+                </div>
+            </li>
+        {% endfor %}
+        </ol>
+        {% if not plan.matched %}<p class="lp-plan-note no-print">We didn't find courses tightly matched to "{{ topic }}" yet, so this shows our general pathway. <a href="/courses">Browse all courses</a>.</p>{% endif %}
     </section>
 </div>
 
@@ -228,6 +252,32 @@
 .lp-meter i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#2563eb,#22c55e);transition:width 1s ease;}
 .lp-suggest{margin-top:6px;}
 .lp-suggest-note{color:#7488a5;font-size:.88rem;margin:0 0 16px;}
+
+/* Progression timeline */
+.lp-plan{margin-top:6px;}
+.lp-plan-note{color:#54617a;font-size:.9rem;margin:0 0 20px;line-height:1.5;}
+.lp-timeline{list-style:none;margin:0;padding:0;}
+.lp-stage{display:flex;gap:18px;position:relative;padding-bottom:22px;}
+.lp-stage:not(:last-child)::before{content:"";position:absolute;left:18px;top:38px;bottom:0;width:2px;background:#e2e9f2;}
+.lp-stage-mark{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:#c3cede;z-index:1;}
+.lp-stage-current .lp-stage-mark{background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 0 0 5px rgba(37,99,235,.16);}
+.lp-stage-passed .lp-stage-mark{background:#22c55e;}
+.lp-stage-body{flex:1;min-width:0;background:#fff;border:1px solid #e2e9f2;border-radius:14px;padding:16px 18px;box-shadow:0 6px 16px rgba(15,42,82,.05);}
+.lp-stage-current .lp-stage-body{border-color:#2563eb;box-shadow:0 10px 26px rgba(37,99,235,.14);}
+.lp-stage-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.lp-stage-head h3{margin:0;color:#0f2350;font-size:1.15rem;}
+.lp-chip{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:#eef2f8;color:#5a6b85;}
+.lp-chip.current{background:#dbeafe;color:#1e40af;}
+.lp-chip.passed{background:#dcfce7;color:#166534;}
+.lp-weeks{margin-left:auto;font-size:.8rem;color:#7488a5;font-weight:600;}
+.lp-weeks i{color:#2563eb;margin-right:4px;}
+.lp-stage-courses{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+.lp-course{display:flex;align-items:center;gap:11px;padding:9px;border:1px solid #eef2f8;border-radius:11px;text-decoration:none;background:#fbfcfe;transition:all .12s;}
+.lp-course:hover{border-color:#2563eb;background:#f7faff;}
+.lp-course img{width:52px;height:44px;object-fit:cover;border-radius:8px;flex:none;background:#e9eef5;}
+.lp-course strong{display:block;color:#0f2350;font-size:.9rem;line-height:1.3;}
+.lp-course span{color:#7488a5;font-size:.76rem;}
+.lp-stage-empty{color:#93a1b7;font-size:.88rem;margin:0;}
 @media(max-width:820px){.lp-top{grid-template-columns:1fr;}}
 
 /* Print / PDF */

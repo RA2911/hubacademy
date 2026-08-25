@@ -1951,19 +1951,87 @@ async def learner_submit_quiz(quiz_id: int, request: Request, db: Session = Depe
 
 
 # ============ MY LEARNING PROFILE (learning-capacity assessment) ============
+import random
 import learner_profiling as lp
 
 
 def profile_public_tasks():
-    """Task list for the browser — never includes the correct answer."""
+    """Capacity task list for the browser — options are shuffled so the correct
+    answer isn't always in the same position, and the answer is never sent."""
     tasks = []
     for task in lp.CAPACITY_TASKS:
         item = {'id': task['id'], 'level': task['level'], 'difficulty': task['difficulty'],
                 'type': task['type'], 'prompt': task['prompt'], 'hint': task.get('hint', '')}
         if task['type'] == 'mcq':
-            item['options'] = task['options']
+            options = task['options'][:]
+            random.shuffle(options)
+            item['options'] = options
         tasks.append(item)
     return tasks
+
+
+def _capacity_correct_text(task):
+    return task['options'][task['answer']]
+
+
+def ai_generate_topic_questions(db, topic, count=4):
+    """Generate `count` topic-knowledge MCQs (easy→hard) to place the learner.
+    Returns dicts with the correct answer index; caller shuffles for display."""
+    prompt = (
+        f'Create exactly {count} multiple-choice questions that test how much someone already knows about "{topic}".\n'
+        f'Order them from easiest (question 1) to hardest (question {count}). Each question has exactly 4 options and '
+        'one correct answer. Make the distractors plausible. Vary the position of the correct answer.\n\n'
+        'Return only valid JSON:\n'
+        '[{"question": "...", "options": ["..","..","..",".."], "correct_answer": 0, "difficulty": 1}]\n'
+        'where difficulty increases from 1 to 5.'
+    )
+    response = openai_chat_completion(openai_client(db), [{'role': 'user', 'content': prompt}],
+                                      max_tokens=1300, temperature=0.5)
+    data = parse_json_response(response.choices[0].message.content, [])
+    questions = []
+    for index, raw in enumerate(data if isinstance(data, list) else []):
+        if not isinstance(raw, dict):
+            continue
+        options = [str(o) for o in (raw.get('options') or []) if str(o).strip()]
+        if len(options) < 2:
+            continue
+        try:
+            correct = int(raw.get('correct_answer', 0))
+        except (TypeError, ValueError):
+            correct = 0
+        correct = max(0, min(len(options) - 1, correct))
+        try:
+            difficulty = int(raw.get('difficulty', index + 1))
+        except (TypeError, ValueError):
+            difficulty = index + 1
+        questions.append({'id': f'topic{index + 1}', 'question': str(raw.get('question', '')).strip(),
+                          'options': options, 'answer': correct, 'difficulty': max(1, min(5, difficulty))})
+    return questions
+
+
+@app.post('/learn/profile/topic-questions')
+async def learner_profile_topic_questions(request: Request, db: Session = Depends(get_db)):
+    """Return topic-knowledge questions for the chosen topic (public). The
+    correct answers are stashed in the session for grading, never sent to the browser."""
+    data = await request.json()
+    topic = (data.get('topic') or '').strip()[:200]
+    if not topic:
+        return {'questions': []}
+    try:
+        generated = ai_generate_topic_questions(db, topic)
+    except Exception as exc:
+        logger.info('Topic-question generation unavailable: %s', exc)
+        generated = []
+    stored, public = [], []
+    for question in generated:
+        correct_text = question['options'][question['answer']]
+        shuffled = question['options'][:]
+        random.shuffle(shuffled)
+        stored.append({'id': question['id'], 'correct_text': correct_text, 'difficulty': question['difficulty']})
+        public.append({'id': question['id'], 'type': 'mcq', 'level': 'Topic knowledge',
+                       'difficulty': question['difficulty'], 'prompt': question['question'], 'options': shuffled})
+    request.session['topic_quiz'] = stored
+    return {'questions': public, 'topic': topic}
 
 
 def ai_grade_open_task(db, task, answer):
@@ -1991,10 +2059,11 @@ def ai_grade_open_task(db, task, answer):
         return frac, 'Graded automatically (AI grader was unavailable).'
 
 
-def _profile_result_ctx(db, topic, scores, strategy, band):
+def _profile_result_ctx(db, topic, scores, strategy, band, topic_band):
     published = db.query(Course).filter_by(is_published=True).all()
+    plan = lp.build_learning_plan(published, topic, topic_band or 'Beginner')
     return {'has_result': True, 'topic': topic, 'scores': scores, 'strategy': strategy,
-            'band': band, 'suggested': lp.suggest_courses(published, topic, band)}
+            'band': band, 'topic_band': topic_band or 'Beginner', 'plan': plan}
 
 
 @app.get('/learn/profile', response_class=HTMLResponse)
@@ -2012,19 +2081,21 @@ def learner_profile(request: Request, db: Session = Depends(get_db)):
                 scores_json=json.dumps(guest_result.get('scores', {}), ensure_ascii=False),
                 strategy_json=json.dumps(guest_result.get('strategy', {}), ensure_ascii=False),
                 strategy_key=(guest_result.get('strategy') or {}).get('key'),
-                level_band=guest_result.get('band'))
+                level_band=guest_result.get('band'), topic_band=guest_result.get('topic_band'))
             db.add(profile)
             db.commit()
         request.session.pop('learning_profile', None)
         if profile:
             ctx = _profile_result_ctx(db, profile.topic, parse_json_response(profile.scores_json, {}),
-                                      parse_json_response(profile.strategy_json, {}), profile.level_band)
+                                      parse_json_response(profile.strategy_json, {}), profile.level_band,
+                                      profile.topic_band)
             return template(request, 'learn/profile.html', db, {'student': student, 'is_guest': False, **ctx})
         return template(request, 'learn/profile.html', db, {'student': student, 'is_guest': False, 'has_result': False})
     # anonymous visitor
     if guest_result:
         ctx = _profile_result_ctx(db, guest_result.get('topic'), guest_result.get('scores', {}),
-                                  guest_result.get('strategy', {}), guest_result.get('band'))
+                                  guest_result.get('strategy', {}), guest_result.get('band'),
+                                  guest_result.get('topic_band'))
         return template(request, 'learn/profile.html', db, {'student': None, 'is_guest': True, **ctx})
     return template(request, 'learn/profile.html', db, {'student': None, 'is_guest': True, 'has_result': False})
 
@@ -2042,6 +2113,8 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
     student = student_from_request(request, db)
     data = await request.json()
     topic = (data.get('topic') or '').strip()[:200]
+
+    # ---- Capacity tasks (graded by answer CONTENT, since options are shuffled) ----
     by_id = {t['id']: t for t in lp.CAPACITY_TASKS}
     responses, open_grades = [], {}
     for raw in (data.get('responses') or []):
@@ -2052,15 +2125,12 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
         entry = {'id': task['id'], 'time_ms': raw.get('time_ms'),
                  'hint_used': bool(raw.get('hint_used')),
                  'confidence': confidence if confidence in (1, 2, 3) else None}
+        answer_text = (raw.get('answer') or '')
         if task['type'] == 'mcq':
-            try:
-                selected = int(raw.get('answer'))
-            except (TypeError, ValueError):
-                selected = -1
-            entry['answer'] = selected
-            entry['correct'] = (selected == task['answer'])
+            entry['answer'] = answer_text
+            entry['correct'] = (answer_text.strip() == _capacity_correct_text(task).strip())
         else:
-            answer_text = (raw.get('answer') or '')[:2000]
+            answer_text = answer_text[:2000]
             fraction, note = ai_grade_open_task(db, task, answer_text)
             open_grades[task['id']] = fraction
             entry['answer_text'] = answer_text
@@ -2073,6 +2143,20 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
     key, strategy, rationale = lp.recommend_strategy(scores)
     strategy_payload = {**strategy, 'key': key, 'rationale': rationale}
 
+    # ---- Topic-knowledge placement (graded against session-stored answers) ----
+    topic_key = {q['id']: q for q in (request.session.get('topic_quiz') or [])}
+    correct_w = total_w = 0.0
+    for raw in (data.get('topic_responses') or []):
+        question = topic_key.get(raw.get('id'))
+        if not question:
+            continue
+        weight = question.get('difficulty', 1)
+        total_w += weight
+        if (raw.get('answer') or '').strip() == (question.get('correct_text') or '').strip():
+            correct_w += weight
+    topic_band = lp.topic_band_from(correct_w / total_w) if total_w else 'Beginner'
+    request.session.pop('topic_quiz', None)
+
     if student:
         profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
         if not profile:
@@ -2084,13 +2168,15 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
         profile.strategy_key = key
         profile.strategy_json = json.dumps(strategy_payload, ensure_ascii=False)
         profile.level_band = band
+        profile.topic_band = topic_band
         db.commit()
         request.session.pop('learning_profile', None)
     else:
         # guest — hold the result in the session so it survives to the results page
-        # and can be saved once they create an account (responses omitted to stay small)
+        # and can be saved once they create an account (raw responses omitted to stay small)
         request.session['learning_profile'] = {
-            'topic': topic, 'scores': scores, 'strategy': strategy_payload, 'band': band,
+            'topic': topic, 'scores': scores, 'strategy': strategy_payload,
+            'band': band, 'topic_band': topic_band,
         }
     return {'ok': True, 'redirect': '/learn/profile'}
 

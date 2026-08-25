@@ -290,7 +290,8 @@ class LearnerProfile(Base):
     responses_json = Column(Text)       # raw per-task signals captured in the browser
     strategy_key = Column(String(50))   # chosen archetype key
     strategy_json = Column(Text)        # archetype name/tagline/knobs + rationale
-    level_band = Column(String(30))     # Beginner / Intermediate / Advanced
+    level_band = Column(String(30))     # capacity band: Beginner / Intermediate / Advanced
+    topic_band = Column(String(30))     # topic-knowledge placement: Beginner / Intermediate / Advanced
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -347,6 +348,10 @@ QUIZ_ATTEMPT_COLUMNS = {
     'recommendations': "TEXT",
 }
 
+LEARNER_PROFILE_COLUMNS = {
+    'topic_band': "VARCHAR(30)",
+}
+
 
 def ensure_schema():
     Base.metadata.create_all(bind=engine)
@@ -376,3 +381,9 @@ def ensure_schema():
             for name, ddl in QUIZ_ATTEMPT_COLUMNS.items():
                 if name not in existing_attempt:
                     conn.execute(text(f"ALTER TABLE quiz_attempts ADD COLUMN {name} {ddl}"))
+    if 'learner_profiles' in inspector.get_table_names():
+        existing_lp = {column['name'] for column in inspector.get_columns('learner_profiles')}
+        with engine.begin() as conn:
+            for name, ddl in LEARNER_PROFILE_COLUMNS.items():
+                if name not in existing_lp:
+                    conn.execute(text(f"ALTER TABLE learner_profiles ADD COLUMN {name} {ddl}"))

@@ -287,6 +287,60 @@ def _rationale(key, scores, gap):
     return f"You solved unfamiliar problems on your own (application {s['application']}) with little help — open-ended, self-directed work suits you."
 
 
+BAND_ORDER = ['Beginner', 'Intermediate', 'Advanced']
+
+
+def topic_band_from(fraction):
+    """Map difficulty-weighted correctness (0..1) on the topic-knowledge check to
+    a starting level."""
+    if fraction >= 0.7:
+        return 'Advanced'
+    if fraction >= 0.4:
+        return 'Intermediate'
+    return 'Beginner'
+
+
+def _topic_relevance(course, topic_l, words):
+    hay = ' '.join([(course.title or ''), (course.expertise_area or ''),
+                    (course.description or ''), (course.sales_copy or '')]).lower()
+    area = (course.expertise_area or '').lower()
+    score = 0
+    if topic_l and topic_l in hay:
+        score += 6
+    score += sum(3 for w in words if w in area)
+    score += sum(1 for w in words if w in hay)
+    return score
+
+
+def build_learning_plan(courses, topic, topic_band):
+    """Return a staged Beginner→Intermediate→Advanced roadmap for the chosen
+    topic, marking where the learner starts and estimating a timeline.
+    `courses` is a list of published Course-like objects.
+    """
+    topic_l = (topic or '').strip().lower()
+    words = [w for w in topic_l.split() if len(w) >= 2]
+    scored = [(_topic_relevance(c, topic_l, words), c) for c in courses]
+    relevant = [c for s, c in scored if s > 0]
+    matched = bool(relevant)
+    pool = relevant if relevant else [c for _, c in scored]
+
+    start_index = BAND_ORDER.index(topic_band) if topic_band in BAND_ORDER else 0
+    stages = []
+    for i, level in enumerate((1, 2, 3)):
+        level_courses = [c for c in pool if (c.certificate_level or 1) == level]
+        level_courses.sort(key=lambda c: _topic_relevance(c, topic_l, words), reverse=True)
+        level_courses = level_courses[:3]
+        hours = sum((c.learning_hours or 15) for c in level_courses)
+        stages.append({
+            'band': BAND_ORDER[i],
+            'courses': level_courses,
+            'weeks': max(2, round(hours / 5)) if level_courses else 0,
+            'status': 'passed' if i < start_index else ('current' if i == start_index else 'upcoming'),
+        })
+    total_weeks = sum(s['weeks'] for s in stages if s['status'] != 'passed')
+    return {'stages': stages, 'start': topic_band, 'matched': matched, 'total_weeks': total_weeks}
+
+
 def suggest_courses(courses, topic, band):
     """Order published Course objects by relevance to the chosen topic and band.
     `courses` is a list of Course-like objects (title, expertise_area, certificate_level, description).
