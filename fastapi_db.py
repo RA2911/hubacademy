@@ -55,6 +55,11 @@ class Course(Base):
     openai_api_key_override = Column(String(200))
     created_at = Column(DateTime, default=datetime.utcnow)
     is_published = Column(Boolean, default=False)
+    # AI Course Factory
+    is_ai_generated = Column(Boolean, default=False, index=True)
+    generation_status = Column(String(30))   # building / ready / failed
+    source_topic = Column(String(200), index=True)   # normalized topic (dedup key)
+    source_level = Column(String(30))                # Beginner / Intermediate / Advanced (dedup key)
 
     program = relationship('Program')
     lessons = relationship('Lesson', order_by='Lesson.lesson_number', back_populates='course')
@@ -74,6 +79,10 @@ class Lesson(Base):
     description = Column(Text)
     description_ar = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # AI Course Factory
+    generation_status = Column(String(30), default='ready')  # queued / building / ready / needs_review / failed
+    content_html = Column(Text)                               # generated slide/lesson HTML
+    review_notes = Column(Text)                               # AI reviewer verdict/issues
 
     course = relationship('Course', back_populates='lessons')
 
@@ -327,6 +336,10 @@ COURSE_COLUMNS = {
     'expertise_area': "VARCHAR(120)",
     'certificate_level': "INTEGER DEFAULT 0",
     'learning_hours': "INTEGER DEFAULT 0",
+    'is_ai_generated': "BOOLEAN DEFAULT FALSE",
+    'generation_status': "VARCHAR(30)",
+    'source_topic': "VARCHAR(200)",
+    'source_level': "VARCHAR(30)",
 }
 
 MATERIAL_COLUMNS = {
@@ -340,6 +353,9 @@ LESSON_COLUMNS = {
     'module_number': "INTEGER DEFAULT 1",
     'session_number': "INTEGER DEFAULT 1",
     'duration_minutes': "INTEGER DEFAULT 60",
+    'generation_status': "VARCHAR(30) DEFAULT 'ready'",
+    'content_html': "TEXT",
+    'review_notes': "TEXT",
 }
 
 QUIZ_ATTEMPT_COLUMNS = {

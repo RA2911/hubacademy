@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}{{ lesson.title }} — {{ course.title }}{% endblock %}
+{% block content %}
+<section class="fl-wrap">
+    <aside class="fl-side">
+        <a class="fl-back" href="/learn/factory/course/{{ course.id }}"><i class="fas fa-arrow-left"></i> {{ course.title }}</a>
+        <ol class="fl-list">
+        {% for l in lessons %}
+            <li class="{{ 'active' if l.id == lesson.id else '' }} st-{{ l.generation_status }}">
+                {% if l.generation_status in ['ready','needs_review'] %}
+                <a href="/learn/factory/lesson/{{ l.id }}"><span>{{ loop.index }}</span> {{ l.title }}</a>
+                {% else %}
+                <span class="fl-pending"><span>{{ loop.index }}</span> {{ l.title }} <em>{{ 'Generating…' if l.generation_status=='building' else 'Queued' }}</em></span>
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ol>
+    </aside>
+
+    <article class="fl-main">
+        <span class="eyebrow"><i class="fas fa-wand-magic-sparkles"></i> {{ course.source_level }} · Lesson {{ lesson.lesson_number }}</span>
+        <h1>{{ lesson.title }}</h1>
+        {% if lesson.generation_status == 'needs_review' %}
+        <p class="fl-flag"><i class="fas fa-triangle-exclamation"></i> This lesson is still under quality review — content may change.</p>
+        {% endif %}
+        <div class="fl-content">
+            {% if lesson.content_html %}{{ lesson.content_html|safe }}{% else %}<p>This lesson isn't ready yet.</p>{% endif %}
+        </div>
+        {% set nxt = None %}
+        {% for l in lessons %}{% if l.lesson_number == lesson.lesson_number + 1 %}{% set nxt = l %}{% endif %}{% endfor %}
+        <div class="fl-nav">
+            <a class="market-btn" href="/learn/factory/course/{{ course.id }}">All lessons</a>
+            {% if nxt and nxt.generation_status in ['ready','needs_review'] %}<a class="market-btn primary" href="/learn/factory/lesson/{{ nxt.id }}">Next lesson <i class="fas fa-arrow-right"></i></a>{% endif %}
+        </div>
+    </article>
+</section>
+
+<style>
+.fl-wrap{max-width:1080px;margin:0 auto;padding:28px 22px 70px;display:grid;grid-template-columns:260px 1fr;gap:26px;align-items:start;}
+.fl-side{position:sticky;top:20px;background:#fff;border:1px solid #e2e9f2;border-radius:14px;padding:16px;box-shadow:0 6px 16px rgba(15,42,82,.05);}
+.fl-back{display:inline-flex;align-items:center;gap:8px;color:#2563eb;font-weight:700;text-decoration:none;font-size:.86rem;margin-bottom:14px;}
+.fl-list{list-style:none;margin:0;padding:0;display:grid;gap:4px;}
+.fl-list li a,.fl-pending{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;text-decoration:none;color:#3a4a66;font-size:.88rem;}
+.fl-list li a span,.fl-pending span{flex:none;width:22px;height:22px;border-radius:50%;background:#eef2f8;display:grid;place-items:center;font-size:.75rem;font-weight:700;color:#42506a;}
+.fl-list li a:hover{background:#f5f8fd;}
+.fl-list li.active a{background:#eef4ff;color:#1e40af;font-weight:700;}
+.fl-list li.active a span{background:#2563eb;color:#fff;}
+.fl-pending{color:#9aa8bd;}
+.fl-pending em{font-style:normal;font-size:.72rem;margin-left:auto;}
+.fl-main{background:#fff;border:1px solid #e2e9f2;border-radius:16px;padding:30px 32px;box-shadow:0 8px 22px rgba(15,42,82,.06);min-width:0;}
+.fl-main h1{color:#0f2350;font-size:1.7rem;margin:8px 0 18px;}
+.fl-flag{background:#fff8e6;border:1px solid #f3e2b3;color:#7a5c12;padding:10px 14px;border-radius:10px;font-size:.88rem;}
+.fl-content{color:#26364f;line-height:1.7;}
+.fl-content .slide{border:1px solid #eef2f8;border-radius:12px;padding:20px 22px;margin:0 0 16px;background:#fbfcfe;}
+.fl-content h2{color:#0f2350;font-size:1.2rem;margin:0 0 12px;}
+.fl-content ul{margin:0 0 6px;padding-left:20px;}
+.fl-content li{margin-bottom:6px;}
+.fl-content blockquote{border-left:3px solid #2563eb;background:#f5f8fd;margin:14px 0;padding:12px 16px;border-radius:0 8px 8px 0;color:#3a4a66;}
+.fl-nav{display:flex;justify-content:space-between;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid #eef2f8;}
+@media(max-width:820px){.fl-wrap{grid-template-columns:1fr;}.fl-side{position:static;}}
+</style>
+{% endblock %}
