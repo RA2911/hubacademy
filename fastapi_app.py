@@ -23,8 +23,8 @@ from starlette.middleware.sessions import SessionMiddleware
 import fastapi_config as cfg
 from fastapi_auth import admin_from_request, hash_password, username_from_email, verify_password
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
-                        PasswordResetToken, Program, Purchase, Quiz, QuizAttempt, SessionObjective, Settings, Student,
-                        db_session as next_db_session, ensure_schema, get_db)
+                        LearnerProfile, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt, SessionObjective,
+                        Settings, Student, db_session as next_db_session, ensure_schema, get_db)
 from fastapi_storage import (guess_content_type, list_objects, object_bytes, object_key, package_object_key,
                              presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
 
@@ -1948,6 +1948,125 @@ async def learner_submit_quiz(quiz_id: int, request: Request, db: Session = Depe
         'recommendations': ai_feedback['recommendations'],
         'questions': questions,
     }
+
+
+# ============ MY LEARNING PROFILE (learning-capacity assessment) ============
+import learner_profiling as lp
+
+
+def profile_public_tasks():
+    """Task list for the browser — never includes the correct answer."""
+    tasks = []
+    for task in lp.CAPACITY_TASKS:
+        item = {'id': task['id'], 'level': task['level'], 'difficulty': task['difficulty'],
+                'type': task['type'], 'prompt': task['prompt'], 'hint': task.get('hint', '')}
+        if task['type'] == 'mcq':
+            item['options'] = task['options']
+        tasks.append(item)
+    return tasks
+
+
+def ai_grade_open_task(db, task, answer):
+    """Grade an open 'apply it' answer 0..1 via OpenAI; degrade gracefully."""
+    answer = (answer or '').strip()
+    if not answer:
+        return 0.0, 'No answer provided.'
+    try:
+        prompt = (
+            "You are grading a short open response that tests whether a learner can APPLY an idea "
+            "to a new case. Grade fairly and briefly.\n\n"
+            f"Task: {task['prompt']}\n\nGrading rubric: {task['rubric']}\n\n"
+            f"Learner's answer: {answer}\n\n"
+            'Return only valid JSON: {"score": 0.0-1.0, "note": "one short sentence of feedback"}'
+        )
+        response = openai_chat_completion(openai_client(db), [{'role': 'user', 'content': prompt}],
+                                          max_tokens=200, temperature=0.0)
+        data = parse_json_response(response.choices[0].message.content, {})
+        score = max(0.0, min(1.0, float(data.get('score', 0))))
+        return score, (data.get('note') or '')[:200]
+    except Exception as exc:
+        logger.info('Open-task AI grading unavailable, using heuristic: %s', exc)
+        words = len(answer.split())
+        frac = 0.6 if words >= 20 else 0.4 if words >= 8 else 0.2
+        return frac, 'Graded automatically (AI grader was unavailable).'
+
+
+@app.get('/learn/profile', response_class=HTMLResponse)
+def learner_profile(request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    if not student:
+        return RedirectResponse('/login?next=/learn/profile', status_code=303)
+    profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
+    ctx = {'student': student, 'profile': None}
+    if profile:
+        scores = parse_json_response(profile.scores_json, {})
+        strategy = parse_json_response(profile.strategy_json, {})
+        published = db.query(Course).filter_by(is_published=True).all()
+        suggested = lp.suggest_courses(published, profile.topic, profile.level_band)
+        ctx.update({'profile': profile, 'scores': scores, 'strategy': strategy,
+                    'band': profile.level_band, 'suggested': suggested})
+    return template(request, 'learn/profile.html', db, ctx)
+
+
+@app.get('/learn/profile/assessment', response_class=HTMLResponse)
+def learner_profile_assessment(request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    if not student:
+        return RedirectResponse('/login?next=/learn/profile/assessment', status_code=303)
+    return template(request, 'learn/profile_assessment.html', db,
+                    {'student': student, 'tasks': profile_public_tasks()})
+
+
+@app.post('/learn/profile/submit')
+async def learner_profile_submit(request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    if not student:
+        return JSONResponse({'error': 'Not allowed'}, status_code=403)
+    data = await request.json()
+    topic = (data.get('topic') or '').strip()[:200]
+    by_id = {t['id']: t for t in lp.CAPACITY_TASKS}
+    responses, open_grades = [], {}
+    for raw in (data.get('responses') or []):
+        task = by_id.get(raw.get('id'))
+        if not task:
+            continue
+        confidence = raw.get('confidence')
+        entry = {'id': task['id'], 'time_ms': raw.get('time_ms'),
+                 'hint_used': bool(raw.get('hint_used')),
+                 'confidence': confidence if confidence in (1, 2, 3) else None}
+        if task['type'] == 'mcq':
+            try:
+                selected = int(raw.get('answer'))
+            except (TypeError, ValueError):
+                selected = -1
+            entry['answer'] = selected
+            entry['correct'] = (selected == task['answer'])
+        else:
+            answer_text = (raw.get('answer') or '')[:2000]
+            fraction, note = ai_grade_open_task(db, task, answer_text)
+            open_grades[task['id']] = fraction
+            entry['answer_text'] = answer_text
+            entry['open_score'] = fraction
+            entry['open_note'] = note
+        responses.append(entry)
+
+    scores = lp.compute_scores(responses, open_grades)
+    band = lp.level_band(scores)
+    key, strategy, rationale = lp.recommend_strategy(scores)
+    strategy_payload = {**strategy, 'key': key, 'rationale': rationale}
+
+    profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
+    if not profile:
+        profile = LearnerProfile(student_id=student.id)
+        db.add(profile)
+    profile.topic = topic
+    profile.scores_json = json.dumps(scores, ensure_ascii=False)
+    profile.responses_json = json.dumps(responses, ensure_ascii=False)
+    profile.strategy_key = key
+    profile.strategy_json = json.dumps(strategy_payload, ensure_ascii=False)
+    profile.level_band = band
+    db.commit()
+    return {'ok': True, 'redirect': '/learn/profile'}
 
 
 @app.post('/learn/lesson/{lesson_id}/step/{step_number}/complete')

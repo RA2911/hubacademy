@@ -20,6 +20,15 @@
         <a class="market-btn primary" href="/courses">Browse More</a>
     </header>
 
+    <a class="lp-banner" href="/learn/profile">
+        <div class="lp-banner-text">
+            <span class="eyebrow">My Learning Profile</span>
+            <strong>Learn smarter, not harder.</strong>
+            <span class="lp-banner-sub">Find your learning style, pace, and the courses that fit you best.</span>
+        </div>
+        <span class="market-btn primary lp-banner-btn">Build my profile <i class="fas fa-arrow-right"></i></span>
+    </a>
+
     <div class="dashboard-summary" aria-label="Learning summary">
         <article>
             <span>Overall Progress</span>
@@ -85,4 +94,15 @@
     {% endfor %}
     </div>
 </section>
+<style>
+.lp-banner{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+    background:linear-gradient(135deg,#0f2350,#1d4ed8);color:#fff;border-radius:16px;
+    padding:22px 26px;margin:0 0 24px;text-decoration:none;box-shadow:0 14px 34px rgba(15,42,82,.20);
+    transition:transform .15s,box-shadow .15s;}
+.lp-banner:hover{transform:translateY(-2px);box-shadow:0 20px 44px rgba(15,42,82,.28);}
+.lp-banner .eyebrow{color:#a9c5ff;}
+.lp-banner-text strong{display:block;font-size:1.4rem;margin:6px 0 4px;color:#fff;}
+.lp-banner-sub{color:#d3e0fb;font-size:.95rem;}
+.lp-banner-btn{white-space:nowrap;background:#fff;color:#123;border:none;}
+</style>
 {% endblock %}

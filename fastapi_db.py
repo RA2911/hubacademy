@@ -278,6 +278,25 @@ class CertificateAward(Base):
     __table_args__ = (UniqueConstraint('student_id', 'expertise_area', 'certificate_level', name='unique_student_expertise_certificate'),)
 
 
+class LearnerProfile(Base):
+    """One saved learning-capacity profile per student (retakeable — overwritten
+    on each new assessment). Signals and derived scores are stored as JSON."""
+    __tablename__ = 'learner_profiles'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=False, unique=True, index=True)
+    topic = Column(String(200))
+    scores_json = Column(Text)          # capacity scores (knowledge, reasoning, ...)
+    responses_json = Column(Text)       # raw per-task signals captured in the browser
+    strategy_key = Column(String(50))   # chosen archetype key
+    strategy_json = Column(Text)        # archetype name/tagline/knobs + rationale
+    level_band = Column(String(30))     # Beginner / Intermediate / Advanced
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    student = relationship('Student')
+
+
 def get_db():
     db = SessionLocal()
     try:
