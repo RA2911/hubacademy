@@ -2230,6 +2230,42 @@ def normalize_topic(topic):
     return re.sub(r'\s+', ' ', (topic or '').strip().lower())[:200]
 
 
+def learner_profile_snapshot(request, db, student):
+    """The learner's saved profile (scores + strategy + topic band) from their
+    account or, for guests, from the session — whichever exists."""
+    if student:
+        profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
+        if profile:
+            return {'scores': parse_json_response(profile.scores_json, {}),
+                    'strategy': parse_json_response(profile.strategy_json, {}),
+                    'topic_band': profile.topic_band}
+    guest = request.session.get('learning_profile')
+    if guest:
+        return {'scores': guest.get('scores', {}), 'strategy': guest.get('strategy', {}),
+                'topic_band': guest.get('topic_band')}
+    return None
+
+
+def learner_brief(profile, level):
+    """A plain-English brief the AI generates the course against, so content is
+    tuned to the learner's cognitive scores and learning strategy."""
+    if not profile:
+        return f'Target level: {level}. No detailed learner profile is available; use clear, standard teaching.'
+    scores = profile.get('scores', {})
+    strategy = profile.get('strategy', {})
+    knobs = ', '.join(strategy.get('knobs', []) or [])
+    return (
+        f"Target level: {level}. "
+        f"Learning strategy: {strategy.get('name', 'balanced')} — {strategy.get('tagline', '')} "
+        f"Preferred approach: {knobs or 'balanced practice'}. "
+        f"Cognitive scores (0-100): knowledge {scores.get('knowledge', '?')}, reasoning {scores.get('reasoning', '?')}, "
+        f"application {scores.get('application', '?')}, learning speed {scores.get('speed', '?')}. "
+        "Adapt teaching to this: if application is low, add more worked examples and hands-on practice; "
+        "if learning speed is high, be concise and add stretch challenges; if low, go step-by-step with more scaffolding; "
+        "if reasoning is high, include deeper 'why' explanations. Always honour the preferred approach above."
+    )
+
+
 def strip_code_fence(text):
     cleaned = (text or '').strip()
     if cleaned.startswith('```'):
@@ -2239,9 +2275,10 @@ def strip_code_fence(text):
     return cleaned.strip()
 
 
-def ai_generate_course_blueprint(db, topic, level):
+def ai_generate_course_blueprint(db, topic, level, brief=''):
     prompt = (
         f'Design a concise professional micro-course on "{topic}" for a {level}-level learner.\n'
+        f'Tailor the course to this specific learner: {brief}\n'
         f'Return exactly {FACTORY_LESSON_COUNT} lessons that build in order.\n'
         'Return only valid JSON:\n'
         '{"title": "...", "description": "one sentence", "lessons": ['
@@ -2260,10 +2297,11 @@ def ai_generate_course_blueprint(db, topic, level):
     }
 
 
-def ai_generate_lesson_html(db, topic, level, lesson_title, objectives, rules, fix_notes=''):
+def ai_generate_lesson_html(db, topic, level, lesson_title, objectives, rules, brief='', fix_notes=''):
     fix = f'\nThe previous attempt was rejected for: {fix_notes}. Fix these issues.' if fix_notes else ''
     prompt = (
         f'Write the full content for a {level}-level lesson titled "{lesson_title}" in a course on "{topic}".\n'
+        f'Tailor the teaching to this specific learner: {brief}\n'
         f'Learning objectives: {json.dumps(objectives, ensure_ascii=False)}\n\n'
         f'Follow these rules exactly:\n{rules}\n{fix}\n\n'
         'Output clean semantic HTML only (no markdown, no <html>/<head>/<body> tags). Structure it as slides using '
@@ -2296,10 +2334,11 @@ def factory_build_lesson(db, course, lesson, rules):
     """Generate + review one lesson, with up to 3 self-correcting attempts."""
     topic = course.source_topic or course.title
     level = course.source_level or 'Beginner'
+    brief = course.generation_brief or ''
     objectives = parse_json_response(lesson.description, []) if lesson.description else []
     fix_notes = ''
     for _attempt in range(3):
-        html = ai_generate_lesson_html(db, topic, level, lesson.title, objectives, rules, fix_notes)
+        html = ai_generate_lesson_html(db, topic, level, lesson.title, objectives, rules, brief, fix_notes)
         passed, issues = ai_review_lesson(db, lesson.title, html, rules)
         if passed:
             lesson.content_html = html
@@ -2324,9 +2363,15 @@ async def learner_factory_build(request: Request, db: Session = Depends(get_db))
     if factory_require_payment(db) and not student:
         return JSONResponse({'error': 'login', 'redirect': '/login?next=/learn/profile'}, status_code=402)
 
-    # Reuse if a course for this topic+level already exists (built once, shared)
+    # Tailor generation to the learner's saved profile (cognitive scores + strategy)
+    profile = learner_profile_snapshot(request, db, student)
+    strategy_key = ((profile or {}).get('strategy') or {}).get('key') or 'generic'
+    brief = learner_brief(profile, level)
+
+    # Reuse if a course for this topic+level+profile-type already exists (built once, shared)
     norm = normalize_topic(topic)
-    existing = db.query(Course).filter_by(is_ai_generated=True, source_topic=norm, source_level=level).first()
+    existing = db.query(Course).filter_by(is_ai_generated=True, source_topic=norm,
+                                          source_level=level, source_profile=strategy_key).first()
     if existing and existing.generation_status != 'failed':
         if student:
             enroll_student(db, student.id, existing.id)
@@ -2335,7 +2380,7 @@ async def learner_factory_build(request: Request, db: Session = Depends(get_db))
 
     program = get_or_create_factory_program(db)
     try:
-        blueprint = ai_generate_course_blueprint(db, topic, level)
+        blueprint = ai_generate_course_blueprint(db, topic, level, brief)
     except Exception as exc:
         return ai_error_response(exc, 'Could not start course generation.')
 
@@ -2344,7 +2389,7 @@ async def learner_factory_build(request: Request, db: Session = Depends(get_db))
                     certificate_level=LEVEL_TO_CERT[level], learning_hours=FACTORY_LESSON_COUNT * 2,
                     num_lessons=len(blueprint['lessons']), is_published=False, is_ai_generated=True,
                     generation_status='building', source_topic=norm, source_level=level,
-                    created_at=datetime.utcnow())
+                    source_profile=strategy_key, generation_brief=brief, created_at=datetime.utcnow())
     db.add(course)
     db.flush()
     if db.query(Course).filter(Course.slug == course.slug, Course.id != course.id).first():

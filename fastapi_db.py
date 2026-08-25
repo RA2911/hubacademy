@@ -60,6 +60,8 @@ class Course(Base):
     generation_status = Column(String(30))   # building / ready / failed
     source_topic = Column(String(200), index=True)   # normalized topic (dedup key)
     source_level = Column(String(30))                # Beginner / Intermediate / Advanced (dedup key)
+    source_profile = Column(String(50))              # learning-strategy archetype key (dedup key)
+    generation_brief = Column(Text)                  # learner profile brief the AI generates against
 
     program = relationship('Program')
     lessons = relationship('Lesson', order_by='Lesson.lesson_number', back_populates='course')
@@ -340,6 +342,8 @@ COURSE_COLUMNS = {
     'generation_status': "VARCHAR(30)",
     'source_topic': "VARCHAR(200)",
     'source_level': "VARCHAR(30)",
+    'source_profile': "VARCHAR(50)",
+    'generation_brief': "TEXT",
 }
 
 MATERIAL_COLUMNS = {
