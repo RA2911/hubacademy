@@ -64,7 +64,8 @@
             body: JSON.stringify({ topic: topic })
         }).then(r => r.json()).then(d => {
             const topicQs = (d && d.questions) ? d.questions.map(q => ({ ...q, kind: 'topic' })) : [];
-            const capacityQs = CAPACITY.map(q => ({ ...q, kind: 'capacity' }));
+            const capSrc = (d && d.capacity && d.capacity.length) ? d.capacity : CAPACITY;
+            const capacityQs = capSrc.map(q => ({ ...q, kind: 'capacity' }));
             items = topicQs.concat(capacityQs);
             pos = 0; renderItem();
         }).catch(() => {

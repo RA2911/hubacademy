@@ -1974,6 +1974,56 @@ def _capacity_correct_text(task):
     return task['options'][task['answer']]
 
 
+CAPACITY_DIMENSIONS = ['comprehension', 'reasoning', 'decision', 'problem_solving', 'transfer']
+
+
+def ai_generate_capacity_tasks(db):
+    """AI-generate a fresh set of general learning-capacity tasks (never the same
+    twice). Falls back to the built-in bank if the AI is unavailable."""
+    prompt = (
+        "Create 7 short questions that measure a person's general LEARNING CAPACITY (not tied to any subject). "
+        "Cover: 2 comprehension, 2 reasoning (logic or decisions), 3 problem-solving/transfer (novel problems or "
+        "applying an idea to a brand-new situation). Make 6 multiple-choice with exactly 4 options and one correct "
+        "answer, and VARY which position is correct. Make the LAST one an OPEN question where the learner writes 2-3 "
+        "sentences applying an idea to a new situation, and give a short grading rubric. Increase difficulty from 1 "
+        "(easy) to 5 (hard) across the set.\n"
+        "Return only valid JSON, an array of objects like:\n"
+        '{"dimension":"comprehension","difficulty":1,"type":"mcq","question":"...","options":["..","..","..",".."],"correct_answer":0,"hint":"..."}\n'
+        'and the last: {"dimension":"transfer","difficulty":5,"type":"open","question":"...","rubric":"what full/partial/low credit looks like","hint":"..."}\n'
+        'dimension must be one of: comprehension, reasoning, decision, problem_solving, transfer.'
+    )
+    response = openai_chat_completion(openai_client(db), [{'role': 'user', 'content': prompt}],
+                                      max_tokens=1900, temperature=0.7)
+    data = parse_json_response(response.choices[0].message.content, [])
+    tasks = []
+    for index, raw in enumerate(data if isinstance(data, list) else []):
+        if not isinstance(raw, dict):
+            continue
+        dimension = raw.get('dimension') if raw.get('dimension') in CAPACITY_DIMENSIONS else 'reasoning'
+        try:
+            difficulty = max(1, min(5, int(raw.get('difficulty', index + 1))))
+        except (TypeError, ValueError):
+            difficulty = min(5, index + 1)
+        kind = 'open' if raw.get('type') == 'open' else 'mcq'
+        item = {'id': f'cap{index + 1}', 'dimension': dimension, 'difficulty': difficulty, 'type': kind,
+                'level': dimension.replace('_', ' ').title(), 'prompt': str(raw.get('question', '')).strip(),
+                'hint': str(raw.get('hint', '') or '')}
+        if kind == 'open':
+            item['rubric'] = str(raw.get('rubric', '') or 'Full credit: correctly applies the idea to the new case.')
+        else:
+            options = [str(o) for o in (raw.get('options') or []) if str(o).strip()]
+            if len(options) < 2:
+                continue
+            try:
+                correct = max(0, min(len(options) - 1, int(raw.get('correct_answer', 0))))
+            except (TypeError, ValueError):
+                correct = 0
+            item['options'] = options
+            item['answer'] = correct
+        tasks.append(item)
+    return tasks
+
+
 def ai_generate_topic_questions(db, topic, count=4):
     """Generate `count` topic-knowledge MCQs (easy→hard) to place the learner.
     Returns dicts with the correct answer index; caller shuffles for display."""
@@ -2031,7 +2081,30 @@ async def learner_profile_topic_questions(request: Request, db: Session = Depend
         public.append({'id': question['id'], 'type': 'mcq', 'level': 'Topic knowledge',
                        'difficulty': question['difficulty'], 'prompt': question['question'], 'options': shuffled})
     request.session['topic_quiz'] = stored
-    return {'questions': public, 'topic': topic}
+
+    # Also generate the general learning-capacity tasks fresh (never the same).
+    try:
+        capacity = ai_generate_capacity_tasks(db) or list(lp.CAPACITY_TASKS)
+    except Exception as exc:
+        logger.info('Capacity-task generation unavailable, using built-in bank: %s', exc)
+        capacity = list(lp.CAPACITY_TASKS)
+    cap_store, cap_public = [], []
+    for task in capacity:
+        meta = {'id': task['id'], 'dimension': task['dimension'], 'difficulty': task['difficulty'], 'type': task['type']}
+        pub = {'id': task['id'], 'type': task['type'], 'level': task.get('level', ''),
+               'difficulty': task['difficulty'], 'prompt': task['prompt'], 'hint': task.get('hint', '')}
+        if task['type'] == 'mcq':
+            meta['correct_text'] = task['options'][task['answer']][:160]
+            options = task['options'][:]
+            random.shuffle(options)
+            pub['options'] = options
+        else:
+            meta['rubric'] = (task.get('rubric') or '')[:300]
+            meta['prompt'] = (task.get('prompt') or '')[:200]
+        cap_store.append(meta)
+        cap_public.append(pub)
+    request.session['capacity_tasks'] = cap_store
+    return {'questions': public, 'capacity': cap_public, 'topic': topic}
 
 
 def ai_grade_open_task(db, task, answer):
@@ -2114,8 +2187,19 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
     data = await request.json()
     topic = (data.get('topic') or '').strip()[:200]
 
-    # ---- Capacity tasks (graded by answer CONTENT, since options are shuffled) ----
-    by_id = {t['id']: t for t in lp.CAPACITY_TASKS}
+    # ---- Capacity tasks: AI-generated, graded from the session where answers live ----
+    cap_meta = request.session.get('capacity_tasks')
+    if not cap_meta:
+        cap_meta = []
+        for t in lp.CAPACITY_TASKS:
+            meta = {'id': t['id'], 'dimension': t['dimension'], 'difficulty': t['difficulty'], 'type': t['type']}
+            if t['type'] == 'mcq':
+                meta['correct_text'] = t['options'][t['answer']]
+            else:
+                meta['rubric'] = t.get('rubric', '')
+                meta['prompt'] = t.get('prompt', '')
+            cap_meta.append(meta)
+    by_id = {t['id']: t for t in cap_meta}
     responses, open_grades = [], {}
     for raw in (data.get('responses') or []):
         task = by_id.get(raw.get('id'))
@@ -2128,17 +2212,17 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
         answer_text = (raw.get('answer') or '')
         if task['type'] == 'mcq':
             entry['answer'] = answer_text
-            entry['correct'] = (answer_text.strip() == _capacity_correct_text(task).strip())
+            entry['correct'] = (answer_text.strip() == (task.get('correct_text') or '').strip())
         else:
             answer_text = answer_text[:2000]
-            fraction, note = ai_grade_open_task(db, task, answer_text)
+            fraction, note = ai_grade_open_task(db, {'prompt': task.get('prompt', ''), 'rubric': task.get('rubric', '')}, answer_text)
             open_grades[task['id']] = fraction
             entry['answer_text'] = answer_text
             entry['open_score'] = fraction
             entry['open_note'] = note
         responses.append(entry)
 
-    scores = lp.compute_scores(responses, open_grades)
+    scores = lp.compute_scores(responses, open_grades, tasks=cap_meta)
     band = lp.level_band(scores)
     key, strategy, rationale = lp.recommend_strategy(scores)
     strategy_payload = {**strategy, 'key': key, 'rationale': rationale}
@@ -2156,6 +2240,7 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
             correct_w += weight
     topic_band = lp.topic_band_from(correct_w / total_w) if total_w else 'Beginner'
     request.session.pop('topic_quiz', None)
+    request.session.pop('capacity_tasks', None)
 
     if student:
         profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
@@ -2304,9 +2389,12 @@ def ai_generate_lesson_html(db, topic, level, lesson_title, objectives, rules, b
         f'Tailor the teaching to this specific learner: {brief}\n'
         f'Learning objectives: {json.dumps(objectives, ensure_ascii=False)}\n\n'
         f'Follow these rules exactly:\n{rules}\n{fix}\n\n'
+        'Make it genuinely engaging: open with a one-line hook, use a vivid real-world analogy, keep paragraphs short '
+        'and punchy, and include a concrete example the learner can picture. Aim for 5 to 7 slides.\n'
         'Output clean semantic HTML only (no markdown, no <html>/<head>/<body> tags). Structure it as slides using '
-        '<section class="slide"> blocks, each with an <h2> title. Use <ul>/<li> for points, <blockquote> for the '
-        'example, and a final <section class="slide"><h2>Key takeaways</h2> block. Do not include <script> or <style>.'
+        '<section class="slide"> blocks, each with a short <h2> title and a lead <p>. Use <ul>/<li> for key points, '
+        '<blockquote> for the example or analogy, and a final <section class="slide"><h2>Key takeaways</h2> block. '
+        'Do not include <script> or <style>.'
     )
     response = openai_chat_completion(openai_client(db), [{'role': 'user', 'content': prompt}],
                                       max_tokens=2200, temperature=0.6)

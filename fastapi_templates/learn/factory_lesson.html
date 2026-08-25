@@ -4,11 +4,11 @@
 {% set total = lessons|length %}
 {% set delivered = course.generation_status == 'delivered' %}
 {% set img0 = images[0] if images else '' %}
+<canvas id="wow-particles"></canvas>
 <main class="wow">
-  <div class="wow-bg"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span></div>
 
   <!-- Hero -->
-  <header class="wow-hero reveal">
+  <header class="wow-hero reveal in" id="wow-hero">
     <div class="wow-hero-media" style="--img:url('{{ img0 }}')"></div>
     <div class="wow-hero-inner">
       <span class="wow-chip"><i class="fas fa-wand-magic-sparkles"></i> {{ 'Your course' if delivered else 'Free preview' }} · {{ course.source_level }}</span>
@@ -25,7 +25,7 @@
   <section class="wow-goals reveal">
     <h2 class="wow-h2">What you'll learn</h2>
     <div class="wow-goal-grid">
-      {% for o in objectives[:6] %}<div class="wow-goal glass" style="--d:{{ loop.index0 * 0.08 }}s"><i class="fas fa-circle-check"></i><span>{{ o }}</span></div>{% endfor %}
+      {% for o in objectives[:6] %}<div class="wow-goal glass tilt" style="--d:{{ loop.index0 * 0.07 }}s"><i class="fas fa-circle-check"></i><span>{{ o }}</span></div>{% endfor %}
     </div>
   </section>
   {% endif %}
@@ -37,35 +37,41 @@
     </div>
   </section>
 
+  <!-- Real video previews -->
+  <section class="wow-videos reveal">
+    <h2 class="wow-h2">Video lessons <span class="wow-tag">preview</span></h2>
+    <div class="wow-video-grid">
+      <button type="button" class="wow-video play-real" data-src="/static/videos/hero.mp4" style="--img:url('{{ images[1] if images|length>1 else img0 }}')">
+        <span class="wow-play"><i class="fas fa-play"></i></span><span class="wow-shine"></span><span class="wow-video-cap">Welcome &amp; overview</span></button>
+      <button type="button" class="wow-video play-real" data-src="/static/images/Video_bg.mp4" style="--img:url('{{ images[2] if images|length>2 else img0 }}')">
+        <span class="wow-play"><i class="fas fa-play"></i></span><span class="wow-shine"></span><span class="wow-video-cap">Concept in motion</span></button>
+      <a class="wow-video" href="#wow-unlock" style="--img:url('{{ images[3] if images|length>3 else img0 }}')">
+        <span class="wow-play"><i class="fas fa-play"></i></span><span class="wow-shine"></span><span class="wow-video-cap">Example walkthrough</span>{% if not delivered %}<span class="wow-lock"><i class="fas fa-lock"></i></span>{% endif %}</a>
+    </div>
+  </section>
+
+  <!-- Simulation game -->
+  <section class="wow-sim reveal">
+    <h2 class="wow-h2">Try it <span class="wow-tag">interactive</span></h2>
+    <p class="wow-sub">A quick decision challenge — make the smart call and score points.</p>
+    <div class="sim glass" id="sim">
+      <div class="sim-top"><div class="sim-progress"><i id="sim-bar"></i></div><span class="sim-score" id="sim-score">0 pts</span></div>
+      <div id="sim-stage"></div>
+    </div>
+  </section>
+
   {% if images|length > 1 %}
   <section class="wow-feature reveal" style="--img:url('{{ images[1] }}')">
     <div class="wow-feature-txt"><span class="wow-chip dark">In practice</span><h2 class="wow-h2 light">Ideas you can use immediately</h2><p>The full course turns these concepts into worked examples, cases and hands-on practice — tuned to how you learn.</p></div>
   </section>
   {% endif %}
 
-  <!-- Videos -->
-  <section class="wow-videos reveal">
-    <h2 class="wow-h2">Video lessons <span class="wow-tag">preview</span></h2>
-    <div class="wow-video-grid">
-      {% set vtitles = ['Quick intro', 'Core idea explained', 'Example walkthrough'] %}
-      {% for i in range(3) %}
-      <a class="wow-video" href="#wow-unlock" style="--img:url('{{ images[(i+1) % (images|length)] if images else '' }}')">
-        <span class="wow-play"><i class="fas fa-play"></i></span>
-        <span class="wow-shine"></span>
-        <span class="wow-video-cap">{{ vtitles[i] }}</span>
-        {% if not delivered %}<span class="wow-lock"><i class="fas fa-lock"></i></span>{% endif %}
-      </a>
-      {% endfor %}
-    </div>
-  </section>
-
   {% if not delivered %}
-  <!-- Unlock gate -->
   <section id="wow-unlock" class="wow-unlock reveal">
     <div class="wow-unlock-card">
       <span class="wow-chip glow2"><i class="fas fa-lock-open"></i> Unlock the full course</span>
       <h2 class="wow-h2 light">You're previewing Lesson 1 of {{ total }}.</h2>
-      <p>Register and subscribe to unlock every lesson — with videos, practice and your personalized plan. Your complete course arrives in your account <strong>within 1–2 hours</strong>.</p>
+      <p>Register and subscribe to unlock every lesson — full videos, simulations, practice and your personalized plan. Your complete course arrives in your account <strong>within 1–2 hours</strong>.</p>
       <div class="wow-unlock-actions">
         <a class="wow-btn light" href="/register?next=/learn/factory/course/{{ course.id }}">Register &amp; subscribe</a>
         <a class="wow-btn ghost2" href="/login?next=/learn/factory/course/{{ course.id }}">I have an account</a>
@@ -83,132 +89,168 @@
   {% endif %}
 </main>
 
+<!-- video lightbox -->
+<div class="vbox" id="vbox" hidden><button class="vbox-close" id="vbox-close" aria-label="Close"><i class="fas fa-xmark"></i></button><video id="vbox-video" controls playsinline></video></div>
+
 <!-- Emma audio bar -->
 <div class="emma-bar" id="emma-bar" hidden>
   <button type="button" id="emma-toggle" class="emma-play"><i class="fas fa-play"></i></button>
-  <div class="emma-meta">
-    <div class="emma-eq"><i></i><i></i><i></i><i></i><i></i></div>
-    <span id="emma-status">Narrated by Emma</span>
-  </div>
+  <div class="emma-meta"><div class="emma-eq"><i></i><i></i><i></i><i></i><i></i></div><span id="emma-status">Narrated by Emma</span></div>
   <button type="button" id="emma-stop" class="emma-stop" aria-label="Stop"><i class="fas fa-stop"></i></button>
 </div>
 
 <script>
 (function () {
-  // reveal on scroll
+  // ---- reveal ----
   var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.1 });
   document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
 
-  // ---- Emma voice (browser speech synthesis) ----
-  var synth = window.speechSynthesis;
-  var bar = document.getElementById('emma-bar');
-  var toggle = document.getElementById('emma-toggle');
-  var stopBtn = document.getElementById('emma-stop');
-  var statusEl = document.getElementById('emma-status');
-  var heroBtn = document.getElementById('emma-hero');
+  // ---- particle constellation ----
+  var cv = document.getElementById('wow-particles'), cx = cv.getContext('2d'), W, H, pts = [];
+  function size() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
+  size(); addEventListener('resize', size);
+  for (var i = 0; i < 60; i++) pts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4 });
+  function draw() {
+    cx.clearRect(0, 0, W, H);
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i]; p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1;
+      cx.beginPath(); cx.arc(p.x, p.y, 1.6, 0, 6.28); cx.fillStyle = 'rgba(124,92,255,.5)'; cx.fill();
+      for (var j = i + 1; j < pts.length; j++) {
+        var q = pts[j], d = Math.hypot(p.x - q.x, p.y - q.y);
+        if (d < 120) { cx.beginPath(); cx.moveTo(p.x, p.y); cx.lineTo(q.x, q.y); cx.strokeStyle = 'rgba(120,110,240,' + (.12 * (1 - d / 120)) + ')'; cx.stroke(); }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  // ---- hero tilt ----
+  var hero = document.getElementById('wow-hero');
+  hero.addEventListener('mousemove', function (e) {
+    var r = hero.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+    hero.style.transform = 'perspective(900px) rotateY(' + (x * 4) + 'deg) rotateX(' + (-y * 4) + 'deg)';
+  });
+  hero.addEventListener('mouseleave', function () { hero.style.transform = ''; });
+
+  // ---- video lightbox ----
+  var vbox = document.getElementById('vbox'), vv = document.getElementById('vbox-video');
+  document.querySelectorAll('.play-real').forEach(function (b) {
+    b.addEventListener('click', function () { vv.src = b.dataset.src; vbox.hidden = false; vv.play().catch(function () {}); });
+  });
+  function closeV() { vbox.hidden = true; vv.pause(); vv.removeAttribute('src'); }
+  document.getElementById('vbox-close').addEventListener('click', closeV);
+  vbox.addEventListener('click', function (e) { if (e.target === vbox) closeV(); });
+  addEventListener('keydown', function (e) { if (e.key === 'Escape' && !vbox.hidden) closeV(); });
+
+  // ---- simulation game ----
+  var ROUNDS = [
+    { q: 'A key deadline is at risk. What do you do first?', a: [
+      { t: 'Cut scope to protect the deadline, tell stakeholders early', s: 20 },
+      { t: 'Say nothing and hope you catch up', s: 0 },
+      { t: 'Add more people to the task last-minute', s: 8 } ] },
+    { q: 'Two solid options, limited data. Your move?', a: [
+      { t: 'Run a small, cheap test to learn fast, then decide', s: 20 },
+      { t: 'Pick the one you personally prefer', s: 6 },
+      { t: 'Delay until you have perfect information', s: 2 } ] },
+    { q: 'A teammate disagrees with your plan. Best response?', a: [
+      { t: 'Ask what they see that you might be missing', s: 20 },
+      { t: 'Overrule them — you own the plan', s: 4 },
+      { t: 'Drop your plan to avoid conflict', s: 6 } ] }
+  ];
+  var sim = { i: 0, score: 0 }, stage = document.getElementById('sim-stage'), bar = document.getElementById('sim-bar'), scoreEl = document.getElementById('sim-score');
+  function renderRound() {
+    var r = ROUNDS[sim.i];
+    bar.style.width = (sim.i / ROUNDS.length * 100) + '%';
+    stage.innerHTML = '<div class="sim-q">Round ' + (sim.i + 1) + ' / ' + ROUNDS.length + '</div><h3>' + r.q + '</h3>' +
+      '<div class="sim-opts">' + r.a.map(function (o, k) { return '<button class="sim-opt" data-s="' + o.s + '">' + o.t + '</button>'; }).join('') + '</div>';
+    stage.querySelectorAll('.sim-opt').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var s = +b.dataset.s; sim.score += s;
+        stage.querySelectorAll('.sim-opt').forEach(function (x) { x.disabled = true; });
+        b.classList.add(s >= 20 ? 'good' : s >= 8 ? 'ok' : 'bad');
+        scoreEl.textContent = sim.score + ' pts';
+        var msg = s >= 20 ? 'Excellent call! +' + s : s >= 8 ? 'Not bad. +' + s : 'Risky. +' + s;
+        b.insertAdjacentHTML('beforeend', '<span class="sim-fb">' + msg + '</span>');
+        setTimeout(function () { sim.i++; if (sim.i < ROUNDS.length) renderRound(); else finishSim(); }, 1100);
+      });
+    });
+  }
+  function finishSim() {
+    bar.style.width = '100%';
+    var max = ROUNDS.length * 20, pct = Math.round(sim.score / max * 100);
+    stage.innerHTML = '<div class="sim-done"><div class="sim-badge">' + pct + '%</div><h3>' +
+      (pct >= 80 ? 'Sharp decision-maker!' : pct >= 50 ? 'Solid instincts.' : 'Room to grow — the course helps.') +
+      '</h3><p>The full course has scored simulations tuned to your level.</p>' +
+      '<a class="wow-btn glow" href="#wow-unlock">Unlock full simulations</a></div>';
+  }
+  renderRound();
+
+  // ---- Emma ----
+  var synth = window.speechSynthesis, ebar = document.getElementById('emma-bar'), toggle = document.getElementById('emma-toggle'),
+      stopBtn = document.getElementById('emma-stop'), statusEl = document.getElementById('emma-status'), heroBtn = document.getElementById('emma-hero');
   if (!synth) { if (heroBtn) heroBtn.style.display = 'none'; return; }
-
-  function pickEmma() {
-    var v = synth.getVoices();
+  function pickEmma() { var v = synth.getVoices();
     return v.find(function (x) { return /emma/i.test(x.name); })
-        || v.find(function (x) { return /(aria|jenny|michelle|natural|female|zira)/i.test(x.name) && /^en/i.test(x.lang); })
-        || v.find(function (x) { return /^en/i.test(x.lang); }) || v[0];
-  }
+      || v.find(function (x) { return /(aria|jenny|michelle|natural|female|zira)/i.test(x.name) && /^en/i.test(x.lang); })
+      || v.find(function (x) { return /^en/i.test(x.lang); }) || v[0]; }
   var chunks = [], idx = 0, playing = false;
-  function buildChunks() {
-    var text = (document.getElementById('emma-text') || {}).innerText || '';
-    return text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]?/g) || [];
-  }
-  function speakNext() {
-    if (idx >= chunks.length) { finish(); return; }
-    var u = new SpeechSynthesisUtterance(chunks[idx]);
-    var emma = pickEmma(); if (emma) u.voice = emma;
-    u.rate = 0.98; u.pitch = 1.0;
-    u.onend = function () { idx++; if (playing) speakNext(); };
-    synth.speak(u);
-  }
-  function start() {
-    if (!chunks.length) chunks = buildChunks();
-    bar.hidden = false; playing = true; bar.classList.add('on');
-    toggle.innerHTML = '<i class="fas fa-pause"></i>'; statusEl.textContent = 'Emma is reading…';
-    if (synth.paused && idx > 0) { synth.resume(); } else { synth.cancel(); idx = idx || 0; speakNext(); }
-  }
-  function pause() { playing = false; synth.pause(); bar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Paused'; }
-  function finish() { playing = false; idx = 0; bar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; }
-  function stop() { playing = false; synth.cancel(); idx = 0; bar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; }
-
+  function build() { var t = (document.getElementById('emma-text') || {}).innerText || ''; return t.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]?/g) || []; }
+  function next() { if (idx >= chunks.length) { fin(); return; } var u = new SpeechSynthesisUtterance(chunks[idx]); var e = pickEmma(); if (e) u.voice = e; u.rate = .98; u.onend = function () { idx++; if (playing) next(); }; synth.speak(u); }
+  function start() { if (!chunks.length) chunks = build(); ebar.hidden = false; playing = true; ebar.classList.add('on'); toggle.innerHTML = '<i class="fas fa-pause"></i>'; statusEl.textContent = 'Emma is reading…'; if (synth.paused && idx > 0) synth.resume(); else { synth.cancel(); next(); } }
+  function pause() { playing = false; synth.pause(); ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Paused'; }
+  function fin() { playing = false; idx = 0; ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; }
+  function stop() { playing = false; synth.cancel(); idx = 0; ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; }
   toggle.addEventListener('click', function () { playing ? pause() : start(); });
   stopBtn.addEventListener('click', stop);
-  if (heroBtn) heroBtn.addEventListener('click', function () { bar.hidden = false; start(); window.scrollTo({ top: document.getElementById('wow-content').offsetTop - 60, behavior: 'smooth' }); });
-  if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = function () { pickEmma(); };
-  window.addEventListener('beforeunload', function () { synth.cancel(); });
+  if (heroBtn) heroBtn.addEventListener('click', function () { ebar.hidden = false; start(); window.scrollTo({ top: document.getElementById('wow-content').offsetTop - 60, behavior: 'smooth' }); });
+  if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = pickEmma;
+  addEventListener('beforeunload', function () { synth.cancel(); });
 })();
 </script>
 
 <style>
-.wow{--b1:#2563eb;--b2:#7c3aed;--b3:#06b6d4;--ink:#0f1e3d;position:relative;color:#2a3752;overflow:hidden;}
-.wow-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:linear-gradient(180deg,#f6f9ff,#eef2fb);}
-.orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.5;animation:float 18s ease-in-out infinite;}
-.orb.o1{width:420px;height:420px;background:#7c3aed;top:-120px;left:-80px;}
-.orb.o2{width:380px;height:380px;background:#2563eb;top:40%;right:-120px;animation-delay:-6s;}
-.orb.o3{width:340px;height:340px;background:#06b6d4;bottom:-120px;left:30%;animation-delay:-12s;}
-@keyframes float{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(30px,-40px) scale(1.12);}}
-
-.wow>section{max-width:1000px;margin:0 auto 40px;padding:0 22px;}
-.wow-h2{color:var(--ink);font-size:1.6rem;margin:0 0 18px;font-weight:800;letter-spacing:-.01em;}
+#wow-particles{position:fixed;inset:0;z-index:-2;background:linear-gradient(180deg,#f7f9ff,#eef1fb);}
+.wow{--b1:#2563eb;--b2:#7c3aed;--b3:#06b6d4;--ink:#0f1e3d;position:relative;color:#2a3752;}
+.wow>section{max-width:1000px;margin:0 auto 42px;padding:0 22px;}
+.wow-h2{color:var(--ink);font-size:1.6rem;margin:0 0 8px;font-weight:800;letter-spacing:-.01em;}
 .wow-h2.light{color:#fff;}
+.wow-sub{color:#6a7c92;margin:0 0 18px;}
 .wow-chip{display:inline-flex;align-items:center;gap:8px;font-size:.74rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(6px);}
 .wow-chip.dark{background:rgba(15,30,61,.1);color:var(--b1);}
-.glass{background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.7);box-shadow:0 20px 50px rgba(20,40,90,.12);}
-
+.glass{background:rgba(255,255,255,.74);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.7);box-shadow:0 20px 50px rgba(20,40,90,.12);}
 .wow-btn{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;border-radius:14px;font-weight:800;text-decoration:none;font-size:.96rem;border:none;cursor:pointer;transition:transform .18s,box-shadow .18s;font-family:inherit;}
 .wow-btn.glow{background:linear-gradient(120deg,var(--b1),var(--b2));color:#fff;box-shadow:0 14px 34px rgba(88,51,220,.4);}
 .wow-btn.glow:hover{transform:translateY(-3px);box-shadow:0 20px 46px rgba(88,51,220,.55);}
 .wow-btn.light{background:#fff;color:var(--b2);}
-.wow-btn.ghost{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.5);backdrop-filter:blur(6px);}
+.wow-btn.ghost{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.5);}
 .wow-btn.ghost2{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.5);}
 .wow-btn:hover{transform:translateY(-3px);}
+.tilt{transition:transform .2s;}.tilt:hover{transform:translateY(-5px) scale(1.02);}
 
-/* hero */
-.wow-hero{position:relative;max-width:1000px;margin:16px auto 40px;border-radius:26px;overflow:hidden;color:#fff;isolation:isolate;}
+.wow-hero{position:relative;max-width:1000px;margin:16px auto 42px;border-radius:26px;overflow:hidden;color:#fff;isolation:isolate;transition:transform .2s ease-out;transform-style:preserve-3d;}
 .wow-hero-media{position:absolute;inset:0;background:var(--img) center/cover no-repeat;transform:scale(1.08);z-index:-2;}
 .wow-hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(120deg,rgba(37,99,235,.92),rgba(124,58,237,.82) 55%,rgba(6,182,212,.7));}
 .wow-hero-inner{padding:66px 46px;max-width:660px;}
 .wow-title{color:#fff;font-size:clamp(2.1rem,4.4vw,3.3rem);line-height:1.08;margin:16px 0 14px;font-weight:900;letter-spacing:-.02em;text-shadow:0 2px 20px rgba(0,0,0,.15);}
 .wow-lede{color:#eef3ff;font-size:1.14rem;line-height:1.6;margin:0 0 26px;}
 .wow-hero-actions{display:flex;gap:12px;flex-wrap:wrap;}
-
-/* goals */
-.wow-goal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:13px;}
-.wow-goal{display:flex;gap:11px;align-items:flex-start;border-radius:14px;padding:16px 18px;transition:transform .2s;}
-.wow-goal:hover{transform:translateY(-4px);}
+.wow-goal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:13px;margin-top:12px;}
+.wow-goal{display:flex;gap:11px;align-items:flex-start;border-radius:14px;padding:16px 18px;}
 .wow-goal i{color:#12b76a;margin-top:2px;font-size:1.05rem;}
-
-/* content */
 .wow-article{border-radius:22px;padding:40px 44px;line-height:1.8;font-size:1.06rem;}
-.wow-article .slide{border-radius:16px;padding:24px 28px;margin:0 0 20px;background:linear-gradient(180deg,#ffffff,#f5f8ff);border:1px solid #e9eefb;border-left:5px solid var(--b1);transition:transform .2s,box-shadow .2s;}
+.wow-article .slide{border-radius:16px;padding:24px 28px;margin:0 0 20px;background:linear-gradient(180deg,#fff,#f5f8ff);border:1px solid #e9eefb;border-left:5px solid var(--b1);transition:transform .2s,box-shadow .2s;}
 .wow-article .slide:hover{transform:translateX(4px);box-shadow:0 12px 30px rgba(20,40,90,.09);}
-.wow-article .slide:nth-child(3n+2){border-left-color:var(--b2);}
-.wow-article .slide:nth-child(3n){border-left-color:var(--b3);}
-.wow-article h2{font-size:1.4rem;margin:0 0 14px;background:linear-gradient(120deg,var(--b1),var(--b2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;}
-.wow-article ul{padding-left:22px;margin:0 0 8px;}
-.wow-article li{margin-bottom:9px;}
+.wow-article .slide:nth-child(3n+2){border-left-color:var(--b2);}.wow-article .slide:nth-child(3n){border-left-color:var(--b3);}
+.wow-article h2{font-size:1.4rem;margin:0 0 12px;background:linear-gradient(120deg,var(--b1),var(--b2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;}
+.wow-article ul{padding-left:22px;}.wow-article li{margin-bottom:9px;}
 .wow-article blockquote{border-left:4px solid #f59e0b;background:#fff8ec;margin:16px 0;padding:16px 20px;border-radius:0 12px 12px 0;font-style:italic;color:#8a6417;}
 
-/* feature parallax band */
-.wow-feature{position:relative;border-radius:24px;overflow:hidden;color:#fff;min-height:260px;display:flex;align-items:center;}
-.wow-feature::before{content:"";position:absolute;inset:0;background:var(--img) center/cover no-repeat fixed;z-index:-2;}
-.wow-feature::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,20,45,.92),rgba(12,20,45,.35));z-index:-1;}
-.wow-feature-txt{padding:44px 48px;max-width:560px;}
-.wow-feature p{color:#dce6fb;margin:0;line-height:1.65;}
-
-/* videos */
 .wow-tag{font-size:.72rem;color:#fff;background:linear-gradient(120deg,var(--b2),var(--b1));padding:4px 10px;border-radius:999px;vertical-align:middle;margin-left:8px;font-weight:800;}
 .wow-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;}
-.wow-video{position:relative;height:160px;border-radius:18px;overflow:hidden;text-decoration:none;display:block;box-shadow:0 14px 34px rgba(20,40,90,.16);transition:transform .2s;}
+.wow-video{position:relative;height:160px;border-radius:18px;overflow:hidden;text-decoration:none;display:block;border:none;cursor:pointer;padding:0;box-shadow:0 14px 34px rgba(20,40,90,.16);transition:transform .2s;}
 .wow-video::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,30,61,.15),rgba(15,30,61,.72)),var(--img) center/cover no-repeat;transition:transform .4s;z-index:-1;}
-.wow-video:hover{transform:translateY(-5px);}
-.wow-video:hover::before{transform:scale(1.1);}
+.wow-video:hover{transform:translateY(-5px);}.wow-video:hover::before{transform:scale(1.1);}
 .wow-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.94);color:var(--b2);display:grid;place-items:center;font-size:1.15rem;box-shadow:0 8px 22px rgba(0,0,0,.3);animation:pulse 2.4s ease-in-out infinite;}
 @keyframes pulse{0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.3),0 0 0 0 rgba(255,255,255,.5);}50%{box-shadow:0 8px 22px rgba(0,0,0,.3),0 0 0 14px rgba(255,255,255,0);}}
 .wow-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-20deg);transition:left .6s;}
@@ -216,7 +258,30 @@
 .wow-video-cap{position:absolute;bottom:12px;left:15px;color:#fff;font-weight:800;text-shadow:0 1px 6px rgba(0,0,0,.5);}
 .wow-lock{position:absolute;top:11px;right:11px;color:#fff;background:rgba(124,58,237,.92);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.7rem;}
 
-/* unlock */
+/* simulation */
+.sim{border-radius:22px;padding:28px 30px;}
+.sim-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;}
+.sim-progress{flex:1;height:8px;border-radius:999px;background:#e7ecf7;overflow:hidden;}
+.sim-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--b1),var(--b3));transition:width .5s;}
+.sim-score{font-weight:800;color:var(--b2);}
+.sim-q{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a97ad;}
+.sim h3{color:var(--ink);font-size:1.25rem;margin:6px 0 18px;}
+.sim-opts{display:grid;gap:11px;}
+.sim-opt{position:relative;text-align:left;padding:15px 18px;border-radius:13px;border:1.5px solid #dbe4f0;background:#fff;font-size:1rem;font-weight:600;color:#2a3752;cursor:pointer;transition:all .15s;font-family:inherit;}
+.sim-opt:hover:not(:disabled){border-color:var(--b1);transform:translateX(3px);}
+.sim-opt.good{border-color:#12b76a;background:#e9fbf1;}.sim-opt.ok{border-color:#f59e0b;background:#fff7e8;}.sim-opt.bad{border-color:#ef4444;background:#fdeeee;}
+.sim-fb{float:right;font-weight:800;font-size:.85rem;}
+.sim-done{text-align:center;padding:12px 0;}
+.sim-badge{width:96px;height:96px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;font-size:1.7rem;font-weight:900;color:#fff;background:conic-gradient(var(--b2),var(--b3),var(--b1),var(--b2));box-shadow:0 12px 30px rgba(88,51,220,.35);animation:pop .5s ease;}
+@keyframes pop{0%{transform:scale(.5);opacity:0;}100%{transform:scale(1);opacity:1;}}
+.sim-done p{color:#6a7c92;margin:6px 0 18px;}
+
+.wow-feature{position:relative;border-radius:24px;overflow:hidden;color:#fff;min-height:260px;display:flex;align-items:center;}
+.wow-feature::before{content:"";position:absolute;inset:0;background:var(--img) center/cover no-repeat;z-index:-2;}
+.wow-feature::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,20,45,.92),rgba(12,20,45,.35));z-index:-1;}
+.wow-feature-txt{padding:44px 48px;max-width:560px;}
+.wow-feature p{color:#dce6fb;margin:0;line-height:1.65;}
+
 .wow-unlock-card{position:relative;border-radius:26px;padding:50px 44px;text-align:center;color:#fff;overflow:hidden;background:linear-gradient(125deg,#4c1d95,#2563eb 60%,#06b6d4);background-size:200% 200%;animation:grad 8s ease infinite;box-shadow:0 30px 60px rgba(50,20,120,.34);}
 @keyframes grad{0%,100%{background-position:0% 50%;}50%{background-position:100% 50%;}}
 .wow-unlock-card p{color:#eae4ff;font-size:1.08rem;max-width:580px;margin:14px auto 26px;line-height:1.65;}
@@ -225,21 +290,21 @@
 .wow-locked{list-style:none;margin:22px auto 0;padding:20px 0 0;max-width:470px;text-align:left;border-top:1px solid rgba(255,255,255,.24);display:grid;gap:10px;}
 .wow-locked li{color:#ddd3ff;font-size:.92rem;display:flex;gap:10px;align-items:center;}
 
-/* Emma bar */
+.vbox{position:fixed;inset:0;z-index:80;background:rgba(6,10,26,.9);display:grid;place-items:center;padding:22px;}
+.vbox video{max-width:900px;width:100%;border-radius:14px;box-shadow:0 30px 70px rgba(0,0,0,.6);}
+.vbox-close{position:absolute;top:20px;right:24px;width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:1.1rem;cursor:pointer;}
+
 .emma-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:14px;padding:10px 16px;border-radius:999px;background:rgba(15,20,45,.92);color:#fff;box-shadow:0 16px 40px rgba(0,0,0,.35);backdrop-filter:blur(10px);}
 .emma-play,.emma-stop{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;font-size:.95rem;display:grid;place-items:center;}
-.emma-play{background:linear-gradient(120deg,#7c3aed,#2563eb);color:#fff;}
-.emma-stop{background:rgba(255,255,255,.14);color:#fff;}
-.emma-meta{display:flex;align-items:center;gap:12px;padding-right:4px;}
-.emma-meta span{font-size:.85rem;font-weight:600;white-space:nowrap;}
+.emma-play{background:linear-gradient(120deg,#7c3aed,#2563eb);color:#fff;}.emma-stop{background:rgba(255,255,255,.14);color:#fff;}
+.emma-meta{display:flex;align-items:center;gap:12px;}.emma-meta span{font-size:.85rem;font-weight:600;white-space:nowrap;}
 .emma-eq{display:flex;align-items:flex-end;gap:3px;height:20px;}
 .emma-eq i{width:3px;height:6px;background:#8b7bff;border-radius:2px;}
 .emma-bar.on .emma-eq i{animation:eq .9s ease-in-out infinite;}
 .emma-eq i:nth-child(2){animation-delay:.15s;}.emma-eq i:nth-child(3){animation-delay:.3s;}.emma-eq i:nth-child(4){animation-delay:.45s;}.emma-eq i:nth-child(5){animation-delay:.6s;}
 @keyframes eq{0%,100%{height:5px;}50%{height:20px;}}
-
 .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease;transition-delay:var(--d,0s);}
 .reveal.in{opacity:1;transform:none;}
-@media(max-width:640px){.wow-hero-inner{padding:44px 26px;}.wow-article{padding:26px 22px;}.wow-unlock-card{padding:34px 22px;}.wow-feature::before{background-attachment:scroll;}}
+@media(max-width:640px){.wow-hero-inner{padding:44px 26px;}.wow-article{padding:26px 22px;}.wow-unlock-card{padding:34px 22px;}}
 </style>
 {% endblock %}

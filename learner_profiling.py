@@ -112,13 +112,15 @@ def clamp(value, low=0, high=100):
     return max(low, min(high, value))
 
 
-def compute_scores(responses, open_grades=None):
+def compute_scores(responses, open_grades=None, tasks=None):
     """responses: list of dicts {id, correct(bool or None), time_ms, hint_used, confidence(1-3)}.
     open_grades: {task_id: fraction 0..1} for AI-graded open tasks.
+    tasks: metadata for the tasks used (AI-generated or built-in CAPACITY_TASKS);
+           each needs id, dimension, difficulty, type.
     Returns a dict of 0-100 capacity scores plus supporting signals.
     """
     open_grades = open_grades or {}
-    by_id = {t['id']: t for t in CAPACITY_TASKS}
+    by_id = {t['id']: t for t in (tasks or CAPACITY_TASKS)}
     buckets = {'knowledge': [], 'reasoning': [], 'application': []}
     weighted_correct = 0.0
     weighted_total = 0.0
