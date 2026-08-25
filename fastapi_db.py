@@ -85,6 +85,7 @@ class Lesson(Base):
     generation_status = Column(String(30), default='ready')  # queued / building / ready / needs_review / failed
     content_html = Column(Text)                               # generated slide/lesson HTML
     review_notes = Column(Text)                               # AI reviewer verdict/issues
+    audio_key = Column(String(700))                          # R2 key of the generated Emma narration (mp3)
 
     course = relationship('Course', back_populates='lessons')
 
@@ -360,6 +361,7 @@ LESSON_COLUMNS = {
     'generation_status': "VARCHAR(30) DEFAULT 'ready'",
     'content_html': "TEXT",
     'review_notes': "TEXT",
+    'audio_key': "VARCHAR(700)",
 }
 
 QUIZ_ATTEMPT_COLUMNS = {

@@ -186,26 +186,23 @@
   }
   renderRound();
 
-  // ---- Emma ----
-  var synth = window.speechSynthesis, ebar = document.getElementById('emma-bar'), toggle = document.getElementById('emma-toggle'),
+  // ---- Emma (natural neural voice, generated audio — never robotic) ----
+  var ebar = document.getElementById('emma-bar'), toggle = document.getElementById('emma-toggle'),
       stopBtn = document.getElementById('emma-stop'), statusEl = document.getElementById('emma-status'), heroBtn = document.getElementById('emma-hero');
-  if (!synth) { if (heroBtn) heroBtn.style.display = 'none'; return; }
-  function pickEmma() { var v = synth.getVoices();
-    return v.find(function (x) { return /emma/i.test(x.name); })
-      || v.find(function (x) { return /(aria|jenny|michelle|natural|female|zira)/i.test(x.name) && /^en/i.test(x.lang); })
-      || v.find(function (x) { return /^en/i.test(x.lang); }) || v[0]; }
-  var chunks = [], idx = 0, playing = false;
-  function build() { var t = (document.getElementById('emma-text') || {}).innerText || ''; return t.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]?/g) || []; }
-  function next() { if (idx >= chunks.length) { fin(); return; } var u = new SpeechSynthesisUtterance(chunks[idx]); var e = pickEmma(); if (e) u.voice = e; u.rate = .98; u.onend = function () { idx++; if (playing) next(); }; synth.speak(u); }
-  function start() { if (!chunks.length) chunks = build(); ebar.hidden = false; playing = true; ebar.classList.add('on'); toggle.innerHTML = '<i class="fas fa-pause"></i>'; statusEl.textContent = 'Emma is reading…'; if (synth.paused && idx > 0) synth.resume(); else { synth.cancel(); next(); } }
-  function pause() { playing = false; synth.pause(); ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Paused'; }
-  function fin() { playing = false; idx = 0; ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; }
-  function stop() { playing = false; synth.cancel(); idx = 0; ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; }
-  toggle.addEventListener('click', function () { playing ? pause() : start(); });
+  var audio = new Audio(); audio.preload = 'none'; var loaded = false;
+  function ensureSrc() { if (!loaded) { audio.src = '/learn/factory/lesson/{{ lesson.id }}/audio'; loaded = true; } }
+  function start() { ebar.hidden = false; ensureSrc(); ebar.classList.add('on'); toggle.innerHTML = '<i class="fas fa-pause"></i>';
+    if (audio.readyState < 2) statusEl.textContent = 'Emma is warming up…';
+    audio.play().catch(function () { statusEl.textContent = 'Tap play to listen'; ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; }); }
+  function pause() { audio.pause(); ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Paused'; }
+  function stop() { audio.pause(); audio.currentTime = 0; ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; }
+  audio.addEventListener('playing', function () { statusEl.textContent = 'Emma is reading…'; ebar.classList.add('on'); toggle.innerHTML = '<i class="fas fa-pause"></i>'; });
+  audio.addEventListener('ended', function () { ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; statusEl.textContent = 'Narrated by Emma'; });
+  audio.addEventListener('error', function () { statusEl.textContent = 'Voice unavailable right now'; ebar.classList.remove('on'); toggle.innerHTML = '<i class="fas fa-play"></i>'; });
+  toggle.addEventListener('click', function () { audio.paused ? start() : pause(); });
   stopBtn.addEventListener('click', stop);
   if (heroBtn) heroBtn.addEventListener('click', function () { ebar.hidden = false; start(); window.scrollTo({ top: document.getElementById('wow-content').offsetTop - 60, behavior: 'smooth' }); });
-  if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = pickEmma;
-  addEventListener('beforeunload', function () { synth.cancel(); });
+  addEventListener('beforeunload', function () { audio.pause(); });
 })();
 </script>
 

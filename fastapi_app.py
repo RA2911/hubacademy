@@ -2652,6 +2652,53 @@ def learner_factory_lesson(lesson_id: int, request: Request, db: Session = Depen
                      'images': factory_sample_images(lesson.course)})
 
 
+def factory_lesson_narration_text(lesson):
+    """Plain, speakable text from the lesson's HTML for Emma to read."""
+    text = re.sub(r'(?s)<[^>]+>', ' ', lesson.content_html or '')
+    for entity, char in [('&amp;', '&'), ('&lt;', '<'), ('&gt;', '>'), ('&#39;', "'"),
+                         ('&quot;', '"'), ('&nbsp;', ' ')]:
+        text = text.replace(entity, char)
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+# Emma = a natural neural voice (OpenAI TTS). "nova" is a warm, non-robotic female voice.
+EMMA_TTS_VOICE = 'nova'
+
+
+@app.get('/learn/factory/lesson/{lesson_id}/audio')
+def learner_factory_lesson_audio(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    """Emma narration for a factory lesson — generated once via OpenAI TTS and cached in R2."""
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson or not lesson.course or not lesson.course.is_ai_generated:
+        raise HTTPException(status_code=404)
+    if lesson.audio_key:
+        try:
+            return RedirectResponse(presigned_download_url(lesson.audio_key, f'emma-lesson-{lesson.id}.mp3'), status_code=303)
+        except Exception:
+            pass
+    text = factory_lesson_narration_text(lesson)
+    if not text:
+        raise HTTPException(status_code=404)
+    try:
+        speech = openai_client(db).audio.speech.create(model='tts-1', voice=EMMA_TTS_VOICE, input=text[:3900])
+        audio_bytes = getattr(speech, 'content', None) or speech.read()
+    except Exception as exc:
+        logger.exception('Emma TTS failed: %s', exc)
+        return JSONResponse({'error': 'Voice narration is unavailable right now.'}, status_code=502)
+    if r2_enabled():
+        import io
+        key = object_key(f'emma-{lesson.id}.mp3', material_type='factory-audio')
+        try:
+            upload_fileobj(key, io.BytesIO(audio_bytes), 'audio/mpeg')
+            lesson.audio_key = key
+            db.commit()
+            return RedirectResponse(presigned_download_url(key, f'emma-lesson-{lesson.id}.mp3'), status_code=303)
+        except Exception as exc:
+            logger.info('Emma audio R2 store failed, streaming instead: %s', exc)
+    from fastapi.responses import Response
+    return Response(content=audio_bytes, media_type='audio/mpeg')
+
+
 @app.get('/admin/ai-factory', response_class=HTMLResponse)
 def admin_ai_factory(request: Request, db: Session = Depends(get_db)):
     require_admin(request, db)
