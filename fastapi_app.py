@@ -1991,28 +1991,48 @@ def ai_grade_open_task(db, task, answer):
         return frac, 'Graded automatically (AI grader was unavailable).'
 
 
+def _profile_result_ctx(db, topic, scores, strategy, band):
+    published = db.query(Course).filter_by(is_published=True).all()
+    return {'has_result': True, 'topic': topic, 'scores': scores, 'strategy': strategy,
+            'band': band, 'suggested': lp.suggest_courses(published, topic, band)}
+
+
 @app.get('/learn/profile', response_class=HTMLResponse)
 def learner_profile(request: Request, db: Session = Depends(get_db)):
+    """Public. Guests can take the assessment; results live in the session until
+    they log in, at which point we save the profile to their account."""
     student = student_from_request(request, db)
-    if not student:
-        return RedirectResponse('/login?next=/learn/profile', status_code=303)
-    profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
-    ctx = {'student': student, 'profile': None}
-    if profile:
-        scores = parse_json_response(profile.scores_json, {})
-        strategy = parse_json_response(profile.strategy_json, {})
-        published = db.query(Course).filter_by(is_published=True).all()
-        suggested = lp.suggest_courses(published, profile.topic, profile.level_band)
-        ctx.update({'profile': profile, 'scores': scores, 'strategy': strategy,
-                    'band': profile.level_band, 'suggested': suggested})
-    return template(request, 'learn/profile.html', db, ctx)
+    guest_result = request.session.get('learning_profile')
+    if student:
+        profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
+        # a guest who just finished the assessment and then logged in — keep their result
+        if not profile and guest_result:
+            profile = LearnerProfile(
+                student_id=student.id, topic=guest_result.get('topic'),
+                scores_json=json.dumps(guest_result.get('scores', {}), ensure_ascii=False),
+                strategy_json=json.dumps(guest_result.get('strategy', {}), ensure_ascii=False),
+                strategy_key=(guest_result.get('strategy') or {}).get('key'),
+                level_band=guest_result.get('band'))
+            db.add(profile)
+            db.commit()
+        request.session.pop('learning_profile', None)
+        if profile:
+            ctx = _profile_result_ctx(db, profile.topic, parse_json_response(profile.scores_json, {}),
+                                      parse_json_response(profile.strategy_json, {}), profile.level_band)
+            return template(request, 'learn/profile.html', db, {'student': student, 'is_guest': False, **ctx})
+        return template(request, 'learn/profile.html', db, {'student': student, 'is_guest': False, 'has_result': False})
+    # anonymous visitor
+    if guest_result:
+        ctx = _profile_result_ctx(db, guest_result.get('topic'), guest_result.get('scores', {}),
+                                  guest_result.get('strategy', {}), guest_result.get('band'))
+        return template(request, 'learn/profile.html', db, {'student': None, 'is_guest': True, **ctx})
+    return template(request, 'learn/profile.html', db, {'student': None, 'is_guest': True, 'has_result': False})
 
 
 @app.get('/learn/profile/assessment', response_class=HTMLResponse)
 def learner_profile_assessment(request: Request, db: Session = Depends(get_db)):
+    # Public — no login required to take the self-evaluation.
     student = student_from_request(request, db)
-    if not student:
-        return RedirectResponse('/login?next=/learn/profile/assessment', status_code=303)
     return template(request, 'learn/profile_assessment.html', db,
                     {'student': student, 'tasks': profile_public_tasks()})
 
@@ -2020,8 +2040,6 @@ def learner_profile_assessment(request: Request, db: Session = Depends(get_db)):
 @app.post('/learn/profile/submit')
 async def learner_profile_submit(request: Request, db: Session = Depends(get_db)):
     student = student_from_request(request, db)
-    if not student:
-        return JSONResponse({'error': 'Not allowed'}, status_code=403)
     data = await request.json()
     topic = (data.get('topic') or '').strip()[:200]
     by_id = {t['id']: t for t in lp.CAPACITY_TASKS}
@@ -2055,17 +2073,25 @@ async def learner_profile_submit(request: Request, db: Session = Depends(get_db)
     key, strategy, rationale = lp.recommend_strategy(scores)
     strategy_payload = {**strategy, 'key': key, 'rationale': rationale}
 
-    profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
-    if not profile:
-        profile = LearnerProfile(student_id=student.id)
-        db.add(profile)
-    profile.topic = topic
-    profile.scores_json = json.dumps(scores, ensure_ascii=False)
-    profile.responses_json = json.dumps(responses, ensure_ascii=False)
-    profile.strategy_key = key
-    profile.strategy_json = json.dumps(strategy_payload, ensure_ascii=False)
-    profile.level_band = band
-    db.commit()
+    if student:
+        profile = db.query(LearnerProfile).filter_by(student_id=student.id).first()
+        if not profile:
+            profile = LearnerProfile(student_id=student.id)
+            db.add(profile)
+        profile.topic = topic
+        profile.scores_json = json.dumps(scores, ensure_ascii=False)
+        profile.responses_json = json.dumps(responses, ensure_ascii=False)
+        profile.strategy_key = key
+        profile.strategy_json = json.dumps(strategy_payload, ensure_ascii=False)
+        profile.level_band = band
+        db.commit()
+        request.session.pop('learning_profile', None)
+    else:
+        # guest — hold the result in the session so it survives to the results page
+        # and can be saved once they create an account (responses omitted to stay small)
+        request.session['learning_profile'] = {
+            'topic': topic, 'scores': scores, 'strategy': strategy_payload, 'band': band,
+        }
     return {'ok': True, 'redirect': '/learn/profile'}
 
 

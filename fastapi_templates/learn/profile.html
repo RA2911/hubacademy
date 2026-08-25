@@ -3,7 +3,7 @@
 {% block content %}
 <section class="lp-wrap">
 
-{% if not profile %}
+{% if not has_result %}
 <!-- ===== Intro / not taken yet ===== -->
 <header class="lp-hero">
     <span class="eyebrow">My Learning Profile</span>
@@ -25,7 +25,7 @@
 <div class="lp-actions-bar no-print">
     <div>
         <span class="eyebrow">My Learning Profile</span>
-        <h1>How you learn best{% if profile.topic %} · {{ profile.topic }}{% endif %}</h1>
+        <h1>How you learn best{% if topic %} · {{ topic }}{% endif %}</h1>
     </div>
     <div class="lp-actions-btns">
         <button type="button" class="market-btn" onclick="window.print()"><i class="fas fa-download"></i> Download PDF</button>
@@ -33,9 +33,22 @@
     </div>
 </div>
 
+{% if is_guest %}
+<div class="lp-invite no-print">
+    <div>
+        <strong><i class="fas fa-unlock"></i> Save your results & unlock your plan</strong>
+        <span>Create a free account to keep your Learning Profile, track progress, and enroll in the courses matched to you.</span>
+    </div>
+    <div class="lp-invite-btns">
+        <a class="market-btn primary" href="/register?next=/learn/profile">Create free account</a>
+        <a class="market-btn" href="/login?next=/learn/profile">Log in</a>
+    </div>
+</div>
+{% endif %}
+
 <div id="lp-report" class="lp-report">
     <div class="lp-report-brand print-only">
-        <strong>Hub Academy</strong><span>Learning Profile Report — {{ student.full_name }}</span>
+        <strong>Hub Academy</strong><span>Learning Profile Report — {{ student.full_name if student else 'Guest learner' }}</span>
     </div>
 
     <div class="lp-top">
@@ -163,6 +176,11 @@
 .lp-actions-bar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;}
 .lp-actions-bar h1{font-size:clamp(1.6rem,3vw,2.2rem);color:#0f2350;margin:6px 0 0;}
 .lp-actions-btns{display:flex;gap:10px;}
+.lp-invite{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;background:linear-gradient(135deg,#0f2350,#1d4ed8);color:#fff;border-radius:16px;padding:20px 24px;margin-bottom:20px;box-shadow:0 14px 34px rgba(15,42,82,.20);}
+.lp-invite strong{display:block;font-size:1.1rem;margin-bottom:4px;}
+.lp-invite span{color:#d3e0fb;font-size:.92rem;}
+.lp-invite-btns{display:flex;gap:10px;flex-wrap:wrap;}
+.lp-invite-btns .market-btn:not(.primary){background:rgba(255,255,255,.16);color:#fff;border:none;}
 .lp-report{display:flex;flex-direction:column;gap:20px;}
 .lp-report-brand{display:none;}
 
