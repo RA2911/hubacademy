@@ -20,6 +20,9 @@
     <p class="aif-count">{{ row.ready }}/{{ row.total }} lessons ready{% if row.needs %} · {{ row.needs }} need review{% endif %}</p>
     <div class="aif-actions">
         <a class="market-btn" href="/learn/factory/course/{{ row.course.id }}" target="_blank">Preview</a>
+        <form method="POST" action="/admin/ai-factory/course/{{ row.course.id }}/rebuild" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Rebuilding…';return confirm('Regenerate this course\'s lessons with the current rich format? This rewrites the lesson content.');" style="display:inline">
+            <button class="market-btn" type="submit"><i class="fas fa-arrows-rotate"></i> Regenerate</button>
+        </form>
         <form method="POST" action="/admin/ai-factory/course/{{ row.course.id }}/delete" onsubmit="return confirm('Delete this generated course and all its lessons?');" style="display:inline">
             <button class="market-btn danger" type="submit">Delete</button>
         </form>

@@ -2775,6 +2775,32 @@ def admin_ai_factory_delete(course_id: int, request: Request, db: Session = Depe
     return RedirectResponse('/admin/ai-factory', status_code=303)
 
 
+@app.post('/admin/ai-factory/course/{course_id}/rebuild')
+def admin_ai_factory_rebuild(course_id: int, request: Request, db: Session = Depends(get_db)):
+    """Regenerate the already-built lessons of an existing AI course in place, so
+    older courses pick up the current prompt/rules (rich charts, tables, etc.).
+    Locked freemium lessons are left untouched; Emma audio is cleared to re-narrate."""
+    require_admin(request, db)
+    course = db.get(Course, course_id)
+    if course and course.is_ai_generated:
+        rules = factory_rules(db)
+        lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
+        for lesson in lessons:
+            if lesson.generation_status in ('locked', 'queued'):
+                continue  # not yet unlocked/built — leave as-is
+            lesson.audio_key = None  # force Emma to re-narrate the new text
+            lesson.generation_status = 'building'
+            db.commit()
+            try:
+                factory_build_lesson(db, course, lesson, rules)
+            except Exception as exc:
+                logger.exception('Rebuild failed for lesson %s: %s', lesson.id, exc)
+                lesson.generation_status = 'failed'
+                lesson.review_notes = str(exc)[:300]
+            db.commit()
+    return RedirectResponse('/admin/ai-factory', status_code=303)
+
+
 @app.post('/learn/lesson/{lesson_id}/step/{step_number}/complete')
 def learner_complete_step(lesson_id: int, step_number: int, request: Request, db: Session = Depends(get_db)):
     student = student_from_request(request, db)
