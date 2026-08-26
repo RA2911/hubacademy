@@ -2273,11 +2273,15 @@ FACTORY_LESSON_COUNT = 4
 DEFAULT_FACTORY_RULES = (
     "Each lesson must:\n"
     "- Open with a one-sentence summary of what the learner will be able to do.\n"
-    "- Contain 4 to 6 clear learning points, each explained in plain professional language.\n"
-    "- Include at least one concrete, realistic example or mini case.\n"
-    "- End with 3 key takeaways.\n"
+    "- Teach 5 to 7 substantial points, each explained in 2-4 sentences of plain professional language (not one-liners).\n"
+    "- Include at least one concrete, realistic worked example or mini case.\n"
+    "- Include at least TWO data visualizations drawn as inline SVG (for example a labelled donut/pie showing a "
+    "breakdown and a horizontal bar chart comparing options), each wrapped in a <figure> with a <figcaption> caption.\n"
+    "- Include at least one comparison <table> and one step-by-step framework/process diagram.\n"
+    "- End with a slide of 3 key takeaways.\n"
     "- Match the stated level (Beginner / Intermediate / Advanced).\n"
-    "- Be accurate and self-contained. No medical, legal or financial advice. No made-up statistics or fake citations."
+    "- Be accurate and self-contained. Figures shown in charts must be clearly illustrative examples, never invented "
+    "precise statistics or fake citations. No medical, legal or financial advice."
 )
 
 
@@ -2382,22 +2386,50 @@ def ai_generate_course_blueprint(db, topic, level, brief=''):
     }
 
 
+LESSON_VISUAL_GUIDE = (
+    'BUILD THESE VISUALS with real, topic-specific labels (adapt the examples — keep them valid):\n'
+    '1) A donut/pie as inline SVG (segments must sum to 100). Copy and adapt this exact structure:\n'
+    '<figure><svg viewBox="0 0 42 42" width="190" height="190" role="img" aria-label="breakdown">'
+    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#eef2fb" stroke-width="6"></circle>'
+    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#2563eb" stroke-width="6" stroke-dasharray="55 45" stroke-dashoffset="25"></circle>'
+    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#7c3aed" stroke-width="6" stroke-dasharray="30 70" stroke-dashoffset="-30"></circle>'
+    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#06b6d4" stroke-width="6" stroke-dasharray="15 85" stroke-dashoffset="-60"></circle>'
+    '</svg><figcaption>Illustrative breakdown — Blue 55%, Purple 30%, Teal 15%</figcaption></figure>\n'
+    '   (dashoffset for each segment = 25 minus the running total of the previous segments; label each colour in the caption.)\n'
+    '2) A horizontal bar chart as inline SVG. Copy and adapt (one <text>+<rect> pair per bar; scale widths to your values):\n'
+    '<figure><svg viewBox="0 0 340 160" width="100%" role="img" aria-label="comparison"><g font-size="11" fill="#33425c">'
+    '<text x="0" y="24">Label A</text><rect x="96" y="13" width="210" height="15" rx="7" fill="#2563eb"></rect>'
+    '<text x="0" y="58">Label B</text><rect x="96" y="47" width="150" height="15" rx="7" fill="#7c3aed"></rect>'
+    '<text x="0" y="92">Label C</text><rect x="96" y="81" width="90" height="15" rx="7" fill="#06b6d4"></rect>'
+    '</g></svg><figcaption>Illustrative comparison</figcaption></figure>\n'
+    '3) A comparison table: <table><thead><tr><th>…</th><th>…</th></tr></thead><tbody><tr><td>…</td><td>…</td></tr></tbody></table>\n'
+    '4) A step-by-step framework as: <div class="flow"><div class="flow-step"><b>1. Step</b><span>what happens</span></div> …3-5 steps… </div>\n'
+    '5) Stat cards for memorable numbers/principles: <div class="stat-grid"><div class="stat"><b>3x</b><span>label</span></div> …2-4 cards… </div>\n'
+    '6) A practical tip as: <div class="callout">One sharp, actionable tip.</div>\n'
+)
+
+
 def ai_generate_lesson_html(db, topic, level, lesson_title, objectives, rules, brief='', fix_notes=''):
     fix = f'\nThe previous attempt was rejected for: {fix_notes}. Fix these issues.' if fix_notes else ''
     prompt = (
-        f'Write the full content for a {level}-level lesson titled "{lesson_title}" in a course on "{topic}".\n'
+        f'Write the full, richly-illustrated content for a {level}-level lesson titled "{lesson_title}" in a course on "{topic}".\n'
         f'Tailor the teaching to this specific learner: {brief}\n'
         f'Learning objectives: {json.dumps(objectives, ensure_ascii=False)}\n\n'
         f'Follow these rules exactly:\n{rules}\n{fix}\n\n'
-        'Make it genuinely engaging: open with a one-line hook, use a vivid real-world analogy, keep paragraphs short '
-        'and punchy, and include a concrete example the learner can picture. Aim for 5 to 7 slides.\n'
-        'Output clean semantic HTML only (no markdown, no <html>/<head>/<body> tags). Structure it as slides using '
-        '<section class="slide"> blocks, each with a short <h2> title and a lead <p>. Use <ul>/<li> for key points, '
-        '<blockquote> for the example or analogy, and a final <section class="slide"><h2>Key takeaways</h2> block. '
-        'Do not include <script> or <style>.'
+        'Make it genuinely engaging and substantial: open with a one-line hook, use a vivid real-world analogy, keep '
+        'paragraphs short and punchy but teach each point in depth, and include a concrete worked example the learner '
+        'can picture. Produce 6 to 8 slides.\n\n'
+        'Structure every slide as <section class="slide"> with a short <h2> title, a lead <p>, then the teaching '
+        '(short paragraphs and <ul>/<li>). Use <blockquote> for the worked example or analogy. Distribute the required '
+        'visuals across the slides so most slides carry a chart, table, diagram, stat cards or a callout — not walls of text. '
+        'End with <section class="slide"><h2>Key takeaways</h2><ul>…3 items…</ul></section>.\n\n'
+        f'{LESSON_VISUAL_GUIDE}\n'
+        'Output clean semantic HTML only: no markdown, no code fences, no <html>/<head>/<body>, and NO <script> or '
+        '<style> tags (inline style="" attributes and inline <svg> are allowed and encouraged). Every <svg> must be '
+        'valid and self-contained.'
     )
     response = openai_chat_completion(openai_client(db), [{'role': 'user', 'content': prompt}],
-                                      max_tokens=2200, temperature=0.6)
+                                      max_tokens=4200, temperature=0.6)
     html = strip_code_fence(response.choices[0].message.content)
     return re.sub(r'(?is)<(script|style)\b.*?</\1>', '', html)
 
@@ -2405,7 +2437,7 @@ def ai_generate_lesson_html(db, topic, level, lesson_title, objectives, rules, b
 def ai_review_lesson(db, lesson_title, html, rules):
     prompt = (
         'You are a strict course-quality reviewer. Check the lesson HTML against the rules and reply honestly.\n\n'
-        f'Rules:\n{rules}\n\nLesson title: {lesson_title}\n\nLesson HTML:\n{html[:6000]}\n\n'
+        f'Rules:\n{rules}\n\nLesson title: {lesson_title}\n\nLesson HTML:\n{html[:9000]}\n\n'
         'Return only valid JSON: {"pass": true/false, "issues": ["short issue", "..."]}'
     )
     try:

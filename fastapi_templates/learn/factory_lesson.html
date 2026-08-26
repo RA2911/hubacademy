@@ -37,19 +37,6 @@
     </div>
   </section>
 
-  <!-- Real video previews -->
-  <section class="wow-videos reveal">
-    <h2 class="wow-h2">Video lessons <span class="wow-tag">preview</span></h2>
-    <div class="wow-video-grid">
-      <button type="button" class="wow-video play-real" data-src="/static/videos/hero.mp4" style="--img:url('{{ images[1] if images|length>1 else img0 }}')">
-        <span class="wow-play"><i class="fas fa-play"></i></span><span class="wow-shine"></span><span class="wow-video-cap">Welcome &amp; overview</span></button>
-      <button type="button" class="wow-video play-real" data-src="/static/images/Video_bg.mp4" style="--img:url('{{ images[2] if images|length>2 else img0 }}')">
-        <span class="wow-play"><i class="fas fa-play"></i></span><span class="wow-shine"></span><span class="wow-video-cap">Concept in motion</span></button>
-      <a class="wow-video" href="#wow-unlock" style="--img:url('{{ images[3] if images|length>3 else img0 }}')">
-        <span class="wow-play"><i class="fas fa-play"></i></span><span class="wow-shine"></span><span class="wow-video-cap">Example walkthrough</span>{% if not delivered %}<span class="wow-lock"><i class="fas fa-lock"></i></span>{% endif %}</a>
-    </div>
-  </section>
-
   <!-- Simulation game -->
   <section class="wow-sim reveal">
     <h2 class="wow-h2">Try it <span class="wow-tag">interactive</span></h2>
@@ -242,6 +229,25 @@
 .wow-article h2{font-size:1.4rem;margin:0 0 12px;background:linear-gradient(120deg,var(--b1),var(--b2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;}
 .wow-article ul{padding-left:22px;}.wow-article li{margin-bottom:9px;}
 .wow-article blockquote{border-left:4px solid #f59e0b;background:#fff8ec;margin:16px 0;padding:16px 20px;border-radius:0 12px 12px 0;font-style:italic;color:#8a6417;}
+/* rich visuals inside generated lessons */
+.wow-article figure,.wow-article .figure{margin:22px 0;padding:22px 24px;background:#fff;border:1px solid #e9eefb;border-radius:16px;box-shadow:0 8px 24px rgba(20,40,90,.06);text-align:center;}
+.wow-article figure svg,.wow-article .figure svg,.wow-article svg{max-width:100%;height:auto;}
+.wow-article figcaption,.wow-article .figure-cap{margin-top:12px;font-size:.88rem;color:#6a7c92;font-weight:600;}
+.wow-article table{width:100%;border-collapse:collapse;margin:22px 0;font-size:.97rem;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(20,40,90,.07);}
+.wow-article thead th{background:linear-gradient(120deg,var(--b1),var(--b2));color:#fff;text-align:left;padding:13px 16px;font-weight:700;}
+.wow-article tbody td{padding:12px 16px;border-top:1px solid #eef2fb;color:#33425c;}
+.wow-article tbody tr:nth-child(even){background:#f7f9ff;}
+.wow-article .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:22px 0;}
+.wow-article .stat{background:linear-gradient(180deg,#fff,#f4f7ff);border:1px solid #e6ecfb;border-radius:16px;padding:20px 18px;text-align:center;}
+.wow-article .stat b{display:block;font-size:2rem;font-weight:900;line-height:1;background:linear-gradient(120deg,var(--b1),var(--b2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.wow-article .stat span{display:block;margin-top:7px;font-size:.86rem;color:#6a7c92;font-weight:600;}
+.wow-article .flow{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin:22px 0;}
+.wow-article .flow-step{flex:1;min-width:150px;position:relative;background:#fff;border:1px solid #e6ecfb;border-top:4px solid var(--b1);border-radius:14px;padding:16px 18px;box-shadow:0 6px 18px rgba(20,40,90,.06);}
+.wow-article .flow-step:nth-child(3n+2){border-top-color:var(--b2);}.wow-article .flow-step:nth-child(3n){border-top-color:var(--b3);}
+.wow-article .flow-step b{display:block;color:var(--ink);margin-bottom:5px;font-size:1rem;}
+.wow-article .flow-step span{font-size:.9rem;color:#5b6b84;}
+.wow-article .callout{display:flex;gap:12px;align-items:flex-start;background:#eef6ff;border:1px solid #cfe2fb;border-left:5px solid var(--b1);border-radius:12px;padding:15px 18px;margin:18px 0;color:#274a75;}
+.wow-article .callout::before{content:"\f0eb";font-family:"Font Awesome 6 Free";font-weight:900;color:var(--b1);font-size:1.1rem;margin-top:2px;}
 
 .wow-tag{font-size:.72rem;color:#fff;background:linear-gradient(120deg,var(--b2),var(--b1));padding:4px 10px;border-radius:999px;vertical-align:middle;margin-left:8px;font-weight:800;}
 .wow-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;}
