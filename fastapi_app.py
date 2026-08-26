@@ -2563,24 +2563,17 @@ def factory_sample_images(course):
 # /static/videos/factory/<slug>/. Keyed by normalized topic so it is portable
 # across environments (course ids differ per DB). Empty -> no video section.
 FACTORY_INTRO_VIDEOS = {
-    'negotiations for leaders': [
-        {'src': '/static/videos/factory/negotiations-for-leaders/v1.mp4',
-         'poster': '/static/videos/factory/negotiations-for-leaders/v1.jpg',
-         'cap': 'Negotiation Dynamics', 'dur': '0:18'},
-        {'src': '/static/videos/factory/negotiations-for-leaders/v2.mp4',
-         'poster': '/static/videos/factory/negotiations-for-leaders/v2.jpg',
-         'cap': 'Power & Leverage', 'dur': '0:17'},
-        {'src': '/static/videos/factory/negotiations-for-leaders/v3.mp4',
-         'poster': '/static/videos/factory/negotiations-for-leaders/v3.jpg',
-         'cap': 'Interests vs Positions', 'dur': '0:14'},
-    ],
+    'negotiations for leaders': {
+        'src': '/static/videos/factory/negotiations-for-leaders/intro.mp4',
+        'poster': '/static/videos/factory/negotiations-for-leaders/intro.jpg',
+        'dur': '0:28'},
 }
 
 
-def factory_intro_videos(course):
-    """Up to 3 short topic-intro videos for this course, if we've produced them."""
+def factory_intro_video(course):
+    """The single cinematic intro video for this course, if we've produced one."""
     key = normalize_topic(course.source_topic or course.expertise_area or course.title or '')
-    return FACTORY_INTRO_VIDEOS.get(key, [])
+    return FACTORY_INTRO_VIDEOS.get(key)
 
 
 import secrets as _secrets
@@ -2706,7 +2699,7 @@ def learner_factory_lesson(lesson_id: int, request: Request, db: Session = Depen
                     {'student': student_from_request(request, db), 'course': lesson.course,
                      'lesson': lesson, 'lessons': lessons, 'objectives': objectives,
                      'images': factory_sample_images(lesson.course),
-                     'intro_videos': factory_intro_videos(lesson.course)})
+                     'intro_video': factory_intro_video(lesson.course)})
 
 
 def factory_lesson_narration_text(lesson):

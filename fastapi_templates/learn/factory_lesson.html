@@ -37,22 +37,17 @@
     </div>
   </section>
 
-  {% if intro_videos %}
-  <!-- Short topic-intro videos (real, ~25s each) -->
+  {% if intro_video %}
+  <!-- Cinematic course intro (single, ~28s) -->
   <section class="wow-videos reveal">
-    <h2 class="wow-h2">Topic intros <span class="wow-tag">25-sec tasters</span></h2>
-    <p class="wow-sub">Three quick previews of what this course covers — press play.</p>
-    <div class="wow-video-grid">
-      {% for v in intro_videos[:3] %}
-      <button type="button" class="wow-video play-real" data-src="{{ v.src }}" style="--img:url('{{ v.poster or img0 }}');--d:{{ loop.index0 * 0.09 }}s">
-        <span class="wow-kb"></span>
-        <span class="wow-play"><i class="fas fa-play"></i></span>
-        <span class="wow-shine"></span>
-        {% if v.dur %}<span class="wow-dur">{{ v.dur }}</span>{% endif %}
-        <span class="wow-video-cap">{{ v.cap }}</span>
-      </button>
-      {% endfor %}
-    </div>
+    <h2 class="wow-h2">Course intro <span class="wow-tag">watch first</span></h2>
+    <p class="wow-sub">A quick cinematic look at what this course covers — press play.</p>
+    <button type="button" class="wow-hero-video play-real" data-src="{{ intro_video.src }}" style="--img:url('{{ intro_video.poster or img0 }}')">
+      <span class="wow-kb"></span>
+      <span class="wow-play big"><i class="fas fa-play"></i></span>
+      <span class="wow-shine"></span>
+      <span class="wow-dur"><i class="fas fa-film"></i> {{ intro_video.dur or '0:28' }}</span>
+    </button>
   </section>
   {% endif %}
 
@@ -270,6 +265,11 @@
 
 .wow-tag{font-size:.72rem;color:#fff;background:linear-gradient(120deg,var(--b2),var(--b1));padding:4px 10px;border-radius:999px;vertical-align:middle;margin-left:8px;font-weight:800;}
 .wow-videos .wow-sub{margin:-2px 0 16px;}
+.wow-hero-video{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.5);cursor:pointer;padding:0;box-shadow:0 22px 50px rgba(20,40,90,.24);transition:transform .25s,box-shadow .25s;}
+.wow-hero-video:hover{transform:translateY(-4px);box-shadow:0 30px 64px rgba(37,99,235,.32);}
+.wow-hero-video::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,30,.06),rgba(8,14,30,.34));z-index:-1;}
+.wow-hero-video .wow-play.big{width:88px;height:88px;font-size:1.7rem;}
+.wow-hero-video:hover .wow-play.big{transform:translate(-50%,-50%) scale(1.1);}
 .wow-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;}
 .wow-video{position:relative;height:200px;border-radius:20px;overflow:hidden;text-decoration:none;display:block;border:1px solid rgba(255,255,255,.6);cursor:pointer;padding:0;box-shadow:0 16px 38px rgba(20,40,90,.20);transition:transform .25s,box-shadow .25s;opacity:0;transform:translateY(22px);animation:vin .6s ease forwards;animation-delay:var(--d,0s);}
 @keyframes vin{to{opacity:1;transform:none;}}
