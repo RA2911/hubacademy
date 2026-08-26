@@ -37,6 +37,25 @@
     </div>
   </section>
 
+  {% if intro_videos %}
+  <!-- Short topic-intro videos (real, ~25s each) -->
+  <section class="wow-videos reveal">
+    <h2 class="wow-h2">Topic intros <span class="wow-tag">25-sec tasters</span></h2>
+    <p class="wow-sub">Three quick previews of what this course covers — press play.</p>
+    <div class="wow-video-grid">
+      {% for v in intro_videos[:3] %}
+      <button type="button" class="wow-video play-real" data-src="{{ v.src }}" style="--img:url('{{ v.poster or img0 }}');--d:{{ loop.index0 * 0.09 }}s">
+        <span class="wow-kb"></span>
+        <span class="wow-play"><i class="fas fa-play"></i></span>
+        <span class="wow-shine"></span>
+        {% if v.dur %}<span class="wow-dur">{{ v.dur }}</span>{% endif %}
+        <span class="wow-video-cap">{{ v.cap }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <!-- Simulation game -->
   <section class="wow-sim reveal">
     <h2 class="wow-h2">Try it <span class="wow-tag">interactive</span></h2>
@@ -250,15 +269,23 @@
 .wow-article .callout::before{content:"\f0eb";font-family:"Font Awesome 6 Free";font-weight:900;color:var(--b1);font-size:1.1rem;margin-top:2px;}
 
 .wow-tag{font-size:.72rem;color:#fff;background:linear-gradient(120deg,var(--b2),var(--b1));padding:4px 10px;border-radius:999px;vertical-align:middle;margin-left:8px;font-weight:800;}
-.wow-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;}
-.wow-video{position:relative;height:160px;border-radius:18px;overflow:hidden;text-decoration:none;display:block;border:none;cursor:pointer;padding:0;box-shadow:0 14px 34px rgba(20,40,90,.16);transition:transform .2s;}
-.wow-video::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,30,61,.15),rgba(15,30,61,.72)),var(--img) center/cover no-repeat;transition:transform .4s;z-index:-1;}
-.wow-video:hover{transform:translateY(-5px);}.wow-video:hover::before{transform:scale(1.1);}
-.wow-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.94);color:var(--b2);display:grid;place-items:center;font-size:1.15rem;box-shadow:0 8px 22px rgba(0,0,0,.3);animation:pulse 2.4s ease-in-out infinite;}
-@keyframes pulse{0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.3),0 0 0 0 rgba(255,255,255,.5);}50%{box-shadow:0 8px 22px rgba(0,0,0,.3),0 0 0 14px rgba(255,255,255,0);}}
-.wow-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-20deg);transition:left .6s;}
+.wow-videos .wow-sub{margin:-2px 0 16px;}
+.wow-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;}
+.wow-video{position:relative;height:200px;border-radius:20px;overflow:hidden;text-decoration:none;display:block;border:1px solid rgba(255,255,255,.6);cursor:pointer;padding:0;box-shadow:0 16px 38px rgba(20,40,90,.20);transition:transform .25s,box-shadow .25s;opacity:0;transform:translateY(22px);animation:vin .6s ease forwards;animation-delay:var(--d,0s);}
+@keyframes vin{to{opacity:1;transform:none;}}
+.wow-kb{position:absolute;inset:0;background:var(--img) center/cover no-repeat;transform:scale(1.06);animation:kenb 14s ease-in-out infinite alternate;z-index:-2;}
+@keyframes kenb{from{transform:scale(1.06) translate(0,0);}to{transform:scale(1.18) translate(-10px,-8px);}}
+.wow-video::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,30,61,.12),rgba(15,30,61,.78));z-index:-1;}
+.wow-video::after{content:"";position:absolute;inset:0;border-radius:20px;box-shadow:inset 0 0 0 2px rgba(255,255,255,0);transition:box-shadow .25s;pointer-events:none;}
+.wow-video:hover{transform:translateY(-6px) scale(1.015);box-shadow:0 26px 54px rgba(37,99,235,.32);}
+.wow-video:hover::after{box-shadow:inset 0 0 0 2px rgba(255,255,255,.85);}
+.wow-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.95);color:var(--b2);display:grid;place-items:center;font-size:1.2rem;box-shadow:0 8px 22px rgba(0,0,0,.3);animation:pulse 2.4s ease-in-out infinite;transition:transform .2s;}
+.wow-video:hover .wow-play{transform:translate(-50%,-50%) scale(1.12);}
+@keyframes pulse{0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.3),0 0 0 0 rgba(255,255,255,.5);}50%{box-shadow:0 8px 22px rgba(0,0,0,.3),0 0 0 15px rgba(255,255,255,0);}}
+.wow-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-20deg);transition:left .6s;}
 .wow-video:hover .wow-shine{left:120%;}
-.wow-video-cap{position:absolute;bottom:12px;left:15px;color:#fff;font-weight:800;text-shadow:0 1px 6px rgba(0,0,0,.5);}
+.wow-dur{position:absolute;top:12px;right:12px;font-size:.72rem;font-weight:800;color:#fff;background:rgba(10,16,34,.66);padding:4px 9px;border-radius:999px;backdrop-filter:blur(4px);letter-spacing:.02em;}
+.wow-video-cap{position:absolute;bottom:14px;left:16px;right:16px;color:#fff;font-weight:800;font-size:1.02rem;text-shadow:0 1px 8px rgba(0,0,0,.6);text-align:left;}
 .wow-lock{position:absolute;top:11px;right:11px;color:#fff;background:rgba(124,58,237,.92);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.7rem;}
 
 /* simulation */
