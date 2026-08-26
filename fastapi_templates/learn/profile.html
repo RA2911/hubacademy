@@ -131,12 +131,12 @@
     </section>
     {% endif %}
 
-    <!-- Build a custom course — only when your catalog doesn't cover this topic/level -->
-    {% if not plan.covered %}
+    <!-- Build a custom course — always offered as "window shopping" so candidates see what we can make for them -->
+    {% if topic %}
     <section class="lp-custom no-print">
         <div>
-            <strong><i class="fas fa-wand-magic-sparkles"></i> {% if plan.matched %}No course at your level yet — build one for you{% else %}We don't teach "{{ topic or 'this topic' }}" yet — build it for you{% endif %}</strong>
-            <span>We'll generate a personalized {{ topic or 'course' }} course at your {{ topic_band }} level, taught the way you learn best.</span>
+            <strong><i class="fas fa-wand-magic-sparkles"></i> {% if not plan.covered %}{% if plan.matched %}No course at your level yet — build one for you{% else %}We don't teach "{{ topic }}" yet — build it for you{% endif %}{% else %}Want a course built around you? We'll create one{% endif %}</strong>
+            <span>{% if plan.covered %}Even with the ready-made path above, we can generate a personalized {{ topic }} course at your {{ topic_band }} level, taught the way you learn best.{% else %}We'll generate a personalized {{ topic }} course at your {{ topic_band }} level, taught the way you learn best.{% endif %}</span>
         </div>
         <button type="button" class="market-btn primary" id="lp-build-btn" data-topic="{{ topic }}" data-level="{{ topic_band }}">Build my custom course</button>
     </section>
