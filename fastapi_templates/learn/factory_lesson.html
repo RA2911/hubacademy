@@ -237,10 +237,24 @@
 .wow-goal{display:flex;gap:11px;align-items:flex-start;border-radius:14px;padding:16px 18px;}
 .wow-goal i{color:#12b76a;margin-top:2px;font-size:1.05rem;}
 .wow-article{border-radius:22px;padding:40px 44px;line-height:1.8;font-size:1.06rem;}
-.wow-article .slide{border-radius:16px;padding:24px 28px;margin:0 0 20px;background:linear-gradient(180deg,#fff,#f5f8ff);border:1px solid #e9eefb;border-left:5px solid var(--b1);transition:transform .2s,box-shadow .2s;}
-.wow-article .slide:hover{transform:translateX(4px);box-shadow:0 12px 30px rgba(20,40,90,.09);}
-.wow-article .slide:nth-child(3n+2){border-left-color:var(--b2);}.wow-article .slide:nth-child(3n){border-left-color:var(--b3);}
-.wow-article h2{font-size:1.4rem;margin:0 0 12px;background:linear-gradient(120deg,var(--b1),var(--b2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;}
+.wow-article .slide{position:relative;border-radius:18px;padding:30px 34px;margin:0 0 24px;border:1px solid rgba(20,40,90,.07);border-left:6px solid var(--b1);box-shadow:0 10px 26px rgba(20,40,90,.06);transition:transform .2s,box-shadow .2s;overflow:hidden;}
+.wow-article .slide:hover{transform:translateY(-3px);box-shadow:0 18px 38px rgba(20,40,90,.12);}
+/* each section gets a distinct background + accent */
+.wow-article .slide:nth-child(6n+1){background:linear-gradient(160deg,#f3f8ff,#e7f0ff);border-left-color:#2563eb;}
+.wow-article .slide:nth-child(6n+2){background:linear-gradient(160deg,#f9f5ff,#eee6ff);border-left-color:#7c3aed;}
+.wow-article .slide:nth-child(6n+3){background:linear-gradient(160deg,#ecfbf9,#dbf4f0);border-left-color:#0ea5a5;}
+.wow-article .slide:nth-child(6n+4){background:linear-gradient(160deg,#fff9ee,#fdeed3);border-left-color:#d98a1f;}
+.wow-article .slide:nth-child(6n+5){background:linear-gradient(160deg,#fff3f6,#ffe4ec);border-left-color:#e5486b;}
+.wow-article .slide:nth-child(6n+6){background:linear-gradient(160deg,#eff7f2,#e2f1e8);border-left-color:#2f9e63;}
+/* soft number/going motif in the corner */
+.wow-article .slide::after{content:"";position:absolute;top:-40px;right:-40px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.55),transparent 70%);pointer-events:none;}
+.wow-article h2{font-size:1.45rem;margin:0 0 14px;font-weight:800;letter-spacing:-.01em;color:#0f2350;}
+.wow-article .slide:nth-child(6n+1) h2{color:#1d4ed8;}
+.wow-article .slide:nth-child(6n+2) h2{color:#6d28d9;}
+.wow-article .slide:nth-child(6n+3) h2{color:#0b8a8a;}
+.wow-article .slide:nth-child(6n+4) h2{color:#b3701a;}
+.wow-article .slide:nth-child(6n+5) h2{color:#c93a5e;}
+.wow-article .slide:nth-child(6n+6) h2{color:#25814f;}
 .wow-article ul{padding-left:22px;}.wow-article li{margin-bottom:9px;}
 .wow-article blockquote{border-left:4px solid #f59e0b;background:#fff8ec;margin:16px 0;padding:16px 20px;border-radius:0 12px 12px 0;font-style:italic;color:#8a6417;}
 /* rich visuals inside generated lessons */
