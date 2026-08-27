@@ -2275,8 +2275,8 @@ DEFAULT_FACTORY_RULES = (
     "- Open with a one-sentence summary of what the learner will be able to do.\n"
     "- Teach 5 to 7 substantial points, each explained in 2-4 sentences of plain professional language (not one-liners).\n"
     "- Include at least one concrete, realistic worked example or mini case.\n"
-    "- Include at least TWO data visualizations drawn as inline SVG (for example a labelled donut/pie showing a "
-    "breakdown and a horizontal bar chart comparing options), each wrapped in a <figure> with a <figcaption> caption.\n"
+    "- Include at least one data chart via a chart placeholder (never hand-drawn SVG): a donut for a breakdown "
+    "or bars to compare options, with real topic-specific labels.\n"
     "- Include at least one comparison <table> and one step-by-step framework/process diagram.\n"
     "- End with a slide of 3 key takeaways.\n"
     "- Match the stated level (Beginner / Intermediate / Advanced).\n"
@@ -2398,26 +2398,88 @@ def ai_generate_course_blueprint(db, topic, level, brief=''):
 
 
 LESSON_VISUAL_GUIDE = (
-    'BUILD THESE VISUALS with real, topic-specific labels (adapt the examples — keep them valid):\n'
-    '1) A donut/pie as inline SVG (segments must sum to 100). Copy and adapt this exact structure:\n'
-    '<figure><svg viewBox="0 0 42 42" width="190" height="190" role="img" aria-label="breakdown">'
-    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#eef2fb" stroke-width="6"></circle>'
-    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#2563eb" stroke-width="6" stroke-dasharray="55 45" stroke-dashoffset="25"></circle>'
-    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#7c3aed" stroke-width="6" stroke-dasharray="30 70" stroke-dashoffset="-30"></circle>'
-    '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#06b6d4" stroke-width="6" stroke-dasharray="15 85" stroke-dashoffset="-60"></circle>'
-    '</svg><figcaption>Illustrative breakdown — Blue 55%, Purple 30%, Teal 15%</figcaption></figure>\n'
-    '   (dashoffset for each segment = 25 minus the running total of the previous segments; label each colour in the caption.)\n'
-    '2) A horizontal bar chart as inline SVG. Copy and adapt (one <text>+<rect> pair per bar; scale widths to your values):\n'
-    '<figure><svg viewBox="0 0 340 160" width="100%" role="img" aria-label="comparison"><g font-size="11" fill="#33425c">'
-    '<text x="0" y="24">Label A</text><rect x="96" y="13" width="210" height="15" rx="7" fill="#2563eb"></rect>'
-    '<text x="0" y="58">Label B</text><rect x="96" y="47" width="150" height="15" rx="7" fill="#7c3aed"></rect>'
-    '<text x="0" y="92">Label C</text><rect x="96" y="81" width="90" height="15" rx="7" fill="#06b6d4"></rect>'
-    '</g></svg><figcaption>Illustrative comparison</figcaption></figure>\n'
-    '3) A comparison table: <table><thead><tr><th>…</th><th>…</th></tr></thead><tbody><tr><td>…</td><td>…</td></tr></tbody></table>\n'
-    '4) A step-by-step framework as: <div class="flow"><div class="flow-step"><b>1. Step</b><span>what happens</span></div> …3-5 steps… </div>\n'
-    '5) Stat cards for memorable numbers/principles: <div class="stat-grid"><div class="stat"><b>3x</b><span>label</span></div> …2-4 cards… </div>\n'
-    '6) A practical tip as: <div class="callout">One sharp, actionable tip.</div>\n'
+    'Spread visuals across the slides so most slides carry one — not walls of text. Use REAL, topic-specific labels.\n'
+    'IMPORTANT: never hand-draw SVG or charts. For any breakdown or comparison, emit a chart PLACEHOLDER with data only; '
+    'the platform renders a clean, labelled chart from it:\n'
+    '  • Donut (parts of a whole; values should total ~100): '
+    '<div class="hub-chart" data-type="donut" data-title="Where preparation time goes" '
+    'data-items="Research:35, Goal-setting:25, Strategy:25, Rehearsal:15"></div>\n'
+    '  • Bars (compare options on one measure): '
+    '<div class="hub-chart" data-type="bar" data-title="Relative impact of each tactic" '
+    'data-items="Anchoring:8, Framing:6, Active listening:9, Concessions:4"></div>\n'
+    '  Charts: 3-5 items, labels tied to THIS lesson, sensible numbers. Include at least ONE chart in the lesson.\n'
+    'Other blocks (plain HTML is fine for these):\n'
+    '  • Comparison table: <table><thead><tr><th>…</th><th>…</th></tr></thead><tbody><tr><td>…</td><td>…</td></tr></tbody></table>\n'
+    '  • Step framework: <div class="flow"><div class="flow-step"><b>1. Step</b><span>what happens</span></div> …3-5 steps… </div>\n'
+    '  • Stat cards (memorable, labelled figures): <div class="stat-grid"><div class="stat"><b>3x</b><span>what it measures</span></div> …2-4… </div>\n'
+    '  • Practical tip: <div class="callout">One sharp, actionable tip.</div>\n'
 )
+
+_CHART_PALETTE = ['#2563eb', '#7c3aed', '#0ea5a5', '#f59e0b', '#e5486b', '#22c55e']
+
+
+def _chart_esc(s):
+    return str(s).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+
+def _chart_items(raw):
+    out = []
+    for part in re.split(r'[,\|;]', raw or ''):
+        if ':' in part:
+            label, val = part.rsplit(':', 1)
+            try:
+                v = float(re.sub(r'[^0-9.\-]', '', val))
+            except ValueError:
+                v = 0.0
+            label = label.strip()
+            if label and v > 0:
+                out.append((label, v))
+    return out[:6]
+
+
+def render_hub_charts(html):
+    """Replace <div class="hub-chart" data-type=... data-items=...></div> placeholders
+    with polished, deterministic charts. The model supplies only labelled data (per
+    topic), so the drawing is always well-formed — never a hand-drawn broken SVG."""
+    def donut(title, items):
+        total = sum(v for _, v in items) or 1.0
+        base = '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#eef2fb" stroke-width="5.5"></circle>'
+        segs, legend, off = '', '', 25.0
+        for i, (label, v) in enumerate(items):
+            pct = v / total * 100.0
+            color = _CHART_PALETTE[i % len(_CHART_PALETTE)]
+            segs += (f'<circle cx="21" cy="21" r="15.9155" fill="none" stroke="{color}" stroke-width="5.5" '
+                     f'stroke-dasharray="{pct:.2f} {100 - pct:.2f}" stroke-dashoffset="{off:.2f}"></circle>')
+            off -= pct
+            legend += f'<li><i style="background:{color}"></i>{_chart_esc(label)}<b>{round(pct)}%</b></li>'
+        return (f'<figure class="hub-fig"><div class="hub-donut">'
+                f'<svg viewBox="0 0 42 42" width="180" height="180" role="img" aria-label="{_chart_esc(title)}">{base}{segs}</svg>'
+                f'<ul class="hub-legend">{legend}</ul></div>'
+                f'<figcaption>{_chart_esc(title)}</figcaption></figure>')
+
+    def bars(title, items):
+        mx = max((v for _, v in items), default=1.0) or 1.0
+        rows = ''
+        for i, (label, v) in enumerate(items):
+            w = max(4.0, v / mx * 100.0)
+            color = _CHART_PALETTE[i % len(_CHART_PALETTE)]
+            rows += (f'<div class="hub-bar-row"><span class="hub-bar-label">{_chart_esc(label)}</span>'
+                     f'<span class="hub-bar-track"><span class="hub-bar-fill" style="width:{w:.1f}%;background:{color}"></span></span>'
+                     f'<b>{("%g" % v)}</b></div>')
+        return f'<figure class="hub-fig"><div class="hub-bars">{rows}</div><figcaption>{_chart_esc(title)}</figcaption></figure>'
+
+    def repl(m):
+        attrs = m.group(1)
+        def attr(name):
+            mm = re.search(name + r'\s*=\s*"([^"]*)"', attrs)
+            return mm.group(1) if mm else ''
+        items = _chart_items(attr('data-items'))
+        if not items:
+            return ''
+        title = attr('data-title')
+        return donut(title, items) if attr('data-type') == 'donut' else bars(title, items)
+
+    return re.sub(r'<div\s+class="hub-chart"([^>]*)>\s*</div>', repl, html or '', flags=re.I)
 
 
 def ai_generate_lesson_html(db, topic, level, lesson_title, objectives, rules, brief='', fix_notes=''):
@@ -2435,14 +2497,14 @@ def ai_generate_lesson_html(db, topic, level, lesson_title, objectives, rules, b
         'visuals across the slides so most slides carry a chart, table, diagram, stat cards or a callout — not walls of text. '
         'End with <section class="slide"><h2>Key takeaways</h2><ul>…3 items…</ul></section>.\n\n'
         f'{LESSON_VISUAL_GUIDE}\n'
-        'Output clean semantic HTML only: no markdown, no code fences, no <html>/<head>/<body>, and NO <script> or '
-        '<style> tags (inline style="" attributes and inline <svg> are allowed and encouraged). Every <svg> must be '
-        'valid and self-contained.'
+        'Output clean semantic HTML only: no markdown, no code fences, no <html>/<head>/<body>, and NO <script>, '
+        '<style> or <svg> tags. Charts come only from the chart placeholders above — never draw them yourself.'
     )
     response = openai_chat_completion(openai_client(db), [{'role': 'user', 'content': prompt}],
                                       max_tokens=4200, temperature=0.6)
     html = strip_code_fence(response.choices[0].message.content)
-    return re.sub(r'(?is)<(script|style)\b.*?</\1>', '', html)
+    html = re.sub(r'(?is)<(script|style)\b.*?</\1>', '', html)
+    return render_hub_charts(html)
 
 
 def ai_review_lesson(db, lesson_title, html, rules):
