@@ -2645,6 +2645,10 @@ FACTORY_INTRO_VIDEOS = {
         'src': '/static/videos/factory/negotiations-for-leaders/intro.mp4',
         'poster': '/static/videos/factory/negotiations-for-leaders/intro.jpg',
         'dur': '0:28'},
+    'cybersecurity essentials': {
+        'src': '/static/videos/factory/cybersecurity-essentials/intro.mp4',
+        'poster': '/static/videos/factory/cybersecurity-essentials/intro.jpg',
+        'dur': '0:28'},
 }
 
 
