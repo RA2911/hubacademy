@@ -2450,23 +2450,28 @@ def ai_review_lesson(db, lesson_title, html, rules):
         return True, []
 
 
-def factory_build_lesson(db, course, lesson, rules):
-    """Generate + review one lesson, with up to 3 self-correcting attempts."""
+def factory_build_lesson(db, course, lesson, rules, attempts=3, review=True):
+    """Generate (and optionally review) one lesson. `attempts` self-correcting
+    passes; set review=False / attempts=1 for a fast single-shot build that fits
+    inside a web request (avoids proxy timeouts on the learner-facing preview)."""
     topic = course.source_topic or course.title
     level = course.source_level or 'Beginner'
     brief = course.generation_brief or ''
     objectives = parse_json_response(lesson.description, []) if lesson.description else []
     fix_notes = ''
-    for _attempt in range(3):
+    for _attempt in range(max(1, attempts)):
         html = ai_generate_lesson_html(db, topic, level, lesson.title, objectives, rules, brief, fix_notes)
+        lesson.content_html = html  # keep the latest draft either way
+        if not review:
+            lesson.generation_status = 'ready'
+            lesson.review_notes = 'Generated.'
+            return True
         passed, issues = ai_review_lesson(db, lesson.title, html, rules)
         if passed:
-            lesson.content_html = html
             lesson.generation_status = 'ready'
             lesson.review_notes = 'Approved by AI reviewer.'
             return True
         fix_notes = '; '.join(issues)[:400]
-        lesson.content_html = html  # keep the latest draft
     lesson.generation_status = 'needs_review'
     lesson.review_notes = 'Auto-review flagged: ' + (fix_notes or 'quality issues')
     return False
@@ -2521,12 +2526,14 @@ async def learner_factory_build(request: Request, db: Session = Depends(get_db))
                       generation_status='queued'))
     db.flush()
 
-    # Build lesson 1 immediately as a free preview so the learner can start now
+    # Build lesson 1 immediately as a free preview so the learner can start now.
+    # Single fast pass (no review loop) so the request returns well within proxy
+    # timeouts; deeper review happens on admin Regenerate.
     first = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).first()
     if first:
         first.generation_status = 'building'
         try:
-            factory_build_lesson(db, course, first, factory_rules(db))
+            factory_build_lesson(db, course, first, factory_rules(db), attempts=1, review=False)
         except Exception as exc:
             logger.exception('First lesson build failed: %s', exc)
             first.generation_status = 'failed'
@@ -2660,7 +2667,7 @@ def learner_factory_generate_next(course_id: int, request: Request, db: Session 
         nxt.generation_status = 'building'
         db.commit()
         try:
-            factory_build_lesson(db, course, nxt, factory_rules(db))
+            factory_build_lesson(db, course, nxt, factory_rules(db), attempts=1, review=True)
         except Exception as exc:
             logger.exception('Lesson build failed: %s', exc)
             nxt.generation_status = 'failed'
@@ -2810,7 +2817,7 @@ def admin_ai_factory_rebuild(course_id: int, request: Request, db: Session = Dep
             lesson.generation_status = 'building'
             db.commit()
             try:
-                factory_build_lesson(db, course, lesson, rules)
+                factory_build_lesson(db, course, lesson, rules, attempts=1, review=True)
             except Exception as exc:
                 logger.exception('Rebuild failed for lesson %s: %s', lesson.id, exc)
                 lesson.generation_status = 'failed'
