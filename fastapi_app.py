@@ -2319,6 +2319,17 @@ def normalize_topic(topic):
     return re.sub(r'\s+', ' ', (topic or '').strip().lower())[:200]
 
 
+def unique_course_slug(db, base):
+    """A course slug that is unique BEFORE insert (slug is unique-constrained, so
+    inserting a colliding slug would raise an IntegrityError on flush)."""
+    base = (base or 'course')[:190]
+    slug, n = base, 2
+    while db.query(Course.id).filter(Course.slug == slug).first():
+        slug = f'{base}-{n}'
+        n += 1
+    return slug
+
+
 def learner_profile_snapshot(request, db, student):
     """The learner's saved profile (scores + strategy + topic band) from their
     account or, for guests, from the session — whichever exists."""
@@ -2510,15 +2521,13 @@ async def learner_factory_build(request: Request, db: Session = Depends(get_db))
         return ai_error_response(exc, 'Could not start course generation.')
 
     course = Course(program_id=program.id, title=blueprint['title'][:200], description=blueprint['description'],
-                    slug=slugify(blueprint['title'])[:200] or f'ai-{norm}', expertise_area=topic[:120],
+                    slug=unique_course_slug(db, slugify(blueprint['title']) or f'ai-{norm}'), expertise_area=topic[:120],
                     certificate_level=LEVEL_TO_CERT[level], learning_hours=FACTORY_LESSON_COUNT * 2,
                     num_lessons=len(blueprint['lessons']), is_published=False, is_ai_generated=True,
                     generation_status='building', source_topic=norm, source_level=level,
                     source_profile=strategy_key, generation_brief=brief, created_at=datetime.utcnow())
     db.add(course)
     db.flush()
-    if db.query(Course).filter(Course.slug == course.slug, Course.id != course.id).first():
-        course.slug = f'{course.slug}-{course.id}'
     for index, item in enumerate(blueprint['lessons']):
         db.add(Lesson(course_id=course.id, lesson_number=index + 1, module_number=index + 1,
                       title=(item.get('title') or f'Lesson {index + 1}')[:200],
@@ -2633,7 +2642,7 @@ async def factory_deliver_course(request: Request, db: Session = Depends(get_db)
     program = get_or_create_factory_program(db)
     course = Course(program_id=program.id, title=title[:200],
                     description=(data.get('description') or '').strip()[:2000] or None,
-                    slug=slugify(title)[:200] or f'delivered-{normalize_topic(topic)}',
+                    slug=unique_course_slug(db, slugify(title) or f'delivered-{normalize_topic(topic)}'),
                     expertise_area=topic[:120], certificate_level=LEVEL_TO_CERT[level],
                     num_lessons=len(lessons_in), learning_hours=len(lessons_in) * 2,
                     is_published=False, is_ai_generated=True, generation_status='delivered',
@@ -2641,8 +2650,6 @@ async def factory_deliver_course(request: Request, db: Session = Depends(get_db)
                     source_profile=(data.get('profile') or 'delivered'), created_at=datetime.utcnow())
     db.add(course)
     db.flush()
-    if db.query(Course).filter(Course.slug == course.slug, Course.id != course.id).first():
-        course.slug = f'{course.slug}-{course.id}'
     for index, item in enumerate(lessons_in):
         db.add(Lesson(course_id=course.id, lesson_number=index + 1, module_number=index + 1,
                       title=(item.get('title') or f'Lesson {index + 1}')[:200],
