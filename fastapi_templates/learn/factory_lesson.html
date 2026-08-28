@@ -21,6 +21,22 @@
     </div>
   </header>
 
+  <!-- Standard platform intro (avatar) -->
+  <section class="wow-platform reveal">
+    <div class="wow-platform-inner glass">
+      <div class="wow-platform-txt">
+        <span class="wow-chip dark"><i class="fas fa-circle-play"></i> New to Hub Academy?</span>
+        <h2 class="wow-h2">Meet your learning platform</h2>
+        <p>A quick welcome — how Hub Academy works and what your course includes. Tap play to watch.</p>
+      </div>
+      <button type="button" class="wow-vphone play-real" data-src="/static/videos/platform-intro.mp4" style="--img:url('/static/videos/platform-intro.jpg')">
+        <span class="wow-kb"></span>
+        <span class="wow-play"><i class="fas fa-play"></i></span>
+        <span class="wow-shine"></span>
+      </button>
+    </div>
+  </section>
+
   {% if objectives %}
   <section class="wow-goals reveal">
     <h2 class="wow-h2">What you'll learn</h2>
@@ -293,6 +309,15 @@
 
 .wow-tag{font-size:.72rem;color:#fff;background:linear-gradient(120deg,var(--b2),var(--b1));padding:4px 10px;border-radius:999px;vertical-align:middle;margin-left:8px;font-weight:800;}
 .wow-videos .wow-sub{margin:-2px 0 16px;}
+/* standard platform intro (vertical avatar) */
+.wow-platform-inner{display:flex;align-items:center;gap:36px;padding:30px 36px;border-radius:24px;flex-wrap:wrap;justify-content:center;}
+.wow-platform-txt{flex:1;min-width:260px;}
+.wow-platform-txt .wow-chip.dark{margin-bottom:14px;}
+.wow-platform-txt p{color:#5b6b84;margin:8px 0 0;line-height:1.6;font-size:1.05rem;}
+.wow-vphone{position:relative;flex:none;width:264px;aspect-ratio:9/16;border-radius:24px;overflow:hidden;border:3px solid #fff;cursor:pointer;padding:0;box-shadow:0 22px 48px rgba(20,40,90,.30);transition:transform .25s,box-shadow .25s;}
+.wow-vphone:hover{transform:translateY(-4px);box-shadow:0 30px 60px rgba(37,99,235,.32);}
+.wow-vphone .wow-kb{position:absolute;inset:0;background:var(--img) center/cover no-repeat;z-index:-2;}
+.wow-vphone::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,30,.05),rgba(8,14,30,.38));z-index:-1;}
 .wow-hero-video{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.5);cursor:pointer;padding:0;box-shadow:0 22px 50px rgba(20,40,90,.24);transition:transform .25s,box-shadow .25s;}
 .wow-hero-video:hover{transform:translateY(-4px);box-shadow:0 30px 64px rgba(37,99,235,.32);}
 .wow-hero-video::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,30,.06),rgba(8,14,30,.34));z-index:-1;}
@@ -350,7 +375,7 @@
 
 .vbox{position:fixed;inset:0;z-index:80;background:rgba(6,10,26,.9);display:grid;place-items:center;padding:22px;}
 .vbox[hidden]{display:none;}
-.vbox video{max-width:900px;width:100%;border-radius:14px;box-shadow:0 30px 70px rgba(0,0,0,.6);}
+.vbox video{max-width:min(900px,94vw);max-height:88vh;width:auto;height:auto;border-radius:14px;box-shadow:0 30px 70px rgba(0,0,0,.6);}
 .vbox-close{position:absolute;top:20px;right:24px;width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:1.1rem;cursor:pointer;}
 
 .emma-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:14px;padding:10px 16px;border-radius:999px;background:rgba(15,20,45,.92);color:#fff;box-shadow:0 16px 40px rgba(0,0,0,.35);backdrop-filter:blur(10px);}
