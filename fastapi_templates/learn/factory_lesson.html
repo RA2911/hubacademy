@@ -10,32 +10,24 @@
   <!-- Hero -->
   <header class="wow-hero reveal in" id="wow-hero">
     <div class="wow-hero-media" style="--img:url('{{ img0 }}')"></div>
-    <div class="wow-hero-inner">
-      <span class="wow-chip"><i class="fas fa-wand-magic-sparkles"></i> {{ 'Your course' if delivered else 'Free preview' }} · {{ course.source_level }}</span>
-      <h1 class="wow-title">{{ lesson.title }}</h1>
-      <p class="wow-lede">{{ course.description }}</p>
-      <div class="wow-hero-actions">
-        <a class="wow-btn glow" href="#wow-content">Start learning <i class="fas fa-arrow-down"></i></a>
-        <button type="button" class="wow-btn ghost" id="emma-hero"><i class="fas fa-headphones"></i> Listen with Emma</button>
+    <div class="wow-hero-grid">
+      <div class="wow-hero-inner">
+        <span class="wow-chip"><i class="fas fa-wand-magic-sparkles"></i> {{ 'Your course' if delivered else 'Free preview' }} · {{ course.source_level }}</span>
+        <h1 class="wow-title">{{ lesson.title }}</h1>
+        <p class="wow-lede">{{ course.description }}</p>
+        <div class="wow-hero-actions">
+          <a class="wow-btn glow" href="#wow-content">Start learning <i class="fas fa-arrow-down"></i></a>
+          <button type="button" class="wow-btn ghost" id="emma-hero"><i class="fas fa-headphones"></i> Listen with Emma</button>
+        </div>
       </div>
-    </div>
-  </header>
-
-  <!-- Standard platform intro (avatar) -->
-  <section class="wow-platform reveal">
-    <div class="wow-platform-inner glass">
-      <div class="wow-platform-txt">
-        <span class="wow-chip dark"><i class="fas fa-circle-play"></i> New to Hub Academy?</span>
-        <h2 class="wow-h2">Meet your learning platform</h2>
-        <p>A quick welcome — how Hub Academy works and what your course includes. Tap play to watch.</p>
-      </div>
-      <button type="button" class="wow-vphone play-real" data-src="/static/videos/platform-intro.mp4" style="--img:url('/static/videos/platform-intro.jpg')">
+      <button type="button" class="wow-vphone play-real" data-src="/static/videos/platform-intro.mp4" style="--img:url('/static/videos/platform-intro.jpg')" aria-label="Meet your learning platform">
         <span class="wow-kb"></span>
         <span class="wow-play"><i class="fas fa-play"></i></span>
         <span class="wow-shine"></span>
+        <span class="wow-vphone-cap">Meet your platform</span>
       </button>
     </div>
-  </section>
+  </header>
 
   {% if objectives %}
   <section class="wow-goals reveal">
@@ -244,7 +236,8 @@
 .wow-hero{position:relative;max-width:1000px;margin:16px auto 42px;border-radius:26px;overflow:hidden;color:#fff;isolation:isolate;transition:transform .2s ease-out;transform-style:preserve-3d;}
 .wow-hero-media{position:absolute;inset:0;background:var(--img) center/cover no-repeat;transform:scale(1.08);z-index:-2;}
 .wow-hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(120deg,rgba(37,99,235,.92),rgba(124,58,237,.82) 55%,rgba(6,182,212,.7));}
-.wow-hero-inner{padding:66px 46px;max-width:660px;}
+.wow-hero-grid{display:flex;align-items:center;gap:40px;padding:52px 46px;}
+.wow-hero-inner{flex:1;min-width:0;max-width:660px;}
 .wow-title{color:#fff;font-size:clamp(2.1rem,4.4vw,3.3rem);line-height:1.08;margin:16px 0 14px;font-weight:900;letter-spacing:-.02em;text-shadow:0 2px 20px rgba(0,0,0,.15);}
 .wow-lede{color:#eef3ff;font-size:1.14rem;line-height:1.6;margin:0 0 26px;}
 .wow-hero-actions{display:flex;gap:12px;flex-wrap:wrap;}
@@ -309,15 +302,14 @@
 
 .wow-tag{font-size:.72rem;color:#fff;background:linear-gradient(120deg,var(--b2),var(--b1));padding:4px 10px;border-radius:999px;vertical-align:middle;margin-left:8px;font-weight:800;}
 .wow-videos .wow-sub{margin:-2px 0 16px;}
-/* standard platform intro (vertical avatar) */
-.wow-platform-inner{display:flex;align-items:center;gap:36px;padding:30px 36px;border-radius:24px;flex-wrap:wrap;justify-content:center;}
-.wow-platform-txt{flex:1;min-width:260px;}
-.wow-platform-txt .wow-chip.dark{margin-bottom:14px;}
-.wow-platform-txt p{color:#5b6b84;margin:8px 0 0;line-height:1.6;font-size:1.05rem;}
-.wow-vphone{position:relative;flex:none;width:264px;aspect-ratio:9/16;border-radius:24px;overflow:hidden;border:3px solid #fff;cursor:pointer;padding:0;box-shadow:0 22px 48px rgba(20,40,90,.30);transition:transform .25s,box-shadow .25s;}
-.wow-vphone:hover{transform:translateY(-4px);box-shadow:0 30px 60px rgba(37,99,235,.32);}
-.wow-vphone .wow-kb{position:absolute;inset:0;background:var(--img) center/cover no-repeat;z-index:-2;}
-.wow-vphone::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,30,.05),rgba(8,14,30,.38));z-index:-1;}
+/* standard platform intro (vertical avatar) inside the hero box */
+.wow-vphone{position:relative;isolation:isolate;flex:none;width:196px;aspect-ratio:9/16;border-radius:20px;overflow:hidden;border:3px solid rgba(255,255,255,.85);cursor:pointer;padding:0;box-shadow:0 18px 40px rgba(0,0,0,.34);transition:transform .25s,box-shadow .25s;}
+.wow-vphone:hover{transform:translateY(-4px);box-shadow:0 26px 54px rgba(0,0,0,.42);}
+.wow-vphone .wow-kb{position:absolute;inset:0;background:var(--img) center/cover no-repeat;z-index:0;}
+.wow-vphone::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,30,.05),rgba(8,14,30,.5));z-index:1;}
+.wow-vphone .wow-play,.wow-vphone .wow-shine{z-index:2;}
+.wow-vphone-cap{position:absolute;z-index:2;bottom:12px;left:0;right:0;text-align:center;color:#fff;font-weight:700;font-size:.82rem;text-shadow:0 1px 8px rgba(0,0,0,.7);}
+@media(max-width:720px){.wow-hero-grid{flex-direction:column;gap:26px;padding:40px 26px;}.wow-vphone{width:170px;}}
 .wow-hero-video{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.5);cursor:pointer;padding:0;box-shadow:0 22px 50px rgba(20,40,90,.24);transition:transform .25s,box-shadow .25s;}
 .wow-hero-video:hover{transform:translateY(-4px);box-shadow:0 30px 64px rgba(37,99,235,.32);}
 .wow-hero-video::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,30,.06),rgba(8,14,30,.34));z-index:-1;}
