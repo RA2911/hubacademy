@@ -20,6 +20,32 @@
         <a class="market-btn primary" href="/courses">Browse More</a>
     </header>
 
+    {% if subscription or plans[0].stripe_price_id %}
+    <div class="sub-banner {{ 'is-active' if subscription else 'is-off' }}">
+        {% if subscription %}
+        <div class="sub-banner-text">
+            <span class="eyebrow">Monthly Plan</span>
+            <strong>{{ sub_slots_used }} of {{ sub_slots_limit }} course slots used</strong>
+            <span class="sub-banner-sub">
+                {% if subscription.status == 'canceled' and subscription.current_period_end %}
+                    Plan ends {{ subscription.current_period_end.strftime('%b %d, %Y') }} — access continues until then.
+                {% else %}
+                    Active. Add up to {{ sub_slots_limit }} courses; remove one to swap.
+                {% endif %}
+            </span>
+        </div>
+        <a class="market-btn primary" href="/courses">{{ 'Add a course' if sub_slots_used < sub_slots_limit else 'Manage courses below' }}</a>
+        {% else %}
+        <div class="sub-banner-text">
+            <span class="eyebrow">Monthly Plan</span>
+            <strong>Unlock {{ sub_slots_limit }} courses for ${{ plans[0].price }}/month</strong>
+            <span class="sub-banner-sub">Cheaper than buying courses one by one. Cancel anytime.</span>
+        </div>
+        <form method="POST" action="/subscribe/monthly"><button class="market-btn primary" type="submit">Subscribe — ${{ plans[0].price }}/mo</button></form>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <a class="lp-banner" href="/learn/profile">
         <div class="lp-banner-text">
             <span class="eyebrow">My Learning Profile</span>
@@ -76,7 +102,12 @@
                 <i class="fas {{ 'fa-award' if card.quiz.average >= 60 else 'fa-chart-line' }}"></i>
                 <span>{{ 'Certificate score reached' if card.quiz.average >= 60 else 'Needs 60% quiz average' }}</span>
             </div>
-            <a class="market-btn primary" href="{{ '/learn/factory/course/' ~ card.enrollment.course.id if card.enrollment.course.is_ai_generated else '/learn/course/' ~ card.enrollment.course.id }}">Continue</a>
+            <div class="card-actions">
+                {% if card.enrollment.source == 'subscription' %}
+                <form method="POST" action="/plan/remove/{{ card.enrollment.course.id }}" onsubmit="return confirm('Remove this course from your plan? This frees a slot but you lose access to it.');"><button class="market-btn ghost" type="submit">Remove from plan</button></form>
+                {% endif %}
+                <a class="market-btn primary" href="{{ '/learn/factory/course/' ~ card.enrollment.course.id if card.enrollment.course.is_ai_generated else '/learn/course/' ~ card.enrollment.course.id }}">Continue</a>
+            </div>
         </div>
     </article>
     {% else %}
@@ -104,5 +135,15 @@
 .lp-banner-text strong{display:block;font-size:1.4rem;margin:6px 0 4px;color:#fff;}
 .lp-banner-sub{color:#d3e0fb;font-size:.95rem;}
 .lp-banner-btn{white-space:nowrap;background:#fff;color:#123;border:none;}
+.sub-banner{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+    border-radius:16px;padding:20px 24px;margin:0 0 24px;}
+.sub-banner.is-active{background:#eef4ff;border:1px solid #c9dcff;}
+.sub-banner.is-off{background:linear-gradient(135deg,#0f2350,#2480DC);color:#fff;}
+.sub-banner .eyebrow{color:inherit;opacity:.75;}
+.sub-banner-text strong{display:block;font-size:1.25rem;margin:4px 0 3px;}
+.sub-banner-sub{font-size:.9rem;opacity:.85;}
+.card-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.market-btn.ghost{background:transparent;border:1px solid #c2ccdb;color:#54617a;}
+.market-btn.ghost:hover{border-color:#f19999;color:#c0392b;}
 </style>
 {% endblock %}

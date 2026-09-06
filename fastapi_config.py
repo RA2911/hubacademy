@@ -34,8 +34,10 @@ STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 STRIPE_MONTHLY_PRICE_ID = os.environ.get('STRIPE_MONTHLY_PRICE_ID', '')
 STRIPE_ANNUAL_PRICE_ID = os.environ.get('STRIPE_ANNUAL_PRICE_ID', '')
-SUBSCRIPTION_MONTHLY_PRICE = os.environ.get('SUBSCRIPTION_MONTHLY_PRICE', '29')
+SUBSCRIPTION_MONTHLY_PRICE = os.environ.get('SUBSCRIPTION_MONTHLY_PRICE', '99')
 SUBSCRIPTION_ANNUAL_PRICE = os.environ.get('SUBSCRIPTION_ANNUAL_PRICE', '249')
+# How many courses a monthly subscriber can have unlocked at once.
+SUBSCRIPTION_COURSE_LIMIT = int(os.environ.get('SUBSCRIPTION_COURSE_LIMIT', '3'))
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')

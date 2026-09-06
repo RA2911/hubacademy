@@ -24,7 +24,7 @@ import fastapi_config as cfg
 from fastapi_auth import admin_from_request, hash_password, username_from_email, verify_password
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
                         LearnerProfile, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt, SessionObjective,
-                        Settings, Student, db_session as next_db_session, ensure_schema, get_db)
+                        Settings, Student, Subscription, db_session as next_db_session, ensure_schema, get_db)
 from fastapi_storage import (guess_content_type, list_objects, object_bytes, object_key, package_object_key,
                              presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
 
@@ -1013,12 +1013,38 @@ def journey_for_course(db: Session, course: Course, student_id: int):
 
 
 def subscription_plans():
-    return [
+    limit = cfg.SUBSCRIPTION_COURSE_LIMIT
+    plans = [
         {'name': 'Monthly', 'price': cfg.SUBSCRIPTION_MONTHLY_PRICE, 'period': 'month', 'stripe_price_id': cfg.STRIPE_MONTHLY_PRICE_ID,
-         'features': ['Unlimited course access', 'AI learning guide', 'Progress tracking', 'Cancel anytime']},
-        {'name': 'Annual', 'price': cfg.SUBSCRIPTION_ANNUAL_PRICE, 'period': 'year', 'stripe_price_id': cfg.STRIPE_ANNUAL_PRICE_ID,
-         'features': ['Everything in Monthly', 'Best value', 'Certificates included', 'Priority support']},
+         'features': [f'{limit} courses per month', 'AI learning guide', 'Progress tracking', 'Cancel anytime']},
     ]
+    # Annual stays dormant until an annual Stripe price is configured.
+    if cfg.STRIPE_ANNUAL_PRICE_ID:
+        plans.append(
+            {'name': 'Annual', 'price': cfg.SUBSCRIPTION_ANNUAL_PRICE, 'period': 'year', 'stripe_price_id': cfg.STRIPE_ANNUAL_PRICE_ID,
+             'features': ['Everything in Monthly', 'Best value', 'Certificates included', 'Priority support']},
+        )
+    return plans
+
+
+def active_subscription(db: Session, student_id: int):
+    """Return the student's currently-usable subscription, or None. A canceled
+    subscription still counts as active until its paid period ends (keep-for-the-
+    month rule)."""
+    sub = db.query(Subscription).filter_by(student_id=student_id).order_by(Subscription.created_at.desc()).first()
+    if not sub:
+        return None
+    if sub.status == 'active':
+        return sub
+    if sub.status == 'canceled' and sub.current_period_end and sub.current_period_end > datetime.utcnow():
+        return sub
+    return None
+
+
+def subscription_slots(db: Session, student_id: int):
+    """(used, limit) — how many of the plan's course slots are in use."""
+    used = db.query(Enrollment).filter_by(student_id=student_id, source='subscription', is_active=True).count()
+    return used, cfg.SUBSCRIPTION_COURSE_LIMIT
 
 
 def student_from_request(request: Request, db: Session):
@@ -1055,6 +1081,17 @@ def template(request: Request, name: str, db: Session, context=None):
         'expertise_areas': EXPERTISE_AREAS,
         'plans': subscription_plans(),
     }
+    _student = ctx['current_user']
+    if _student:
+        _sub = active_subscription(db, _student.id)
+        _used, _limit = subscription_slots(db, _student.id)
+        ctx['subscription'] = _sub
+        ctx['sub_slots_used'] = _used
+        ctx['sub_slots_limit'] = _limit
+    else:
+        ctx['subscription'] = None
+        ctx['sub_slots_used'] = 0
+        ctx['sub_slots_limit'] = cfg.SUBSCRIPTION_COURSE_LIMIT
     if context:
         ctx.update(context)
     return templates.TemplateResponse(name, ctx)
@@ -1079,12 +1116,13 @@ def find_course(db: Session, identifier: str):
     return None
 
 
-def enroll_student(db: Session, student_id: int, course_id: int):
+def enroll_student(db: Session, student_id: int, course_id: int, source: str = 'enroll'):
     enrollment = db.query(Enrollment).filter_by(student_id=student_id, course_id=course_id).first()
     if enrollment:
         enrollment.is_active = True
+        enrollment.source = source
     else:
-        db.add(Enrollment(student_id=student_id, course_id=course_id, is_active=True))
+        db.add(Enrollment(student_id=student_id, course_id=course_id, is_active=True, source=source))
 
 
 def material_access_allowed(material: LessonMaterial, request: Request, db: Session) -> bool:
@@ -1503,6 +1541,47 @@ def subscribe(plan: str, request: Request):
     return RedirectResponse(session.url, status_code=303)
 
 
+@app.post('/plan/add/{course_id}')
+def plan_add(course_id: int, request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    if not student:
+        return RedirectResponse(f'/login?next=/courses', status_code=303)
+    course = db.query(Course).filter_by(id=course_id, is_published=True).first()
+    if not course:
+        raise HTTPException(status_code=404)
+    dest = f'/courses/{course_slug(course)}'
+    # Must have a usable subscription.
+    if not active_subscription(db, student.id):
+        return RedirectResponse(f'{dest}?plan=nosub', status_code=303)
+    # Free courses don't consume a slot — enroll normally instead.
+    if (course.price_cents or 0) <= 0 or course.allow_free_enrollment:
+        enroll_student(db, student.id, course.id, source='enroll')
+        db.commit()
+        return RedirectResponse(f'/learn/course/{course.id}', status_code=303)
+    existing = db.query(Enrollment).filter_by(student_id=student.id, course_id=course.id, is_active=True).first()
+    if existing:
+        return RedirectResponse(f'/learn/course/{course.id}', status_code=303)
+    used, limit = subscription_slots(db, student.id)
+    if used >= limit:
+        return RedirectResponse(f'{dest}?plan=full', status_code=303)
+    enroll_student(db, student.id, course.id, source='subscription')
+    db.commit()
+    return RedirectResponse(f'/learn/course/{course.id}', status_code=303)
+
+
+@app.post('/plan/remove/{course_id}')
+def plan_remove(course_id: int, request: Request, db: Session = Depends(get_db)):
+    student = student_from_request(request, db)
+    if not student:
+        return RedirectResponse('/login?next=/learn/dashboard', status_code=303)
+    enrollment = db.query(Enrollment).filter_by(
+        student_id=student.id, course_id=course_id, source='subscription', is_active=True).first()
+    if enrollment:
+        enrollment.is_active = False
+        db.commit()
+    return RedirectResponse('/learn/dashboard', status_code=303)
+
+
 @app.get('/checkout/success')
 def checkout_success(session_id: str = '', request: Request = None, db: Session = Depends(get_db)):
     purchase = db.query(Purchase).filter_by(provider_session_id=session_id).first()
@@ -1523,16 +1602,65 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         event = stripe.Webhook.construct_event(payload, signature, cfg.STRIPE_WEBHOOK_SECRET)
     except Exception:
         return JSONResponse({'error': 'Invalid webhook'}, status_code=400)
-    if event['type'] == 'checkout.session.completed':
+    etype = event['type']
+    if etype == 'checkout.session.completed':
         session = event['data']['object']
-        purchase = db.query(Purchase).filter_by(provider_session_id=session['id']).first()
-        if purchase:
-            purchase.status = 'paid'
-            purchase.provider_payment_intent = session.get('payment_intent')
-            purchase.completed_at = datetime.utcnow()
-            enroll_student(db, purchase.student_id, purchase.course_id)
+        if session.get('mode') == 'subscription':
+            # Monthly plan started. Create/refresh the student's Subscription so
+            # they can start filling their course slots.
+            metadata = session.get('metadata') or {}
+            student_id = metadata.get('student_id')
+            sub_id = session.get('subscription')
+            if student_id and sub_id:
+                sub = db.query(Subscription).filter_by(stripe_subscription_id=sub_id).first()
+                if not sub:
+                    sub = Subscription(student_id=int(student_id), stripe_subscription_id=sub_id)
+                    db.add(sub)
+                sub.student_id = int(student_id)
+                sub.plan = metadata.get('plan', 'Monthly')
+                sub.status = 'active'
+                sub.stripe_customer_id = session.get('customer')
+                sub.current_period_end = _stripe_period_end(stripe, sub_id)
+                db.commit()
+        else:
+            purchase = db.query(Purchase).filter_by(provider_session_id=session['id']).first()
+            if purchase:
+                purchase.status = 'paid'
+                purchase.provider_payment_intent = session.get('payment_intent')
+                purchase.completed_at = datetime.utcnow()
+                enroll_student(db, purchase.student_id, purchase.course_id, source='enroll')
+                db.commit()
+    elif etype == 'customer.subscription.updated':
+        obj = event['data']['object']
+        sub = db.query(Subscription).filter_by(stripe_subscription_id=obj['id']).first()
+        if sub:
+            # Stripe status: active/trialing stay usable; anything else lapses.
+            sub.status = 'active' if obj.get('status') in ('active', 'trialing') else obj.get('status', 'canceled')
+            end = obj.get('current_period_end')
+            if end:
+                sub.current_period_end = datetime.utcfromtimestamp(end)
+            db.commit()
+    elif etype == 'customer.subscription.deleted':
+        obj = event['data']['object']
+        sub = db.query(Subscription).filter_by(stripe_subscription_id=obj['id']).first()
+        if sub:
+            sub.status = 'canceled'
+            sub.current_period_end = datetime.utcnow()
+            # Paid period is over — lock the courses unlocked via the plan.
+            db.query(Enrollment).filter_by(student_id=sub.student_id, source='subscription', is_active=True).update(
+                {'is_active': False}, synchronize_session=False)
             db.commit()
     return {'received': True}
+
+
+def _stripe_period_end(stripe, subscription_id):
+    """Fetch a Stripe subscription's current_period_end as a datetime, or None."""
+    try:
+        obj = stripe.Subscription.retrieve(subscription_id)
+        end = obj.get('current_period_end')
+        return datetime.utcfromtimestamp(end) if end else None
+    except Exception:
+        return None
 
 
 @app.post('/assistant')

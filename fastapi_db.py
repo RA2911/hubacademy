@@ -191,6 +191,9 @@ class Enrollment(Base):
     course_id = Column(Integer, ForeignKey('courses.id'), nullable=False, index=True)
     enrolled_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
+    # How this enrollment was granted: 'enroll' (admin/purchase/free) or
+    # 'subscription' (counts against the monthly plan's course slots).
+    source = Column(String(30), nullable=False, default='enroll')
 
     __table_args__ = (UniqueConstraint('student_id', 'course_id', name='unique_student_course'),)
 
@@ -269,6 +272,26 @@ class Purchase(Base):
     provider_payment_intent = Column(String(255), index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
+
+
+class Subscription(Base):
+    """A student's monthly plan. status mirrors Stripe: 'active', 'canceled',
+    'past_due', etc. current_period_end is when paid access lapses — used for
+    the 'keep courses for the paid month' rule after a cancellation."""
+    __tablename__ = 'subscriptions'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=False, index=True)
+    plan = Column(String(30), nullable=False, default='Monthly')
+    status = Column(String(30), nullable=False, default='active', index=True)
+    provider = Column(String(30), nullable=False, default='stripe')
+    stripe_subscription_id = Column(String(255), unique=True, index=True)
+    stripe_customer_id = Column(String(255), index=True)
+    current_period_end = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    student = relationship('Student')
 
 
 class CertificateAward(Base):
@@ -374,6 +397,10 @@ LEARNER_PROFILE_COLUMNS = {
     'topic_band': "VARCHAR(30)",
 }
 
+ENROLLMENT_COLUMNS = {
+    'source': "VARCHAR(30) NOT NULL DEFAULT 'enroll'",
+}
+
 
 def ensure_schema():
     Base.metadata.create_all(bind=engine)
@@ -409,3 +436,9 @@ def ensure_schema():
             for name, ddl in LEARNER_PROFILE_COLUMNS.items():
                 if name not in existing_lp:
                     conn.execute(text(f"ALTER TABLE learner_profiles ADD COLUMN {name} {ddl}"))
+    if 'enrollments' in inspector.get_table_names():
+        existing_enrollment = {column['name'] for column in inspector.get_columns('enrollments')}
+        with engine.begin() as conn:
+            for name, ddl in ENROLLMENT_COLUMNS.items():
+                if name not in existing_enrollment:
+                    conn.execute(text(f"ALTER TABLE enrollments ADD COLUMN {name} {ddl}"))

@@ -13,11 +13,22 @@
                 <span>{{ course_price(course) }}</span>
                 <span>{{ certificate_badge(course) }}</span>
             </div>
+            {% set is_paid = (course.price_cents or 0) > 0 and not course.allow_free_enrollment %}
             <div class="hero-actions">
                 {% if enrolled %}
                     <a class="btn primary" href="/learn/course/{{ course.id }}">Continue Learning</a>
                 {% elif current_user %}
-                    <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn primary" type="submit">{{ 'Enroll Free' if (course.price_cents or 0) == 0 or course.allow_free_enrollment else 'Buy This Course' }}</button></form>
+                    {% if is_paid and subscription %}
+                        {% if sub_slots_used < sub_slots_limit %}
+                        <form method="POST" action="/plan/add/{{ course.id }}"><button class="btn primary" type="submit">Add to my plan ({{ sub_slots_used }}/{{ sub_slots_limit }})</button></form>
+                        {% else %}
+                        <button class="btn primary" type="button" disabled title="Remove a course from your plan to add this one">Plan full ({{ sub_slots_limit }}/{{ sub_slots_limit }})</button>
+                        {% endif %}
+                        <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn secondary" type="submit">Buy This Course</button></form>
+                    {% else %}
+                        <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn primary" type="submit">{{ 'Enroll Free' if not is_paid else 'Buy This Course' }}</button></form>
+                        {% if is_paid and plans[0].stripe_price_id %}<form method="POST" action="/subscribe/monthly"><button class="btn secondary" type="submit">Subscribe — ${{ plans[0].price }}/mo for {{ sub_slots_limit }} courses</button></form>{% endif %}
+                    {% endif %}
                 {% else %}
                     <a class="btn primary" href="/register?next=/courses/{{ course_slug(course) }}">Create Account to Start</a>
                     <a class="btn secondary" href="/login?next=/courses/{{ course_slug(course) }}">Login</a>
@@ -60,8 +71,21 @@
                 <span class="eyebrow">Access</span>
                 <h2>{{ course_price(course) }}</h2>
                 <p>Start this course and progress through sessions in order.</p>
-                {% if current_user %}
-                <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn primary full" type="submit">{{ 'Enroll Free' if (course.price_cents or 0) == 0 or course.allow_free_enrollment else 'Buy Course' }}</button></form>
+                {% set is_paid = (course.price_cents or 0) > 0 and not course.allow_free_enrollment %}
+                {% if enrolled %}
+                <a class="btn primary full" href="/learn/course/{{ course.id }}">Continue Learning</a>
+                {% elif current_user %}
+                    {% if is_paid and subscription %}
+                        {% if sub_slots_used < sub_slots_limit %}
+                        <form method="POST" action="/plan/add/{{ course.id }}"><button class="btn primary full" type="submit">Add to my plan ({{ sub_slots_used }}/{{ sub_slots_limit }})</button></form>
+                        {% else %}
+                        <button class="btn primary full" type="button" disabled>Plan full ({{ sub_slots_limit }}/{{ sub_slots_limit }})</button>
+                        {% endif %}
+                        <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn secondary full" type="submit">Buy Course</button></form>
+                    {% else %}
+                        <form method="POST" action="/courses/{{ course_slug(course) }}/checkout"><button class="btn primary full" type="submit">{{ 'Enroll Free' if not is_paid else 'Buy Course' }}</button></form>
+                        {% if is_paid and plans[0].stripe_price_id %}<form method="POST" action="/subscribe/monthly"><button class="btn secondary full" type="submit">Subscribe ${{ plans[0].price }}/mo · {{ sub_slots_limit }} courses</button></form>{% endif %}
+                    {% endif %}
                 {% else %}
                 <a class="btn primary full" href="/register?next=/courses/{{ course_slug(course) }}">Join to Start</a>
                 {% endif %}
