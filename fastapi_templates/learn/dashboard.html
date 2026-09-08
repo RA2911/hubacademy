@@ -104,7 +104,11 @@
             </div>
             <div class="card-actions">
                 {% if card.enrollment.source == 'subscription' %}
-                <form method="POST" action="/plan/remove/{{ card.enrollment.course.id }}" onsubmit="return confirm('Remove this course from your plan? This frees a slot but you lose access to it.');"><button class="market-btn ghost" type="submit">Remove from plan</button></form>
+                    {% if card.started %}
+                    <button class="market-btn ghost" type="button" disabled title="You've started this course, so it can't be removed from your plan.">Remove from plan</button>
+                    {% else %}
+                    <form method="POST" action="/plan/remove/{{ card.enrollment.course.id }}" onsubmit="return confirm('Remove this course from your plan? This frees a slot but you lose access to it.');"><button class="market-btn ghost" type="submit">Remove from plan</button></form>
+                    {% endif %}
                 {% endif %}
                 <a class="market-btn primary" href="{{ '/learn/factory/course/' ~ card.enrollment.course.id if card.enrollment.course.is_ai_generated else '/learn/course/' ~ card.enrollment.course.id }}">Continue</a>
             </div>
@@ -144,6 +148,7 @@
 .sub-banner-sub{font-size:.9rem;opacity:.85;}
 .card-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .market-btn.ghost{background:transparent;border:1px solid #c2ccdb;color:#54617a;}
-.market-btn.ghost:hover{border-color:#f19999;color:#c0392b;}
+.market-btn.ghost:hover:not([disabled]){border-color:#f19999;color:#c0392b;}
+.market-btn.ghost[disabled]{opacity:.45;cursor:not-allowed;}
 </style>
 {% endblock %}

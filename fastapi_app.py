@@ -1047,6 +1047,13 @@ def subscription_slots(db: Session, student_id: int):
     return used, cfg.SUBSCRIPTION_COURSE_LIMIT
 
 
+def course_started(db: Session, student_id: int, course_id: int) -> bool:
+    """True once the student has any progress in the course (opened any lesson).
+    A started course can't be dropped from the plan to free a slot."""
+    return db.query(LessonProgress).join(Lesson, LessonProgress.lesson_id == Lesson.id).filter(
+        LessonProgress.student_id == student_id, Lesson.course_id == course_id).first() is not None
+
+
 def student_from_request(request: Request, db: Session):
     student_id = request.session.get('student_id')
     if not student_id:
@@ -1576,7 +1583,8 @@ def plan_remove(course_id: int, request: Request, db: Session = Depends(get_db))
         return RedirectResponse('/login?next=/learn/dashboard', status_code=303)
     enrollment = db.query(Enrollment).filter_by(
         student_id=student.id, course_id=course_id, source='subscription', is_active=True).first()
-    if enrollment:
+    # Once a course is started it can't be dropped (prevents gaming the slot limit).
+    if enrollment and not course_started(db, student.id, course_id):
         enrollment.is_active = False
         db.commit()
     return RedirectResponse('/learn/dashboard', status_code=303)
@@ -1799,6 +1807,7 @@ def learner_dashboard(request: Request, db: Session = Depends(get_db)):
             'done': done,
             'pct': int(done / total * 100) if total else 0,
             'quiz': course_quiz_stats(db, student.id, enrollment.course_id),
+            'started': course_started(db, student.id, enrollment.course_id),
         })
     return template(request, 'learn/dashboard.html', db, {'student': student, 'cards': cards, 'certificates': certificates})
 
