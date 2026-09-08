@@ -3124,6 +3124,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
     stats = {
         'programs': db.query(Program).count(),
+        'expertise_areas': db.query(ExpertiseArea).count(),
         'courses': db.query(Course).count(),
         'students': db.query(Student).count(),
         'enrollments': db.query(Enrollment).count(),
