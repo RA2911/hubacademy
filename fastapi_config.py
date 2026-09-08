@@ -15,8 +15,16 @@ def database_url():
     return url
 
 
+def _clean_secret(name, default=''):
+    """Read an env var and strip ALL whitespace/newlines. API keys, price IDs
+    and URLs never contain internal spaces, so this safely repairs values that
+    picked up a stray line break when pasted (e.g. into a deploy command),
+    which would otherwise make an HTTP header illegal and crash every request."""
+    return ''.join(os.environ.get(name, default).split())
+
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', 'http://127.0.0.1:8000')
+PUBLIC_BASE_URL = _clean_secret('PUBLIC_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
 DEFAULT_CURRENCY = os.environ.get('DEFAULT_CURRENCY', 'USD').upper()
 
 R2_ACCOUNT_ID = os.environ.get('R2_ACCOUNT_ID', '')
@@ -30,10 +38,10 @@ R2_PRESIGN_EXPIRES_SECONDS = int(os.environ.get('R2_PRESIGN_EXPIRES_SECONDS', '3
 # courses into this platform (see POST /api/factory/deliver).
 FACTORY_API_KEY = os.environ.get('FACTORY_API_KEY', '')
 
-STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
-STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
-STRIPE_MONTHLY_PRICE_ID = os.environ.get('STRIPE_MONTHLY_PRICE_ID', '')
-STRIPE_ANNUAL_PRICE_ID = os.environ.get('STRIPE_ANNUAL_PRICE_ID', '')
+STRIPE_SECRET_KEY = _clean_secret('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = _clean_secret('STRIPE_WEBHOOK_SECRET')
+STRIPE_MONTHLY_PRICE_ID = _clean_secret('STRIPE_MONTHLY_PRICE_ID')
+STRIPE_ANNUAL_PRICE_ID = _clean_secret('STRIPE_ANNUAL_PRICE_ID')
 SUBSCRIPTION_MONTHLY_PRICE = os.environ.get('SUBSCRIPTION_MONTHLY_PRICE', '99')
 SUBSCRIPTION_ANNUAL_PRICE = os.environ.get('SUBSCRIPTION_ANNUAL_PRICE', '249')
 # How many courses a monthly subscriber can have unlocked at once.
