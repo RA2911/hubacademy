@@ -12,6 +12,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/css/marketplace.css">
+    <style>
+    .nav-dropdown{position:relative;display:inline-flex;}
+    .nav-drop-toggle{background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:0;
+        color:var(--muted);font-size:14px;font-weight:650;font-family:inherit;}
+    .nav-drop-toggle:hover{color:var(--primary);}
+    .nav-drop-toggle i{font-size:10px;transition:transform .15s ease;}
+    .nav-dropdown:hover .nav-drop-toggle i,.nav-dropdown:focus-within .nav-drop-toggle i{transform:rotate(180deg);}
+    .nav-dropdown-menu{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:10px;min-width:200px;
+        background:#fff;border:1px solid #e6ebf3;border-radius:12px;box-shadow:0 16px 38px rgba(15,42,82,.16);
+        padding:6px;display:none;flex-direction:column;z-index:200;}
+    .nav-dropdown:hover .nav-dropdown-menu,.nav-dropdown:focus-within .nav-dropdown-menu{display:flex;}
+    /* invisible bridge so the menu doesn't close in the gap under the toggle */
+    .nav-dropdown-menu::before{content:"";position:absolute;top:-12px;left:0;right:0;height:12px;}
+    .nav-dropdown-menu a{padding:9px 12px;border-radius:8px;white-space:nowrap;color:#1f2733;font-size:14px;font-weight:600;}
+    .nav-dropdown-menu a:hover{background:#eef3ff;color:var(--primary);}
+    .nav-logout{display:inline-flex;align-items:center;justify-content:center;width:42px;padding-left:0;padding-right:0;}
+    .nav-logout i{font-size:16px;}
+    </style>
 </head>
 <body class="app-shell">
 <nav class="topbar">
@@ -21,19 +39,28 @@
     </a>
     <div class="nav-links">
         <a href="/">Home</a>
-        <a href="/courses">Courses</a>
-        <a href="/learn/profile">My Learning Profile</a>
-        <a href="/#expertise">Expertise</a>
-        <a href="/#certification">Certificates</a>
-        <a href="/#featured">Featured</a>
-        <a href="/verify">Verify Certificate</a>
+        <div class="nav-dropdown">
+            <button type="button" class="nav-drop-toggle" aria-haspopup="true">Courses <i class="fas fa-chevron-down"></i></button>
+            <div class="nav-dropdown-menu">
+                <a href="/#featured">Featured courses</a>
+                <a href="/courses">All courses</a>
+            </div>
+        </div>
+        <div class="nav-dropdown">
+            <button type="button" class="nav-drop-toggle" aria-haspopup="true">Certificates <i class="fas fa-chevron-down"></i></button>
+            <div class="nav-dropdown-menu">
+                {% if current_user %}<a href="/learn/certificates">My Certificates</a>{% endif %}
+                <a href="/#certification">Sample certificate</a>
+                <a href="/verify">Verify a certificate</a>
+            </div>
+        </div>
+        <a href="/learn/profile">My Profile</a>
     </div>
     <div class="nav-actions">
         {% if current_user %}
             <a class="btn secondary" href="/learn/dashboard">My Learning</a>
-            <a class="btn secondary" href="/learn/profile">Learning Profile</a>
             <button class="btn secondary install-app-btn" type="button" hidden>Install App</button>
-            <a class="btn ghost" href="/logout">Logout</a>
+            <a class="btn ghost nav-logout" href="/logout" title="Log out" aria-label="Log out"><i class="fas fa-right-from-bracket"></i></a>
         {% else %}
             <a class="btn ghost" href="/login">Login</a>
             <a class="btn primary" href="/register">Create Account</a>
