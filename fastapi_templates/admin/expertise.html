@@ -1,0 +1,48 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Expertise Areas{% endblock %}
+{% block admin_content %}
+{% if err == 'inuse' %}<div class="admin-flash err">Can't delete: courses are still linked to that area. Reassign those courses first (edit each course and pick a different area).</div>{% endif %}
+{% if err == 'exists' %}<div class="admin-flash err">An expertise area with that name already exists.</div>{% endif %}
+<div class="detail-grid">
+  <section class="detail-block">
+    <h2>Add expertise area</h2>
+    <form method="POST" action="/admin/expertise" class="auth-public-card">
+      <label>Name<input name="name" required placeholder="e.g. Product Management"></label>
+      <label>Sort order <span class="form-hint" style="text-transform:none;font-weight:400">(lower shows first)</span><input name="sort_order" type="number" value="0"></label>
+      <button class="market-btn primary">Add area</button>
+    </form>
+    <p class="form-hint" style="text-transform:none;margin-top:12px;line-height:1.5">
+      New areas appear immediately in the course form's <strong>Expertise Area</strong> dropdown and on the homepage. Renaming an area automatically updates every course linked to it.
+    </p>
+  </section>
+
+  <section class="detail-block">
+    <h2>Expertise areas ({{ areas|length }})</h2>
+    {% for area in areas %}
+    <div class="module-row" style="align-items:center;gap:14px">
+      <span>{{ area.sort_order }}</span>
+      <div style="flex:1">
+        <strong>{{ area.name }}</strong>
+        <p>{{ usage.get(area.name, 0) }} course{{ '' if usage.get(area.name, 0) == 1 else 's' }} linked</p>
+      </div>
+      <form method="POST" action="/admin/expertise" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="hidden" name="area_id" value="{{ area.id }}">
+        <input name="name" value="{{ area.name }}" required style="min-width:200px">
+        <input name="sort_order" type="number" value="{{ area.sort_order }}" style="width:70px" title="Sort order">
+        <button class="market-btn secondary">Save</button>
+      </form>
+      <form method="POST" action="/admin/expertise/{{ area.id }}/delete" onsubmit="return confirm('Delete this expertise area?');">
+        <button class="market-btn ghost" {% if usage.get(area.name, 0) %}disabled title="Reassign its courses first"{% endif %}>Delete</button>
+      </form>
+    </div>
+    {% else %}
+    <p>No expertise areas yet. Add one on the left.</p>
+    {% endfor %}
+  </section>
+</div>
+<style>
+.admin-flash{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:.95rem;}
+.admin-flash.err{background:#fff1f4;border:1px solid #f5c2cd;color:#7a1330;}
+.market-btn.ghost[disabled]{opacity:.4;cursor:not-allowed;}
+</style>
+{% endblock %}

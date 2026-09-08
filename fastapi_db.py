@@ -25,6 +25,19 @@ class Program(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ExpertiseArea(Base):
+    """Admin-managed catalog of expertise areas. A course links to one by
+    storing its name in Course.expertise_area (a plain string), so renaming an
+    area cascades to courses via an explicit update in the admin route."""
+    __tablename__ = 'expertise_areas'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), unique=True, nullable=False)
+    slug = Column(String(140), unique=True, nullable=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Course(Base):
     __tablename__ = 'courses'
 

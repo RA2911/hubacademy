@@ -22,9 +22,9 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import fastapi_config as cfg
 from fastapi_auth import admin_from_request, hash_password, username_from_email, verify_password
-from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, Lesson, LessonMaterial, LessonProgress,
-                        LearnerProfile, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt, SessionObjective,
-                        Settings, Student, Subscription, db_session as next_db_session, ensure_schema, get_db)
+from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, ExpertiseArea, Lesson, LessonMaterial,
+                        LessonProgress, LearnerProfile, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt,
+                        SessionObjective, Settings, Student, Subscription, db_session as next_db_session, ensure_schema, get_db)
 from fastapi_storage import (guess_content_type, list_objects, object_bytes, object_key, package_object_key,
                              presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
 
@@ -59,7 +59,9 @@ MATERIAL_TYPE_OPTIONS = [
 ]
 MATERIAL_TYPE_KEYS = {key for key, _label in MATERIAL_TYPE_OPTIONS}
 
-EXPERTISE_AREAS = [
+# Seed values used only to populate the expertise_areas table on first run.
+# After that, areas are managed in the DB via Admin → Expertise Areas.
+DEFAULT_EXPERTISE_AREAS = [
     {'name': 'AI Agents & Generative AI', 'slug': 'ai-agents-generative-ai'},
     {'name': 'Data Analytics & Business Intelligence', 'slug': 'data-analytics-bi'},
     {'name': 'Cybersecurity', 'slug': 'cybersecurity'},
@@ -96,9 +98,26 @@ import certificate_verify  # noqa: E402
 app.include_router(certificate_verify.router)
 
 
+def seed_expertise_areas(db: Session):
+    """Populate the expertise_areas table with the defaults on first run only."""
+    if db.query(ExpertiseArea).first():
+        return
+    for i, area in enumerate(DEFAULT_EXPERTISE_AREAS):
+        db.add(ExpertiseArea(name=area['name'], slug=area['slug'], sort_order=i))
+    db.commit()
+
+
+def list_expertise_areas(db: Session):
+    """Admin-managed expertise areas as [{'name','slug'}], ordered for display."""
+    areas = db.query(ExpertiseArea).order_by(ExpertiseArea.sort_order, ExpertiseArea.name).all()
+    return [{'name': a.name, 'slug': a.slug} for a in areas]
+
+
 @app.on_event('startup')
 def startup():
     ensure_schema()
+    with next_db_session() as db:
+        seed_expertise_areas(db)
 
 
 @app.get('/healthz')
@@ -1085,7 +1104,7 @@ def template(request: Request, name: str, db: Session, context=None):
         'lesson_session_number': lesson_session_number,
         'lesson_duration_minutes': lesson_duration_minutes,
         'certificate_levels': CERTIFICATE_LEVELS,
-        'expertise_areas': EXPERTISE_AREAS,
+        'expertise_areas': list_expertise_areas(db),
         'plans': subscription_plans(),
     }
     _student = ctx['current_user']
@@ -1109,7 +1128,7 @@ def categories(db: Session):
     counts = {name: count for name, count in rows if name}
     return [
         {'name': area['name'], 'count': counts.get(area['name']), 'href': f"/courses?expertise={area['name']}"}
-        for area in EXPERTISE_AREAS
+        for area in list_expertise_areas(db)
     ]
 
 
@@ -1356,8 +1375,8 @@ def catalog(request: Request, q: str = '', level: str = '', expertise: str = '',
 
 
 @app.get('/api/expertise-areas')
-def api_expertise_areas():
-    return {'areas': EXPERTISE_AREAS}
+def api_expertise_areas(db: Session = Depends(get_db)):
+    return {'areas': list_expertise_areas(db)}
 
 
 @app.get('/api/certification-pathway')
@@ -3824,6 +3843,61 @@ def material_asset(material_id: int, asset_path: str, request: Request, db: Sess
     key = posixpath.join(base_key, normalized_asset)
     filename = posixpath.basename(normalized_asset)
     return RedirectResponse(presigned_download_url(key, filename), status_code=303)
+
+
+@app.get('/admin/expertise')
+def admin_expertise(request: Request, err: str = '', db: Session = Depends(get_db)):
+    admin = require_admin(request, db)
+    areas = db.query(ExpertiseArea).order_by(ExpertiseArea.sort_order, ExpertiseArea.name).all()
+    # how many published+draft courses use each area (by name), so admin sees impact
+    rows = db.query(Course.expertise_area, func.count(Course.id)).group_by(Course.expertise_area).all()
+    usage = {name: count for name, count in rows if name}
+    return template(request, 'admin/expertise.html', db,
+                    {'admin': admin, 'areas': areas, 'usage': usage, 'err': err})
+
+
+@app.post('/admin/expertise')
+def admin_save_expertise(request: Request, area_id: int = Form(0), name: str = Form(...),
+                         sort_order: int = Form(0), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    name = name.strip()
+    if not name:
+        return RedirectResponse('/admin/expertise', status_code=303)
+    slug = slugify(name)
+    # reject duplicate names/slugs (other than the row being edited)
+    clash = db.query(ExpertiseArea).filter(
+        ((ExpertiseArea.name == name) | (ExpertiseArea.slug == slug)),
+        ExpertiseArea.id != area_id).first()
+    if clash:
+        return RedirectResponse('/admin/expertise?err=exists', status_code=303)
+    if area_id:
+        area = db.get(ExpertiseArea, area_id)
+        if not area:
+            return RedirectResponse('/admin/expertise', status_code=303)
+        old_name = area.name
+        area.name, area.slug, area.sort_order = name, slug, sort_order
+        # cascade the rename to every course linked by the old name
+        if old_name != name:
+            db.query(Course).filter(Course.expertise_area == old_name).update(
+                {'expertise_area': name}, synchronize_session=False)
+    else:
+        db.add(ExpertiseArea(name=name, slug=slug, sort_order=sort_order))
+    db.commit()
+    return RedirectResponse('/admin/expertise', status_code=303)
+
+
+@app.post('/admin/expertise/{area_id}/delete')
+def admin_delete_expertise(area_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    area = db.get(ExpertiseArea, area_id)
+    if area:
+        # block deletion while courses still reference it (avoid orphaning)
+        in_use = db.query(Course).filter(Course.expertise_area == area.name).count()
+        if in_use:
+            return RedirectResponse('/admin/expertise?err=inuse', status_code=303)
+        db.delete(area)
+        db.commit()
+    return RedirectResponse('/admin/expertise', status_code=303)
 
 
 @app.get('/admin/companies')
