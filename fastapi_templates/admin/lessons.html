@@ -15,7 +15,7 @@
         <button class="market-btn primary" type="button" id="bulk-import-btn">Upload Structured Folder</button>
         <button class="market-btn" type="button" id="bulk-clear-btn">Clear</button>
     </div>
-    <div id="bulk-import-status" class="bulk-import-status">Select the structured Level folder that contains the five module folders.</div>
+    <div id="bulk-import-status" class="bulk-import-status">Select the structured Level folder — it must contain either 3 module folders (3 sessions each) or 5 module folders (5 sessions each).</div>
     <ul id="bulk-import-log" class="upload-queue"></ul>
 </section>
 
@@ -52,7 +52,7 @@
     const clear = document.getElementById('bulk-clear-btn');
     const status = document.getElementById('bulk-import-status');
     const log = document.getElementById('bulk-import-log');
-    const sessionRe = /^\d{2}_Session_30min$/;
+    const sessionRe = /^\d{2}_Session/i;
     const moduleRe = /^\d{2}[-_]/;
     let batch = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 

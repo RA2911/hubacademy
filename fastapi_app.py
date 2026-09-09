@@ -33,6 +33,23 @@ CERTIFICATE_LEVEL_HOURS = 15
 MODULES_PER_LEVEL = 5
 SESSIONS_PER_MODULE = 5
 SESSION_DURATION_MINUTES = 180
+LEVEL_TOTAL_MINUTES = 900          # 15 hours per certificate level, any shape
+SUPPORTED_MODULE_COUNTS = (3, 5)   # 5 modules x 5 sessions, or 3 modules x 3 sessions
+
+
+def course_module_count(course):
+    """Modules in a course. Supported shapes: 5x5 or 3x3 (default 5)."""
+    return 3 if getattr(course, 'num_lessons', None) == 3 else 5
+
+
+def course_sessions_per_module(course):
+    """Sessions per module mirrors the module count (5x5 or 3x3)."""
+    return course_module_count(course)
+
+
+def course_module_minutes(course):
+    """Per-module minutes so a level stays 15h: 180 (5x5) or 300 (3x3)."""
+    return LEVEL_TOTAL_MINUTES // course_module_count(course)
 MASTER_CERTIFICATE_LEVEL = 4
 PASSWORD_RESET_TOKEN_MINUTES = 60
 MAX_LESSON_QUIZ_ATTEMPTS = 3
@@ -311,7 +328,7 @@ def normalize_course_modules(db: Session, course: Course, module_count: int = MO
             lesson.lesson_number = index
             lesson.module_number = index
             lesson.session_number = 1
-            lesson.duration_minutes = SESSION_DURATION_MINUTES
+            lesson.duration_minutes = LEVEL_TOTAL_MINUTES // module_count
             if re.match(r'^Module\s+\d+(\s*[-–]\s*Session\s+\d+)?$', lesson.title or '', flags=re.IGNORECASE):
                 lesson.title = f'Module {index}'
             elif not (lesson.title or '').strip():
@@ -3278,10 +3295,8 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     course.certificate_level = certificate_level if certificate_level in (0, 1, 2, 3) else 0
     if course.certificate_level and not learning_hours:
         learning_hours = CERTIFICATE_LEVEL_HOURS
-    if course.certificate_level:
-        num_lessons = MODULES_PER_LEVEL
-    elif not num_lessons:
-        num_lessons = MODULES_PER_LEVEL
+    # Only two shapes are supported: 3 modules (3x3) or 5 modules (5x5).
+    num_lessons = 3 if num_lessons == 3 else 5
     course.num_lessons = num_lessons
     course.learning_hours = max(0, learning_hours or 0)
     course.is_published = bool(is_published)
@@ -3450,7 +3465,11 @@ async def admin_prepare_course_bulk_import(course_id: int, request: Request, db:
     module_names = [str(name).strip() for name in data.get('module_names', []) if str(name).strip()]
     if not module_names:
         return JSONResponse({'error': 'No module folders found.'}, status_code=400)
-    module_names = module_names[:MODULES_PER_LEVEL]
+    if len(module_names) not in SUPPORTED_MODULE_COUNTS:
+        return JSONResponse({
+            'error': f'Found {len(module_names)} module folders. Only 3 modules (3 sessions each) or 5 modules (5 sessions each) are supported.',
+        }, status_code=400)
+    module_minutes = LEVEL_TOTAL_MINUTES // len(module_names)
     existing_lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
     lesson_map = {}
     for index, module_name in enumerate(module_names, start=1):
@@ -3461,7 +3480,7 @@ async def admin_prepare_course_bulk_import(course_id: int, request: Request, db:
         lesson.lesson_number = index
         lesson.module_number = index
         lesson.session_number = 1
-        lesson.duration_minutes = SESSION_DURATION_MINUTES
+        lesson.duration_minutes = module_minutes
         lesson.title = re.sub(r'^\d+\s*[-_]\s*', '', module_name).replace('_', ' ').strip() or f'Module {index}'
         if not lesson.description:
             lesson.description = f'{lesson.title} module with five guided sessions, applied practice, and final simulation.'
@@ -3501,14 +3520,15 @@ def admin_lessons(course_id: int, request: Request, db: Session = Depends(get_db
     course = db.get(Course, course_id)
     if not course:
         raise HTTPException(status_code=404)
-    blocked_extras = normalize_course_modules(db, course, MODULES_PER_LEVEL)
+    module_count = course_module_count(course)
+    blocked_extras = normalize_course_modules(db, course, module_count)
     if not blocked_extras:
         db.commit()
     lessons = db.query(Lesson).filter_by(course_id=course_id).order_by(Lesson.lesson_number).all()
     return template(request, 'admin/lessons.html', db, {
         'admin': admin,
         'course': course,
-        'lessons': lessons[:MODULES_PER_LEVEL],
+        'lessons': lessons[:module_count],
         'blocked_extras': blocked_extras,
     })
 
@@ -3545,7 +3565,7 @@ def admin_materials(lesson_id: int, request: Request, db: Session = Depends(get_
         'r2_ready': r2_enabled(),
         'current_module_number': current_module_number,
         'objective_by_session': objective_by_session,
-        'sessions_per_module': SESSIONS_PER_MODULE,
+        'sessions_per_module': course_sessions_per_module(lesson.course) if lesson else SESSIONS_PER_MODULE,
     })
 
 
@@ -3557,7 +3577,7 @@ async def admin_save_session_objectives(lesson_id: int, request: Request, db: Se
         raise HTTPException(status_code=404)
     current_module_number = current_module_number_for_lesson(db, lesson)
     form = await request.form()
-    for session_number in range(1, SESSIONS_PER_MODULE + 1):
+    for session_number in range(1, course_sessions_per_module(lesson.course) + 1):
         title = (form.get(f'title_{session_number}') or '').strip()
         objective = (form.get(f'objective_{session_number}') or '').strip()
         existing = db.query(SessionObjective).filter_by(
@@ -3592,17 +3612,18 @@ def admin_extract_session_objectives(lesson_id: int, request: Request, db: Sessi
     syllabus = db.query(LessonMaterial).filter_by(lesson_id=lesson.id, material_type='syllabus').order_by(LessonMaterial.upload_order.desc()).first()
     if not syllabus or not (syllabus.object_key or syllabus.file_path):
         return JSONResponse({'error': 'No syllabus PDF has been uploaded for this module.'}, status_code=400)
+    spm = course_sessions_per_module(lesson.course)
     try:
         text = extract_pdf_text(object_bytes(syllabus.object_key or syllabus.file_path))
-        objectives = extract_topic_objectives(text)
+        objectives = extract_topic_objectives(text, spm)
     except Exception as exc:
         logger.exception('Syllabus objective extraction failed: %s', exc)
         return JSONResponse({'error': 'Could not extract objectives from the syllabus PDF.'}, status_code=500)
-    if len(objectives) < SESSIONS_PER_MODULE:
+    if len(objectives) < spm:
         return JSONResponse({'error': f'Only {len(objectives)} objectives found in Topics covered.'}, status_code=422)
     module_number = current_module_number_for_lesson(db, lesson)
     saved = save_session_objectives(db, lesson.course_id, module_number, objectives)
-    return {'ok': True, 'saved': saved, 'objectives': objectives[:SESSIONS_PER_MODULE]}
+    return {'ok': True, 'saved': saved, 'objectives': objectives[:spm]}
 
 
 @app.post('/admin/lessons/{lesson_id}/materials/link')
