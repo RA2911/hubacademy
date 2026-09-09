@@ -1,0 +1,30 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Policies{% endblock %}
+{% block admin_content %}
+{% if saved %}<div class="admin-flash ok">Policies saved. They're live on the public page now.</div>{% endif %}
+<section class="detail-block">
+    <div class="dash-head" style="margin-bottom:14px">
+        <h2>Terms, Privacy &amp; Refund</h2>
+        <a class="market-btn" href="/policies" target="_blank" rel="noopener">View public page</a>
+    </div>
+    <p class="form-hint" style="text-transform:none;line-height:1.5;margin-bottom:18px">
+        Paste your wording below. It appears immediately on <strong>/policies</strong>, which every new student must accept when they register. Line breaks are preserved.
+    </p>
+    <form method="POST" action="/admin/policies">
+        <label style="display:block;margin-bottom:18px">
+            <strong>Terms of Service &amp; Privacy</strong>
+            <textarea name="terms_privacy" rows="14" style="width:100%;margin-top:8px" placeholder="Enter your Terms of Service and Privacy Policy...">{{ terms_privacy }}</textarea>
+        </label>
+        <label style="display:block;margin-bottom:18px">
+            <strong>Refund Policy</strong>
+            <textarea name="refund" rows="12" style="width:100%;margin-top:8px" placeholder="Enter your Refund Policy...">{{ refund }}</textarea>
+        </label>
+        <button class="market-btn primary" type="submit">Save policies</button>
+    </form>
+</section>
+<style>
+.admin-flash{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:.95rem;}
+.admin-flash.ok{background:#e7f7ee;border:1px solid #b7e6c9;color:#1b7a34;}
+textarea{border:1px solid #dbe4f0;border-radius:10px;padding:12px 14px;font:inherit;font-size:.95rem;color:#1f2733;resize:vertical;}
+</style>
+{% endblock %}

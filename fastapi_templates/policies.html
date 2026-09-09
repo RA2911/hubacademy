@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Policies - Hub Academy{% endblock %}
+{% block content %}
+<main class="policies-page">
+    <section class="policies-card">
+        <span class="eyebrow">Legal</span>
+        <h1>Terms, Privacy &amp; Refund Policy</h1>
+
+        <article id="terms" class="policy-block">
+            <h2>Terms of Service &amp; Privacy</h2>
+            {% if terms_privacy %}
+            <div class="policy-text">{{ terms_privacy }}</div>
+            {% else %}
+            <p class="policy-empty">This policy will be published soon.</p>
+            {% endif %}
+        </article>
+
+        <article id="refund" class="policy-block">
+            <h2>Refund Policy</h2>
+            {% if refund %}
+            <div class="policy-text">{{ refund }}</div>
+            {% else %}
+            <p class="policy-empty">This policy will be published soon.</p>
+            {% endif %}
+        </article>
+    </section>
+</main>
+<style>
+.policies-page{max-width:900px;margin:0 auto;padding:40px 20px 60px;}
+.policies-card{background:#fff;border:1px solid #e6ebf3;border-radius:16px;padding:34px 38px;box-shadow:0 10px 30px rgba(15,42,82,.06);}
+.policies-card h1{color:#0f2350;margin:6px 0 8px;}
+.policy-block{margin-top:28px;padding-top:22px;border-top:1px solid #eef1f6;}
+.policy-block:first-of-type{border-top:none;}
+.policy-block h2{color:#0f2350;font-size:1.25rem;margin:0 0 12px;}
+.policy-text{white-space:pre-wrap;line-height:1.65;color:#2a3547;}
+.policy-empty{color:#8a97a8;font-style:italic;}
+</style>
+{% endblock %}

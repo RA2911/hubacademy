@@ -167,6 +167,8 @@ class Student(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime)
     is_active = Column(Boolean, default=True)
+    # When the student accepted the Terms/Privacy/Refund policies at registration.
+    terms_accepted_at = Column(DateTime)
 
     company = relationship('Company')
 
@@ -414,6 +416,10 @@ ENROLLMENT_COLUMNS = {
     'source': "VARCHAR(30) NOT NULL DEFAULT 'enroll'",
 }
 
+STUDENT_COLUMNS = {
+    'terms_accepted_at': "TIMESTAMP",
+}
+
 
 def ensure_schema():
     Base.metadata.create_all(bind=engine)
@@ -455,3 +461,9 @@ def ensure_schema():
             for name, ddl in ENROLLMENT_COLUMNS.items():
                 if name not in existing_enrollment:
                     conn.execute(text(f"ALTER TABLE enrollments ADD COLUMN {name} {ddl}"))
+    if 'students' in inspector.get_table_names():
+        existing_student = {column['name'] for column in inspector.get_columns('students')}
+        with engine.begin() as conn:
+            for name, ddl in STUDENT_COLUMNS.items():
+                if name not in existing_student:
+                    conn.execute(text(f"ALTER TABLE students ADD COLUMN {name} {ddl}"))

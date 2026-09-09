@@ -11,9 +11,18 @@
             <label>Email<input type="email" name="email" required autocomplete="email"></label>
             <label>Password<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
             <label>Confirm password<input type="password" name="confirm_password" required minlength="10" autocomplete="new-password"></label>
+            <label class="accept-terms">
+                <input type="checkbox" name="accept_terms" value="1" required>
+                <span>I have read and accept the <a href="/policies" target="_blank" rel="noopener">Terms of Service, Privacy &amp; Refund Policy</a>.</span>
+            </label>
             <button class="market-btn primary" type="submit">Create Account</button>
         </form>
         <p>Already have an account? <a href="/login?next={{ next_page }}">Login</a></p>
     </section>
 </main>
+<style>
+.accept-terms{display:flex;align-items:flex-start;gap:10px;margin:6px 0 4px;font-weight:400;font-size:.92rem;color:#4a5566;line-height:1.4;}
+.accept-terms input{width:auto;margin-top:2px;flex:none;}
+.accept-terms a{font-weight:600;}
+</style>
 {% endblock %}

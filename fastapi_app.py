@@ -1411,6 +1411,18 @@ def course_detail(identifier: str, request: Request, db: Session = Depends(get_d
     return template(request, 'course_detail.html', db, {'course': course, 'lessons': lessons, 'enrolled': enrolled})
 
 
+POLICY_TERMS_KEY = 'policy_terms_privacy'
+POLICY_REFUND_KEY = 'policy_refund'
+
+
+@app.get('/policies', response_class=HTMLResponse)
+def policies_page(request: Request, db: Session = Depends(get_db)):
+    return template(request, 'policies.html', db, {
+        'terms_privacy': factory_get_setting(db, POLICY_TERMS_KEY, ''),
+        'refund': factory_get_setting(db, POLICY_REFUND_KEY, ''),
+    })
+
+
 @app.get('/register', response_class=HTMLResponse)
 def register_page(request: Request, next: str = '/courses'):
     with next_db_session() as db:
@@ -1419,13 +1431,18 @@ def register_page(request: Request, next: str = '/courses'):
 
 @app.post('/register')
 def register(request: Request, full_name: str = Form(...), email: str = Form(...), password: str = Form(...),
-             confirm_password: str = Form(...), next: str = Form('/courses'), db: Session = Depends(get_db)):
+             confirm_password: str = Form(...), accept_terms: str = Form(''), next: str = Form('/courses'),
+             db: Session = Depends(get_db)):
     email = email.strip().lower()
     if len(password) < 10 or password != confirm_password:
         return RedirectResponse(f'/register?next={next}', status_code=303)
+    # Policies must be accepted to create an account.
+    if not accept_terms:
+        return RedirectResponse(f'/register?next={next}&terms=required', status_code=303)
     if db.query(Student).filter_by(email=email).first():
         return RedirectResponse(f'/login?next={next}', status_code=303)
-    student = Student(username=username_from_email(db, email), full_name=full_name.strip(), email=email, password_hash=hash_password(password), is_active=True)
+    student = Student(username=username_from_email(db, email), full_name=full_name.strip(), email=email,
+                      password_hash=hash_password(password), is_active=True, terms_accepted_at=datetime.utcnow())
     db.add(student)
     db.commit()
     db.refresh(student)
@@ -3899,6 +3916,27 @@ def admin_delete_expertise(area_id: int, request: Request, db: Session = Depends
         db.delete(area)
         db.commit()
     return RedirectResponse('/admin/expertise', status_code=303)
+
+
+@app.get('/admin/policies')
+def admin_policies(request: Request, saved: str = '', db: Session = Depends(get_db)):
+    admin = require_admin(request, db)
+    return template(request, 'admin/policies.html', db, {
+        'admin': admin,
+        'terms_privacy': factory_get_setting(db, POLICY_TERMS_KEY, ''),
+        'refund': factory_get_setting(db, POLICY_REFUND_KEY, ''),
+        'saved': saved,
+    })
+
+
+@app.post('/admin/policies')
+def admin_save_policies(request: Request, terms_privacy: str = Form(''), refund: str = Form(''),
+                        db: Session = Depends(get_db)):
+    require_admin(request, db)
+    factory_set_setting(db, POLICY_TERMS_KEY, terms_privacy.strip())
+    factory_set_setting(db, POLICY_REFUND_KEY, refund.strip())
+    db.commit()
+    return RedirectResponse('/admin/policies?saved=1', status_code=303)
 
 
 @app.get('/admin/companies')
