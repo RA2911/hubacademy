@@ -5,6 +5,9 @@
     <section class="market-panel auth-public-card">
         <h1>Create your account</h1>
         <p>Buy courses, subscribe, track progress, and access your learning dashboard.</p>
+        {% if terms_required %}
+        <p class="accept-terms-error" role="alert">You must read and accept the Terms of Service, Privacy &amp; Refund Policy to create an account.</p>
+        {% endif %}
         <form method="POST" action="/register">
             <input type="hidden" name="next" value="{{ next_page }}">
             <label>Full name<input type="text" name="full_name" required autocomplete="name"></label>
@@ -24,5 +27,6 @@
 .accept-terms{display:flex;align-items:flex-start;gap:10px;margin:6px 0 4px;font-weight:400;font-size:.92rem;color:#4a5566;line-height:1.4;}
 .accept-terms input{width:auto;margin-top:2px;flex:none;}
 .accept-terms a{font-weight:600;}
+.accept-terms-error{background:#fdecec;border:1px solid #f5c2c2;color:#a12622;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:.9rem;line-height:1.4;}
 </style>
 {% endblock %}

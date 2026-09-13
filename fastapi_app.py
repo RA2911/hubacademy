@@ -1441,9 +1441,9 @@ def policies_page(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get('/register', response_class=HTMLResponse)
-def register_page(request: Request, next: str = '/courses'):
+def register_page(request: Request, next: str = '/courses', terms: str = ''):
     with next_db_session() as db:
-        return template(request, 'register.html', db, {'next_page': next})
+        return template(request, 'register.html', db, {'next_page': next, 'terms_required': terms == 'required'})
 
 
 @app.post('/register')
