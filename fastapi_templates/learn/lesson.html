@@ -71,11 +71,10 @@
 .ai-progress-pct{font-weight:800;color:#2480DC;font-size:.9rem;}
 
 /* ===== Per-module audio button in the nav strip ===== */
-.module-menu-cell{position:relative;display:grid;}
-.module-audio-btn{position:absolute;top:6px;right:6px;width:26px;height:26px;border:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:rgba(36,128,220,.14);color:#2480DC;font-size:.72rem;transition:background .15s ease,color .15s ease,transform .12s ease;}
-.module-audio-btn:hover{background:#2480DC;color:#fff;transform:scale(1.08);}
-.module-menu-cell .active ~ .module-audio-btn{background:rgba(255,255,255,.28);color:#fff;}
-.module-menu a{padding-right:38px;}
+.module-menu-cell{display:grid;gap:6px;align-content:start;}
+.module-audio-btn{display:flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:6px;padding:6px 8px;cursor:pointer;background:rgba(36,128,220,.12);color:#2480DC;font-size:.72rem;font-weight:800;line-height:1;transition:background .15s ease,color .15s ease;}
+.module-audio-btn i{font-size:.82rem;}
+.module-audio-btn:hover{background:#2480DC;color:#fff;}
 </style>
 <main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
     {% set hero_banners = {1:'banner1.jpg', 2:'banner2.jpg', 3:'banner3.jpg', 4:'banner4.jpg', 5:'banner5.jpg'} %}
@@ -102,7 +101,7 @@
                 <small>{% if item.completed %}Completed{% elif item.active %}Current{% elif item.unlocked %}Open{% else %}Locked{% endif %}</small>
             </a>
             {% if item.unlocked %}
-            <button class="module-audio-btn" type="button" data-lesson="{{ item.lesson.id }}" title="Audio recap for Module {{ item.number }}" aria-label="Audio recap for Module {{ item.number }}"><i class="fas fa-headphones"></i></button>
+            <button class="module-audio-btn" type="button" data-lesson="{{ item.lesson.id }}" title="Audio recap for Module {{ item.number }}" aria-label="Audio summary for Module {{ item.number }}"><i class="fas fa-headphones"></i><span>Audio Summary</span></button>
             {% endif %}
         </div>
         {% endfor %}
