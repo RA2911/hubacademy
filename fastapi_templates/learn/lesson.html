@@ -70,6 +70,14 @@
 .ai-progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#2480DC,#16A6AC);transition:width .25s ease;}
 .ai-progress-pct{font-weight:800;color:#2480DC;font-size:.9rem;}
 
+/* ===== Resource iframe loading overlay ===== */
+#resource-modal .studio-modal-panel{position:relative;}
+#resource-modal header{position:relative;z-index:3;}
+.resource-loading{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#eef3fa;color:#0f2350;font-weight:700;}
+.resource-loading[hidden]{display:none;}
+.resource-loading i{font-size:1.9rem;color:#2480DC;}
+.resource-loading p{margin:0;}
+
 /* ===== Per-module audio button in the nav strip ===== */
 .module-menu-cell{display:grid;gap:6px;align-content:start;}
 .module-audio-btn{display:flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:6px;padding:6px 8px;cursor:pointer;background:rgba(36,128,220,.12);color:#2480DC;font-size:.72rem;font-weight:800;line-height:1;transition:background .15s ease,color .15s ease;}
@@ -255,6 +263,10 @@
             </div>
         </header>
         <iframe id="resource-frame" title="Lesson resource"></iframe>
+        <div class="resource-loading" id="resource-loading" hidden>
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading…</p>
+        </div>
     </section>
 </div>
 
@@ -309,6 +321,7 @@
     const quizPassScore = {{ quiz_pass_score if quiz_pass_score is defined else 60 }};
     const modal = document.getElementById('resource-modal');
     const frame = document.getElementById('resource-frame');
+    const resourceLoading = document.getElementById('resource-loading');
     const modalTitle = document.getElementById('resource-modal-title');
     const newTab = document.getElementById('resource-new-tab');
     const close = document.getElementById('resource-close');
@@ -333,6 +346,7 @@
         button.addEventListener('click', () => {
             const url = button.dataset.url;
             modalTitle.textContent = button.dataset.title || 'Resource';
+            resourceLoading.hidden = false;
             // Hide the browser PDF viewer's download/print toolbar for PDF resources.
             frame.src = button.dataset.viewer === 'pdf' ? url + '#toolbar=0&navpanes=0' : url;
             newTab.href = url;
@@ -355,6 +369,9 @@
             localStorage.setItem(progressPrefix + key, 'done');
             panel.classList.add('is-done');
         }, { once: true });
+    });
+    frame.addEventListener('load', () => {
+        resourceLoading.hidden = true;
     });
     close.addEventListener('click', () => {
         frame.src = 'about:blank';
