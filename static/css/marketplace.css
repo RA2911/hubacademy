@@ -2408,8 +2408,8 @@ a {
 
 .session-resource-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 10px;
 }
 
 .module-section {
@@ -2460,23 +2460,23 @@ a {
 }
 
 .module-launch {
-    min-height: 104px;
+    min-height: 76px;
     display: grid;
-    gap: 8px;
+    gap: 5px;
     align-content: start;
     text-align: left;
     border: 1px solid #d8e2ed;
     border-radius: 8px;
     background: #f8fafc;
     color: var(--ink);
-    padding: 14px;
+    padding: 10px;
     cursor: pointer;
     position: relative;
 }
 
 .module-launch i {
     color: var(--session, var(--module));
-    font-size: 1.3rem;
+    font-size: 1rem;
 }
 
 .module-launch:hover {
@@ -2485,7 +2485,9 @@ a {
 }
 
 .module-launch strong {
-    font-size: 1.1rem;
+    font-size: .82rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
 }
 
 .module-launch span {

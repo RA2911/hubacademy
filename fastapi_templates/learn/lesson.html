@@ -61,6 +61,21 @@
 .quiz-modal-body .fb-improve{background:#fff5e6;border:1px solid #f6dcae;}
 .quiz-modal-body .fb-improve h4{color:#c47d1a;}
 .quiz-modal-body .quiz-result .market-btn{margin-top:6px;padding:12px 30px;border:0;border-radius:12px;color:#fff;background:linear-gradient(135deg,#2480DC,#16A6AC);font-weight:700;}
+
+/* ===== AI generation progress bar ===== */
+.ai-progress{display:flex;flex-direction:column;align-items:center;gap:15px;padding:52px 30px;text-align:center;}
+.ai-progress-icon{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;font-size:1.6rem;color:#fff;background:linear-gradient(135deg,#2480DC,#16A6AC);box-shadow:0 12px 26px rgba(36,128,220,.32);}
+.ai-progress p{margin:0;color:#0f2350;font-weight:700;}
+.ai-progress-track{width:min(340px,82%);height:10px;border-radius:999px;background:#e6edf6;overflow:hidden;}
+.ai-progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#2480DC,#16A6AC);transition:width .25s ease;}
+.ai-progress-pct{font-weight:800;color:#2480DC;font-size:.9rem;}
+
+/* ===== Per-module audio button in the nav strip ===== */
+.module-menu-cell{position:relative;display:grid;}
+.module-audio-btn{position:absolute;top:6px;right:6px;width:26px;height:26px;border:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:rgba(36,128,220,.14);color:#2480DC;font-size:.72rem;transition:background .15s ease,color .15s ease,transform .12s ease;}
+.module-audio-btn:hover{background:#2480DC;color:#fff;transform:scale(1.08);}
+.module-menu-cell .active ~ .module-audio-btn{background:rgba(255,255,255,.28);color:#fff;}
+.module-menu a{padding-right:38px;}
 </style>
 <main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
     {% set hero_banners = {1:'banner1.jpg', 2:'banner2.jpg', 3:'banner3.jpg', 4:'banner4.jpg', 5:'banner5.jpg'} %}
@@ -81,10 +96,15 @@
 
     <nav class="module-menu" aria-label="Course modules">
         {% for item in module_nav %}
-        <a class="{% if item.active %}active{% elif item.completed %}done{% elif not item.unlocked %}locked{% endif %}" href="{% if item.unlocked %}/learn/lesson/{{ item.lesson.id }}{% else %}#{% endif %}">
-            <span>Module {{ item.number }}</span>
-            <small>{% if item.completed %}Completed{% elif item.active %}Current{% elif item.unlocked %}Open{% else %}Locked{% endif %}</small>
-        </a>
+        <div class="module-menu-cell">
+            <a class="{% if item.active %}active{% elif item.completed %}done{% elif not item.unlocked %}locked{% endif %}" href="{% if item.unlocked %}/learn/lesson/{{ item.lesson.id }}{% else %}#{% endif %}">
+                <span>Module {{ item.number }}</span>
+                <small>{% if item.completed %}Completed{% elif item.active %}Current{% elif item.unlocked %}Open{% else %}Locked{% endif %}</small>
+            </a>
+            {% if item.unlocked %}
+            <button class="module-audio-btn" type="button" data-lesson="{{ item.lesson.id }}" title="Audio recap for Module {{ item.number }}" aria-label="Audio recap for Module {{ item.number }}"><i class="fas fa-headphones"></i></button>
+            {% endif %}
+        </div>
         {% endfor %}
     </nav>
 
@@ -115,9 +135,14 @@
                     </div>
                 </div>
                 <div class="session-resource-grid">
-                    {% for material in session.session %}
-                    <button class="module-launch" type="button" data-key="session-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Main Concepts">
-                        <i class="fas fa-desktop"></i><strong>Main Concepts</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    {% for material in session.session if material.material_type == 'slide' %}
+                    <button class="module-launch" type="button" data-key="session-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Main Concepts" data-viewer="pdf">
+                        <i class="fas fa-book-open"></i><strong>Main Concepts</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
+                    </button>
+                    {% endfor %}
+                    {% for material in session.session if material.material_type != 'slide' %}
+                    <button class="module-launch" type="button" data-key="practice-{{ session.label }}-{{ material.id }}" data-url="/materials/{{ material.id }}/download" data-title="Practice">
+                        <i class="fas fa-pen-to-square"></i><strong>Practice</strong><span class="done-mark"><i class="fas fa-check"></i> Done</span>
                     </button>
                     {% endfor %}
                     {% for material in session.video %}
@@ -309,7 +334,8 @@
         button.addEventListener('click', () => {
             const url = button.dataset.url;
             modalTitle.textContent = button.dataset.title || 'Resource';
-            frame.src = url;
+            // Hide the browser PDF viewer's download/print toolbar for PDF resources.
+            frame.src = button.dataset.viewer === 'pdf' ? url + '#toolbar=0&navpanes=0' : url;
             newTab.href = url;
             modal.hidden = false;
             if (key) {
@@ -344,7 +370,7 @@
     });
     aiModalRefresh.addEventListener('click', () => {
         if (aiMode === 'flashcards') generateFlashcards();
-        if (aiMode === 'audio') generateAudioSummary();
+        if (aiMode === 'audio') generateAudioSummary(audioLessonId);
     });
 
     function escapeHtml(value) {
@@ -361,6 +387,33 @@
         aiMode = mode;
         aiModalTitle.textContent = title;
         aiModal.hidden = false;
+    }
+
+    let aiProgressTimer = null;
+    function startAiProgress(label, iconClass) {
+        stopAiProgress();
+        aiModalBody.innerHTML = `
+            <div class="ai-progress">
+                <div class="ai-progress-icon"><i class="fas ${iconClass}"></i></div>
+                <p>${escapeHtml(label)}</p>
+                <div class="ai-progress-track"><div class="ai-progress-fill" id="ai-progress-fill"></div></div>
+                <span class="ai-progress-pct" id="ai-progress-pct">0%</span>
+            </div>`;
+        const fill = document.getElementById('ai-progress-fill');
+        const pctEl = document.getElementById('ai-progress-pct');
+        let pct = 0;
+        aiProgressTimer = setInterval(() => {
+            pct += Math.max(0.5, (92 - pct) * 0.06);
+            if (pct > 92) pct = 92;
+            fill.style.width = pct + '%';
+            pctEl.textContent = Math.round(pct) + '%';
+        }, 250);
+    }
+    function stopAiProgress() {
+        if (aiProgressTimer) {
+            clearInterval(aiProgressTimer);
+            aiProgressTimer = null;
+        }
     }
 
     function closeAiModal() {
@@ -421,29 +474,34 @@
 
     async function generateFlashcards() {
         openAiModal('Flashcards', 'flashcards');
-        aiModalBody.innerHTML = '<div class="ai-loading"><i class="fas fa-layer-group"></i><p>Generating flashcards...</p></div>';
+        startAiProgress('Generating flashcards…', 'fa-layer-group');
         try {
             const data = await postJson(`/learn/lesson/${lessonId}/ai/flashcards`);
+            stopAiProgress();
             flashcards = data.flashcards || [];
             flashcardIndex = 0;
             if (!flashcards.length) throw new Error('No flashcards were generated.');
             renderFlashcard();
         } catch (error) {
+            stopAiProgress();
             aiModalBody.innerHTML = `<div class="ai-error"><strong>Flashcards failed</strong><p>${escapeHtml(error.message)}</p></div>`;
         }
     }
 
     document.getElementById('flashcards-btn').addEventListener('click', generateFlashcards);
 
-    async function generateAudioSummary() {
+    let audioLessonId = lessonId;
+    async function generateAudioSummary(targetLessonId) {
+        audioLessonId = targetLessonId || lessonId;
         openAiModal('Audio Sessions', 'audio');
         if (currentAudioUrl) {
             URL.revokeObjectURL(currentAudioUrl);
             currentAudioUrl = null;
         }
-        aiModalBody.innerHTML = '<div class="ai-loading"><i class="fas fa-headphones"></i><p>Generating audio summary...</p></div>';
+        startAiProgress('Generating audio summary…', 'fa-headphones');
         try {
-            const response = await fetch(`/learn/lesson/${lessonId}/ai/audio-summary`, {method: 'POST'});
+            const response = await fetch(`/learn/lesson/${audioLessonId}/ai/audio-summary`, {method: 'POST'});
+            stopAiProgress();
             if (!response.ok) {
                 let message = 'Could not generate audio summary';
                 try {
@@ -473,11 +531,19 @@
                 audio.play();
             });
         } catch (error) {
+            stopAiProgress();
             aiModalBody.innerHTML = `<div class="ai-error"><strong>Audio failed</strong><p>${escapeHtml(error.message)}</p></div>`;
         }
     }
 
-    document.getElementById('audio-btn').addEventListener('click', generateAudioSummary);
+    document.getElementById('audio-btn').addEventListener('click', () => generateAudioSummary());
+    document.querySelectorAll('.module-audio-btn').forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            generateAudioSummary(btn.dataset.lesson);
+        });
+    });
 
     /* ===== Video Avatar (D-ID agent, sandboxed in an iframe modal) ===== */
     const avatarBtn = document.getElementById('avatar-btn');
