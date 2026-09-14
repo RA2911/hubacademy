@@ -27,7 +27,7 @@
                 <h2>Upload entire module folder</h2>
             </div>
         </div>
-        <p class="muted-line">Pick the whole module folder from your computer. Every file is auto-routed to the correct material type by the subfolder it sits in (<code>html</code>, <code>video</code>, <code>simulation</code>, <code>case_study</code>, <code>toolkit</code>, <code>module_intro_video</code>, <code>case_analysis</code>, <code>general_simulation</code>). Reference files (<code>.md</code>/<code>.txt</code> and anything in <code>_reference</code>) are skipped automatically.</p>
+        <p class="muted-line">Pick one <code>module_N</code> folder from your computer. Every file is auto-routed by its filename: <code>deck.html</code>&rarr;HTML lesson, <code>*.pdf</code>&rarr;slides, <code>application.html</code>&rarr;case application, <code>case.html</code>&rarr;case study, <code>simulation.html</code>&rarr;simulation, <code>summary.mp4</code>&rarr;video, <code>module_video.mp4</code>&rarr;module intro video, <code>module_case.html</code>&rarr;module case analysis. Session number is taken from the <code>session_N</code> subfolder. Anything else (e.g. <code>index.html</code>) is skipped automatically.</p>
         <div class="module-bulk">
             <label>Module folder<input class="module-bulk-input" type="file" webkitdirectory directory multiple></label>
             <div class="upload-actions">
@@ -163,21 +163,22 @@
     }
 
 
-    /* ===== One-click: upload an entire module folder, auto-routed by subfolder ===== */
-    const validTypes = new Set([{% for type_key, _type_label in material_type_options %}"{{ type_key }}"{% if not loop.last %}, {% endif %}{% endfor %}]);
+    /* ===== One-click: upload an entire module folder, auto-routed by filename ===== */
     const bulkInput = manager.querySelector('.module-bulk-input');
     const bulkBtn = manager.querySelector('.module-bulk-upload');
     const bulkClear = manager.querySelector('.module-bulk-clear');
     const bulkQueue = manager.querySelector('.module-bulk-queue');
 
     function typeForFile(file) {
-        const parts = (file.webkitRelativePath || file.name).replace(/\\/g, '/').split('/');
-        if (parts.indexOf('_reference') !== -1) return null;
-        const name = parts[parts.length - 1];
-        if (/\.(md|txt)$/i.test(name) || name.startsWith('_') || name.startsWith('.')) return null;
-        for (let i = parts.length - 2; i >= 0; i -= 1) {
-            if (validTypes.has(parts[i])) return parts[i];
-        }
+        const name = (file.webkitRelativePath || file.name).replace(/\\/g, '/').split('/').pop().toLowerCase();
+        if (name === 'deck.html') return 'html';
+        if (name.endsWith('.pdf')) return 'slide';
+        if (name === 'application.html') return 'case_application';
+        if (name === 'case.html') return 'case_study';
+        if (name === 'simulation.html') return 'simulation';
+        if (name === 'summary.mp4') return 'video';
+        if (name === 'module_video.mp4') return 'module_intro_video';
+        if (name === 'module_case.html') return 'case_analysis';
         return null;
     }
     function renderBulk() {
@@ -207,7 +208,7 @@
                 if (!t) { skipped += 1; continue; }
                 const data = new FormData();
                 data.append('material_type', t);
-                data.append('relative_path', files[i].name);
+                data.append('relative_path', files[i].webkitRelativePath || files[i].name);
                 data.append('package_id', batchId);
                 data.append('file', files[i]);
                 if (rows[i]) rows[i].querySelector('b').textContent = 'Uploading...';

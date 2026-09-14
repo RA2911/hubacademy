@@ -65,13 +65,10 @@ MATERIAL_TYPE_OPTIONS = [
     ('case_application', 'Case applications'),
     ('case_study', 'Case studies'),
     ('case_analysis', 'Module case analysis'),
-    ('toolkit', 'Toolkits'),
-    ('toolkit_asset', 'Toolkit Excel/assets'),
     ('simulation', 'Simulations'),
     ('general_simulation', 'Module general simulation'),
     ('syllabus', 'Syllabus'),
     ('clo', 'CLO / CBO'),
-    ('article', 'Articles / readings'),
     ('other', 'Other material'),
 ]
 MATERIAL_TYPE_KEYS = {key for key, _label in MATERIAL_TYPE_OPTIONS}
@@ -357,9 +354,9 @@ def material_display_label(material, index):
         return 'General simulation'
     if material_type == 'case_analysis':
         return 'Case analysis'
-    if material_type in ('toolkit', 'toolkit_asset'):
+    if material_type == 'case_application':
         return f'Application {index}'
-    if material_type in ('case_application', 'case_study'):
+    if material_type == 'case_study':
         return f'Case {index}'
     if material_type == 'syllabus':
         return 'Syllabus'
@@ -384,7 +381,7 @@ def group_lesson_materials(materials):
         }
         if material_type in ('html', 'slide', 'video', 'simulation'):
             groups['learning'].append(item)
-        elif material_type in ('toolkit', 'toolkit_asset', 'case_application', 'case_study'):
+        elif material_type in ('case_application', 'case_study'):
             groups['ai_tools'].append(item)
         else:
             groups['support'].append(item)
@@ -403,8 +400,6 @@ def module_material_groups(materials, module_number):
     counters = {key: 0 for key in groups}
     for material in materials:
         material_type = material.material_type or 'other'
-        if material_type == 'toolkit_asset':
-            continue
         if material_type in ('html', 'slide'):
             group = 'sessions'
             label = f'Session {module_number}'
@@ -414,10 +409,10 @@ def module_material_groups(materials, module_number):
         elif material_type == 'simulation':
             group = 'simulations'
             label = f'Simulation {module_number}'
-        elif material_type == 'toolkit' and html_material(material):
+        elif material_type == 'case_application':
             group = 'applications'
             label = f'Application {module_number}'
-        elif material_type in ('case_application', 'case_study'):
+        elif material_type == 'case_study':
             group = 'cases'
             label = f'Case {module_number}'
         else:
@@ -513,7 +508,7 @@ def module_session_groups(materials, module_number, objective_map=None):
 
     for material in materials:
         material_type = material.material_type or 'other'
-        if material_type in ('toolkit_asset', 'module_intro_video', 'case_analysis', 'general_simulation'):
+        if material_type in ('module_intro_video', 'case_analysis', 'general_simulation'):
             continue
         if material_type in ('html', 'slide'):
             bucket = 'session'
@@ -521,9 +516,9 @@ def module_session_groups(materials, module_number, objective_map=None):
             bucket = 'video'
         elif material_type == 'simulation':
             bucket = 'simulation'
-        elif material_type == 'toolkit' and html_material(material):
+        elif material_type == 'case_application':
             bucket = 'application'
-        elif material_type in ('case_application', 'case_study'):
+        elif material_type == 'case_study':
             bucket = 'case'
         else:
             continue
@@ -784,8 +779,8 @@ def lesson_learning_corpus(lesson, materials):
     readable_materials = [
         material for material in materials
         if (material.material_type or '').lower() in {
-            'html', 'slide', 'simulation', 'toolkit', 'case_application', 'case_analysis',
-            'general_simulation', 'syllabus', 'clo', 'article', 'other'
+            'html', 'slide', 'simulation', 'case_application', 'case_study', 'case_analysis',
+            'general_simulation', 'syllabus', 'clo', 'other'
         }
     ]
     for material in readable_materials[:AI_CONTEXT_MATERIAL_LIMIT]:
@@ -1947,7 +1942,7 @@ def learner_flashcards(lesson_id: int, request: Request, db: Session = Depends(g
     materials = db.query(LessonMaterial).filter_by(lesson_id=lesson.id).order_by(LessonMaterial.upload_order).all()
     corpus = lesson_learning_corpus(lesson, materials)
     if not corpus:
-        return JSONResponse({'error': 'No readable lesson content was found for flashcards. Upload HTML, PDF, text, syllabus, case, simulation, or toolkit materials with extractable text.'}, status_code=400)
+        return JSONResponse({'error': 'No readable lesson content was found for flashcards. Upload HTML, PDF, text, syllabus, case, or simulation materials with extractable text.'}, status_code=400)
     prompt = f"""Create 8 serious flashcards from the extracted learning content below.
 
 Rules:
@@ -3815,7 +3810,7 @@ async def admin_complete_material_upload(lesson_id: int, request: Request, db: S
     max_order = db.query(func.max(LessonMaterial.upload_order)).filter_by(lesson_id=lesson_id).scalar() or 0
     material = LessonMaterial(
         lesson_id=lesson_id,
-        material_type=(data.get('material_type') or 'article').strip(),
+        material_type=(data.get('material_type') or 'other').strip(),
         file_name=(data.get('file_name') or '').strip(),
         file_path=(data.get('object_key') or '').strip(),
         object_key=(data.get('object_key') or '').strip(),
