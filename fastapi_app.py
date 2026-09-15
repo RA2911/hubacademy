@@ -3598,6 +3598,56 @@ async def admin_save_session_objectives(lesson_id: int, request: Request, db: Se
     return RedirectResponse(f'/admin/lessons/{lesson.id}/materials', status_code=303)
 
 
+@app.post('/admin/lessons/{lesson_id}/descriptions')
+async def admin_import_lesson_descriptions(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    """Import a module descriptions.json: set the module (lesson) description and
+    upsert the session titles/objectives. Sent by the module-folder bulk uploader."""
+    require_admin(request, db)
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404)
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({'error': 'Invalid JSON in descriptions file.'}, status_code=400)
+    sessions = data.get('sessions') or {}
+    if not isinstance(sessions, dict):
+        return JSONResponse({'error': 'sessions must be an object keyed by session number.'}, status_code=400)
+    module_description = str(data.get('module_description') or '').strip()
+    current_module_number = current_module_number_for_lesson(db, lesson)
+    spm = course_sessions_per_module(lesson.course)
+    if module_description:
+        lesson.description = module_description
+    applied = 0
+    for session_number in range(1, spm + 1):
+        entry = sessions.get(str(session_number)) or sessions.get(session_number) or {}
+        if not isinstance(entry, dict):
+            continue
+        title = str(entry.get('title') or '').strip()
+        objective = str(entry.get('objective') or '').strip()
+        if not title and not objective:
+            continue
+        existing = db.query(SessionObjective).filter_by(
+            course_id=lesson.course_id,
+            module_number=current_module_number,
+            session_number=session_number,
+        ).first()
+        if not existing:
+            existing = SessionObjective(
+                course_id=lesson.course_id,
+                module_number=current_module_number,
+                session_number=session_number,
+            )
+            db.add(existing)
+        existing.title = title or None
+        existing.objective = objective or None
+        existing.source = 'import'
+        applied += 1
+    db.commit()
+    return {'ok': True, 'module_number': current_module_number, 'sessions_applied': applied,
+            'module_description_set': bool(module_description)}
+
+
 @app.post('/admin/lessons/{lesson_id}/objectives/extract')
 def admin_extract_session_objectives(lesson_id: int, request: Request, db: Session = Depends(get_db)):
     require_admin(request, db)

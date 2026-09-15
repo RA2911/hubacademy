@@ -27,7 +27,7 @@
                 <h2>Upload entire module folder</h2>
             </div>
         </div>
-        <p class="muted-line">Pick one <code>module_N</code> folder from your computer. Every file is auto-routed by its filename: <code>deck.html</code>&rarr;HTML lesson, <code>*.pdf</code>&rarr;slides, <code>application.html</code>&rarr;case application, <code>case.html</code>&rarr;case study, <code>simulation.html</code>&rarr;simulation, <code>summary.mp4</code>&rarr;video, <code>module_video.mp4</code>&rarr;module intro video, <code>module_case.html</code>&rarr;module case analysis. Session number is taken from the <code>session_N</code> subfolder. Anything else (e.g. <code>index.html</code>) is skipped automatically.</p>
+        <p class="muted-line">Pick one <code>module_N</code> folder from your computer. Every file is auto-routed by its filename: <code>deck.html</code>&rarr;HTML lesson, <code>*.pdf</code>&rarr;slides, <code>application.html</code>&rarr;case application, <code>case.html</code>&rarr;case study, <code>simulation.html</code>&rarr;simulation, <code>summary.mp4</code>&rarr;video, <code>module_video.mp4</code>&rarr;module intro video, <code>module_case.html</code>&rarr;module case analysis. Session number is taken from the <code>session_N</code> subfolder. A <code>descriptions.json</code> in the module folder auto-fills the module description and session objectives. Anything else (e.g. <code>index.html</code>) is skipped automatically.</p>
         <div class="module-bulk">
             <label>Module folder<input class="module-bulk-input" type="file" webkitdirectory directory multiple></label>
             <div class="upload-actions">
@@ -181,15 +181,25 @@
         if (name === 'module_case.html') return 'case_analysis';
         return null;
     }
+    function baseName(f) {
+        return (f.webkitRelativePath || f.name).replace(/\\/g, '/').split('/').pop().toLowerCase();
+    }
+    function isDescriptionsFile(f) {
+        return baseName(f) === 'descriptions.json';
+    }
     function renderBulk() {
         if (!bulkQueue) return;
         bulkQueue.innerHTML = '';
         Array.from((bulkInput && bulkInput.files) || []).forEach(function (f) {
             const t = typeForFile(f);
             const li = document.createElement('li');
-            li.innerHTML = '<span>' + (f.webkitRelativePath || f.name) + '</span>' +
-                (t ? '<small>&rarr; ' + t + '</small><b>Ready</b>' : '<small>skipped</small><b>&mdash;</b>');
-            if (!t) li.style.opacity = '.5';
+            if (isDescriptionsFile(f)) {
+                li.innerHTML = '<span>' + (f.webkitRelativePath || f.name) + '</span><small>&rarr; module &amp; session descriptions</small><b>Ready</b>';
+            } else {
+                li.innerHTML = '<span>' + (f.webkitRelativePath || f.name) + '</span>' +
+                    (t ? '<small>&rarr; ' + t + '</small><b>Ready</b>' : '<small>skipped</small><b>&mdash;</b>');
+                if (!t) li.style.opacity = '.5';
+            }
             bulkQueue.appendChild(li);
         });
     }
@@ -202,8 +212,26 @@
             if (!files.length) return;
             const batchId = packageId();
             bulkBtn.disabled = true;
-            let done = 0, skipped = 0, failed = 0;
+            let done = 0, skipped = 0, failed = 0, descImported = 0;
             for (let i = 0; i < files.length; i += 1) {
+                if (isDescriptionsFile(files[i])) {
+                    if (rows[i]) rows[i].querySelector('b').textContent = 'Importing descriptions...';
+                    try {
+                        const payload = JSON.parse(await files[i].text());
+                        const response = await fetch('/admin/lessons/' + lessonId + '/descriptions', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                        });
+                        let result = {};
+                        try { result = await response.json(); } catch (e) { result = {}; }
+                        if (!response.ok || !result.ok) throw new Error(result.error || ('HTTP ' + response.status));
+                        if (rows[i]) { rows[i].querySelector('b').textContent = 'Descriptions imported (' + result.sessions_applied + ' sessions)'; rows[i].classList.add('done'); }
+                        descImported += 1;
+                    } catch (error) {
+                        if (rows[i]) { rows[i].querySelector('b').textContent = error.message; rows[i].classList.add('failed'); }
+                        failed += 1;
+                    }
+                    continue;
+                }
                 const t = typeForFile(files[i]);
                 if (!t) { skipped += 1; continue; }
                 const data = new FormData();
@@ -225,7 +253,7 @@
                 }
             }
             bulkBtn.disabled = false;
-            alert('Uploaded ' + done + ' file(s); skipped ' + skipped + ' reference file(s)' + (failed ? '; ' + failed + ' failed' : '') + '.');
+            alert('Uploaded ' + done + ' file(s)' + (descImported ? '; imported descriptions' : '') + '; skipped ' + skipped + ' reference file(s)' + (failed ? '; ' + failed + ' failed' : '') + '.');
             window.location.reload();
         });
     }
