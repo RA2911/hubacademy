@@ -73,10 +73,11 @@
 /* ===== Resource iframe loading overlay ===== */
 #resource-modal .studio-modal-panel{position:relative;}
 #resource-modal header{position:relative;z-index:3;}
-.resource-loading{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#eef3fa;color:#0f2350;font-weight:700;}
+.resource-loading{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#eef3fa;color:#0f2350;font-weight:700;}
 .resource-loading[hidden]{display:none;}
-.resource-loading i{font-size:1.9rem;color:#2480DC;}
 .resource-loading p{margin:0;}
+.resource-progress-track{width:min(340px,70%);height:10px;border-radius:999px;background:#dbe5f2;overflow:hidden;}
+.resource-progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#2480DC,#16A6AC);transition:width .25s linear;}
 
 /* ===== Per-module audio button in the nav strip ===== */
 .module-menu-cell{display:grid;gap:6px;align-content:start;}
@@ -264,8 +265,8 @@
         </header>
         <iframe id="resource-frame" title="Lesson resource"></iframe>
         <div class="resource-loading" id="resource-loading" hidden>
-            <i class="fas fa-spinner fa-spin"></i>
             <p>Loading…</p>
+            <div class="resource-progress-track"><div class="resource-progress-fill" id="resource-progress-fill"></div></div>
         </div>
     </section>
 </div>
@@ -337,6 +338,23 @@
     let flashcards = [];
     let flashcardIndex = 0;
 
+    // ---- resource popup loading bar: eases forward slowly, completes on load ----
+    let resourceProgressTimer = null;
+    const resourceFill = document.getElementById('resource-progress-fill');
+    function startResourceProgress() {
+        stopResourceProgress();
+        let pct = 0;
+        resourceFill.style.width = '0%';
+        resourceProgressTimer = setInterval(() => {
+            pct += Math.max(0.15, (99 - pct) * 0.035);
+            if (pct > 99) pct = 99;
+            resourceFill.style.width = pct + '%';
+        }, 200);
+    }
+    function stopResourceProgress() {
+        if (resourceProgressTimer) { clearInterval(resourceProgressTimer); resourceProgressTimer = null; }
+    }
+
     const progressPrefix = `hub-module-${lessonId}-`;
     document.querySelectorAll('.module-launch').forEach((button) => {
         const key = button.dataset.key;
@@ -347,6 +365,7 @@
             const url = button.dataset.url;
             modalTitle.textContent = button.dataset.title || 'Resource';
             resourceLoading.hidden = false;
+            startResourceProgress();
             // Hide the browser PDF viewer's download/print toolbar for PDF resources.
             frame.src = button.dataset.viewer === 'pdf' ? url + '#toolbar=0&navpanes=0' : url;
             newTab.href = url;
@@ -371,7 +390,10 @@
         }, { once: true });
     });
     frame.addEventListener('load', () => {
-        resourceLoading.hidden = true;
+        stopResourceProgress();
+        if (resourceFill) resourceFill.style.width = '100%';
+        // brief beat so the completed bar is visible before the overlay clears
+        setTimeout(() => { resourceLoading.hidden = true; }, 200);
     });
     close.addEventListener('click', () => {
         frame.src = 'about:blank';
@@ -419,11 +441,12 @@
         const pctEl = document.getElementById('ai-progress-pct');
         let pct = 0;
         aiProgressTimer = setInterval(() => {
-            pct += Math.max(0.5, (92 - pct) * 0.06);
-            if (pct > 92) pct = 92;
+            // ease slowly toward 99% and keep inching forward — never stall
+            pct += Math.max(0.15, (99 - pct) * 0.035);
+            if (pct > 99) pct = 99;
             fill.style.width = pct + '%';
             pctEl.textContent = Math.round(pct) + '%';
-        }, 250);
+        }, 200);
     }
     function stopAiProgress() {
         if (aiProgressTimer) {
