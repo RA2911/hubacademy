@@ -3240,7 +3240,15 @@ def admin_courses(request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
     courses = db.query(Course).order_by(Course.created_at.desc()).all()
     programs = db.query(Program).order_by(Program.name).all()
-    return template(request, 'admin/courses.html', db, {'admin': admin, 'courses': courses, 'programs': programs})
+    # Material count per course (one grouped query) so the card can flag empty courses.
+    material_counts = dict(
+        db.query(Lesson.course_id, func.count(LessonMaterial.id))
+        .join(LessonMaterial, LessonMaterial.lesson_id == Lesson.id)
+        .group_by(Lesson.course_id)
+        .all()
+    )
+    return template(request, 'admin/courses.html', db,
+                    {'admin': admin, 'courses': courses, 'programs': programs, 'material_counts': material_counts})
 
 
 @app.get('/admin/courses/new')

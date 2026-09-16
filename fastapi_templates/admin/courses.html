@@ -29,6 +29,11 @@
         <option value="pub">Published only</option>
         <option value="draft">Draft only</option>
     </select>
+    <select id="cf-content" class="acourse-select">
+        <option value="all">Any content</option>
+        <option value="yes">With content</option>
+        <option value="no">Empty only</option>
+    </select>
     <button type="button" id="cf-clear" class="acourse-select acourse-clear">Clear</button>
 </div>
 <p class="acourse-count"><span id="cq-count">{{ courses|length }}</span> of {{ courses|length }} courses</p>
@@ -39,7 +44,8 @@
          data-search="{{ ((course.title or '') ~ ' ' ~ (course.expertise_area or '') ~ ' ' ~ (course.level or '') ~ ' ' ~ (course.description or '') ~ ' ' ~ (course.sales_copy or ''))|lower }}"
          data-program="{{ course.program_id }}"
          data-level="{{ course.certificate_level or 0 }}"
-         data-status="{{ 'pub' if course.is_published else 'draft' }}">
+         data-status="{{ 'pub' if course.is_published else 'draft' }}"
+         data-content="{{ 'yes' if material_counts.get(course.id, 0) else 'no' }}">
     <a class="acourse-thumb" href="/admin/courses/{{ course.id }}/edit">
         <img class="acourse-img" alt="{{ course.title }}" src="{{ course_image(course) }}" loading="lazy" onerror="this.style.display='none'">
         <span class="acourse-badge {{ 'pub' if course.is_published else 'draft' }}">{{ 'Published' if course.is_published else 'Draft' }}</span>
@@ -47,6 +53,10 @@
     </a>
     <div class="acourse-body">
         <span class="acourse-meta">{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1,2,3] %} · Level {{ course.certificate_level }}{% endif %} · {{ course_price(course) }}</span>
+        {% set mc = material_counts.get(course.id, 0) %}
+        <span class="acourse-content {{ 'has' if mc else 'empty' }}">
+            {% if mc %}<i class="fas fa-circle-check"></i> {{ mc }} material{{ '' if mc == 1 else 's' }}{% else %}<i class="fas fa-ban"></i> Empty — no materials{% endif %}
+        </span>
         <h3>{{ course.title }}</h3>
         <p>{{ (course.description or course.sales_copy or '')|truncate(90) }}</p>
         <div class="acourse-actions">
@@ -87,6 +97,10 @@
 .acourse-prog i{font-size:.62rem;opacity:.85;}
 .acourse-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
 .acourse-meta{font-size:.75rem;color:#6a7c92;font-weight:600;}
+.acourse-content{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;}
+.acourse-content.has{background:#d5f5e0;color:#1b7a34;}
+.acourse-content.empty{background:#f0f2f6;color:#8595ab;}
+.acourse-content i{font-size:.7rem;}
 .acourse-body h3{color:#0f2a52;margin:0;font-size:1.08rem;line-height:1.3;}
 .acourse-body p{color:#6a7c92;font-size:.85rem;margin:0;line-height:1.45;flex:1;}
 .acourse-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
@@ -101,6 +115,7 @@
     const fProgram = document.getElementById('cf-program');
     const fLevel = document.getElementById('cf-level');
     const fStatus = document.getElementById('cf-status');
+    const fContent = document.getElementById('cf-content');
     const clear = document.getElementById('cf-clear');
     const cards = Array.from(document.querySelectorAll('.acourse-card'));
     const empty = document.getElementById('acourse-empty');
@@ -112,13 +127,15 @@
         const prog = fProgram.value;
         const lvl = fLevel.value;
         const status = fStatus.value;
+        const content = fContent.value;
         let shown = 0;
         cards.forEach(c => {
             const okText = !term || c.dataset.search.indexOf(term) !== -1;
             const okProg = prog === 'all' || c.dataset.program === prog;
             const okLvl = lvl === 'all' || c.dataset.level === lvl;
             const okStatus = status === 'all' || c.dataset.status === status;
-            const show = okText && okProg && okLvl && okStatus;
+            const okContent = content === 'all' || c.dataset.content === content;
+            const show = okText && okProg && okLvl && okStatus && okContent;
             c.style.display = show ? '' : 'none';
             if (show) shown += 1;
         });
@@ -126,12 +143,12 @@
         empty.style.display = shown ? 'none' : '';
     }
 
-    [q, fProgram, fLevel, fStatus].forEach(el => {
+    [q, fProgram, fLevel, fStatus, fContent].forEach(el => {
         el.addEventListener('input', apply);
         el.addEventListener('change', apply);
     });
     clear.addEventListener('click', function () {
-        q.value = ''; fProgram.value = 'all'; fLevel.value = 'all'; fStatus.value = 'all';
+        q.value = ''; fProgram.value = 'all'; fLevel.value = 'all'; fStatus.value = 'all'; fContent.value = 'all';
         apply(); q.focus();
     });
     // Apply immediately in case a ?q= search term arrived from the dashboard.
