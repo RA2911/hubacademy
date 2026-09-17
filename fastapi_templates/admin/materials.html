@@ -138,6 +138,50 @@
         return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     }
 
+    // Upload a single file straight to R2 via a presigned URL. The file bytes never
+    // pass through Cloud Run, so this is not subject to the 32 MB request-body limit
+    // that makes the server-proxy path fail with HTTP 413 on large videos/PDFs.
+    async function uploadDirectToR2(file, materialType, batchId) {
+        const relativePath = file.webkitRelativePath || file.name;
+        // 1. Get a presigned PUT URL (a tiny JSON request — no size concern).
+        const presignResp = await fetch('/admin/lessons/' + lessonId + '/materials/presign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: file.name,
+                content_type: file.type || '',
+                material_type: materialType,
+                relative_path: relativePath,
+                package_id: batchId
+            })
+        });
+        let presign = {};
+        try { presign = await presignResp.json(); } catch (e) { presign = {}; }
+        if (!presignResp.ok || !presign.upload_url) throw new Error(presign.error || ('Presign failed (HTTP ' + presignResp.status + ')'));
+        // 2. PUT the bytes directly to R2. Content-Type must match what was signed.
+        const putResp = await fetch(presign.upload_url, {
+            method: 'PUT',
+            headers: { 'Content-Type': presign.content_type || 'application/octet-stream' },
+            body: file
+        });
+        if (!putResp.ok) throw new Error('R2 upload failed (HTTP ' + putResp.status + ')');
+        // 3. Register the metadata so it appears as a lesson material.
+        const regResp = await fetch('/admin/lessons/' + lessonId + '/materials/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                object_key: presign.object_key,
+                file_name: file.name,
+                material_type: materialType,
+                content_type: presign.content_type || '',
+                size_bytes: file.size
+            })
+        });
+        let reg = {};
+        try { reg = await regResp.json(); } catch (e) { reg = {}; }
+        if (!regResp.ok || !reg.ok) throw new Error(reg.error || ('Register failed (HTTP ' + regResp.status + ')'));
+    }
+
     async function uploadFile(panel, file, item, batchId) {
         const data = new FormData();
         data.append('material_type', panel.dataset.type);
@@ -234,17 +278,9 @@
                 }
                 const t = typeForFile(files[i]);
                 if (!t) { skipped += 1; continue; }
-                const data = new FormData();
-                data.append('material_type', t);
-                data.append('relative_path', files[i].webkitRelativePath || files[i].name);
-                data.append('package_id', batchId);
-                data.append('file', files[i]);
                 if (rows[i]) rows[i].querySelector('b').textContent = 'Uploading...';
                 try {
-                    const response = await fetch('/admin/lessons/' + lessonId + '/materials/upload', { method: 'POST', body: data });
-                    let result = {};
-                    try { result = await response.json(); } catch (e) { result = {}; }
-                    if (!response.ok || !result.ok) throw new Error(result.error || ('HTTP ' + response.status));
+                    await uploadDirectToR2(files[i], t, batchId);
                     if (rows[i]) { rows[i].querySelector('b').textContent = 'Saved (' + t + ')'; rows[i].classList.add('done'); }
                     done += 1;
                 } catch (error) {

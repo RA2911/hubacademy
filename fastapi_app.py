@@ -3708,7 +3708,12 @@ async def admin_presign_material_upload(lesson_id: int, request: Request, db: Se
     if not filename:
         return JSONResponse({'error': 'filename is required'}, status_code=400)
     material_type = (data.get('material_type') or 'other').strip()
-    key = object_key(filename, lesson_id=lesson_id, material_type=material_type)
+    relative_path = (data.get('relative_path') or filename).strip() or filename
+    package_id = (data.get('package_id') or '').strip()
+    if package_id:
+        key = package_object_key(relative_path, lesson_id=lesson_id, material_type=material_type, package_id=package_id)
+    else:
+        key = object_key(filename, lesson_id=lesson_id, material_type=material_type)
     return {
         'upload_url': presigned_upload_url(key, content_type),
         'object_key': key,
