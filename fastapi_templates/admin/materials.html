@@ -147,6 +147,20 @@
         return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     }
 
+    // Proven path: send the file to our server, which streams it to R2.
+    // Subject to Cloud Run's 32 MB request limit (fine for normal files).
+    async function uploadViaProxy(file, materialType, batchId) {
+        const data = new FormData();
+        data.append('material_type', materialType);
+        data.append('relative_path', file.webkitRelativePath || file.name);
+        data.append('package_id', batchId);
+        data.append('file', file);
+        const response = await fetch('/admin/lessons/' + lessonId + '/materials/upload', { method: 'POST', body: data });
+        let result = {};
+        try { result = await response.json(); } catch (e) { result = {}; }
+        if (!response.ok || !result.ok) throw new Error(result.error || ('HTTP ' + response.status));
+    }
+
     // Upload a single file straight to R2 via a presigned URL. The file bytes never
     // pass through Cloud Run, so this is not subject to the 32 MB request-body limit
     // that makes the server-proxy path fail with HTTP 413 on large videos/PDFs.
@@ -289,7 +303,14 @@
                 if (!t) { skipped += 1; continue; }
                 if (rows[i]) rows[i].querySelector('b').textContent = 'Uploading...';
                 try {
-                    await uploadDirectToR2(files[i], t, batchId);
+                    // Small files go through the proven server path. Only files over
+                    // 30 MB (which would 413 on Cloud Run) use direct-to-R2.
+                    const LARGE = 30 * 1024 * 1024;
+                    if (files[i].size > LARGE) {
+                        await uploadDirectToR2(files[i], t, batchId);
+                    } else {
+                        await uploadViaProxy(files[i], t, batchId);
+                    }
                     if (rows[i]) { rows[i].querySelector('b').textContent = 'Saved (' + t + ')'; rows[i].classList.add('done'); }
                     done += 1;
                 } catch (error) {
