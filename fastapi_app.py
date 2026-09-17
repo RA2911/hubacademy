@@ -25,8 +25,9 @@ from fastapi_auth import admin_from_request, hash_password, username_from_email,
 from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, ExpertiseArea, Lesson, LessonMaterial,
                         LessonProgress, LearnerProfile, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt,
                         SessionObjective, Settings, Student, Subscription, db_session as next_db_session, ensure_schema, get_db)
-from fastapi_storage import (guess_content_type, list_objects, object_bytes, object_key, package_object_key,
-                             presigned_download_url, presigned_upload_url, r2_enabled, upload_fileobj)
+from fastapi_storage import (delete_object, guess_content_type, list_objects, object_bytes, object_key,
+                             package_object_key, presigned_download_url, presigned_upload_url, r2_enabled,
+                             upload_fileobj)
 
 
 CERTIFICATE_LEVEL_HOURS = 15
@@ -3895,9 +3896,34 @@ def admin_delete_material(material_id: int, request: Request, db: Session = Depe
     material = db.get(LessonMaterial, material_id)
     lesson_id = material.lesson_id if material else 0
     if material:
+        if material.storage_provider == 'r2' and material.object_key:
+            try:
+                delete_object(material.object_key)
+            except Exception as exc:
+                logger.exception('R2 object delete failed for %s: %s', material.object_key, exc)
         db.delete(material)
         db.commit()
     return RedirectResponse(f'/admin/lessons/{lesson_id}/materials', status_code=303)
+
+
+@app.post('/admin/lessons/{lesson_id}/materials/delete-all')
+def admin_delete_all_lesson_materials(lesson_id: int, request: Request, db: Session = Depends(get_db)):
+    """Delete every material in this module, including its R2 objects, so it can be re-uploaded cleanly."""
+    require_admin(request, db)
+    if not db.get(Lesson, lesson_id):
+        raise HTTPException(status_code=404)
+    materials = db.query(LessonMaterial).filter_by(lesson_id=lesson_id).all()
+    deleted = 0
+    for material in materials:
+        if material.storage_provider == 'r2' and material.object_key:
+            try:
+                delete_object(material.object_key)
+            except Exception as exc:
+                logger.exception('R2 object delete failed for %s: %s', material.object_key, exc)
+        db.delete(material)
+        deleted += 1
+    db.commit()
+    return RedirectResponse(f'/admin/lessons/{lesson_id}/materials?cleared={deleted}', status_code=303)
 
 
 @app.get('/materials/{material_id}/download')

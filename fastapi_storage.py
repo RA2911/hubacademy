@@ -94,3 +94,11 @@ def upload_fileobj(key, fileobj, content_type):
         key,
         ExtraArgs={'ContentType': content_type or 'application/octet-stream'},
     )
+
+
+def delete_object(key):
+    """Delete a single object from R2. No-op if key is empty."""
+    if not key:
+        return
+    client = r2_client()
+    client.delete_object(Bucket=cfg.R2_BUCKET, Key=key)

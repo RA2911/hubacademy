@@ -75,7 +75,16 @@
     </section>
 
     <section class="detail-block">
-        <h2>Saved Materials</h2>
+        <div class="band-head compact">
+            <div><h2>Saved Materials</h2></div>
+            <form method="POST" action="/admin/lessons/{{ lesson.id }}/materials/delete-all"
+                  onsubmit="return confirm('Delete ALL materials in this module and their files in R2? This cannot be undone.');">
+                <button class="market-btn danger" type="submit">Delete all materials</button>
+            </form>
+        </div>
+        {% if request.query_params.get('cleared') %}
+        <p class="sync-result">{{ request.query_params.get('cleared') }} material(s) deleted from this module and R2.</p>
+        {% endif %}
         {% for type_key, type_label in material_type_options %}
         <div class="saved-group">
             <h3>{{ type_label }}</h3>
