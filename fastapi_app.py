@@ -3276,6 +3276,15 @@ def price_cents(value):
         return 0
 
 
+def _clean_optional_text(value):
+    """Trim text and treat empty or literal 'None'/'null' as NULL, so stringified
+    nulls from imports never render as the word 'None' in the UI."""
+    cleaned = (value or '').strip()
+    if cleaned.lower() in ('', 'none', 'null'):
+        return None
+    return cleaned
+
+
 @app.post('/admin/courses')
 def admin_save_course(request: Request, course_id: int = Form(0), program_id: int = Form(...), title: str = Form(...),
                       description: str = Form(''), level: str = Form(''), slug: str = Form(''),
@@ -3288,10 +3297,10 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     course = db.get(Course, course_id) if course_id else Course(created_at=datetime.utcnow())
     course.program_id = program_id
     course.title = title.strip()
-    course.description = description.strip() or None
+    course.description = _clean_optional_text(description)
     course.level = level.strip() or None
     course.slug = slug.strip() or slugify(course.title)
-    course.sales_copy = sales_copy.strip() or None
+    course.sales_copy = _clean_optional_text(sales_copy)
     course.thumbnail_url = thumbnail_url.strip() or None
     course.price_cents = price_cents(price)
     course.currency = currency.strip().upper()[:3] or 'USD'
