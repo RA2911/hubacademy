@@ -3288,7 +3288,7 @@ def _clean_optional_text(value):
 @app.post('/admin/courses')
 def admin_save_course(request: Request, course_id: int = Form(0), program_id: int = Form(...), title: str = Form(...),
                       description: str = Form(''), level: str = Form(''), slug: str = Form(''),
-                      sales_copy: str = Form(''), thumbnail_url: str = Form(''), price: str = Form('0'),
+                      thumbnail_url: str = Form(''), price: str = Form('0'),
                       currency: str = Form('USD'), num_lessons: int = Form(0), is_published: str = Form(''),
                       is_featured: str = Form(''), allow_free_enrollment: str = Form(''),
                       expertise_area: str = Form(''), certificate_level: int = Form(0), learning_hours: int = Form(0),
@@ -3299,8 +3299,11 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     course.title = title.strip()
     course.description = _clean_optional_text(description)
     course.level = level.strip() or None
-    course.slug = slug.strip() or slugify(course.title)
-    course.sales_copy = _clean_optional_text(sales_copy)
+    # Preserve an existing slug (URLs/bookmarks stay valid); auto-generate only when missing.
+    if slug.strip():
+        course.slug = slug.strip()
+    elif not course.slug:
+        course.slug = slugify(course.title)
     course.thumbnail_url = thumbnail_url.strip() or None
     course.price_cents = price_cents(price)
     course.currency = currency.strip().upper()[:3] or 'USD'

@@ -9,9 +9,8 @@
             {% if course.certificate_level in [1, 2, 3] %}<span>Level {{ course.certificate_level }}</span>{% endif %}
         </div>
         <h3>{{ course.title }}</h3>
-        {% set _sc = course.sales_copy if course.sales_copy and course.sales_copy != 'None' else '' %}
         {% set _ds = course.description if course.description and course.description != 'None' else '' %}
-        <p>{{ (_sc or _ds or 'A practical online course from Hub Academy.')[:150] }}</p>
+        <p>{{ (_ds or 'A practical online course from Hub Academy.')[:150] }}</p>
         <div class="course-facts">
             <span><i class="fas fa-book-open"></i>{{ course.lessons|length }} sessions</span>
             <span><i class="fas fa-clock"></i>{{ course.learning_hours or 15 }}h</span>

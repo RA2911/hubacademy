@@ -13,9 +13,7 @@
         </select>
     </label>
     <label>Title<input name="title" required value="{{ course.title if course else '' }}"></label>
-    <label>Description<input name="description" value="{{ course.description if course else '' }}"></label>
-    <label>Sales Copy<input name="sales_copy" value="{{ course.sales_copy if course else '' }}"></label>
-    <label>Slug<input name="slug" value="{{ course.slug if course else '' }}"></label>
+    <label>Description<textarea name="description" rows="4" placeholder="Shown on the landing page and course page.">{{ course.description if course and course.description and course.description != 'None' else '' }}</textarea></label>
     <label>Cover image URL <span class="form-hint" style="text-transform:none;font-weight:400">(optional — or upload an image file below)</span><input name="thumbnail_url" value="{{ course.thumbnail_url if course and course.thumbnail_url and (course.thumbnail_url.startswith('http') or course.thumbnail_url.startswith('/')) else '' }}" placeholder="https://..."></label>
     <label>Level<input name="level" value="{{ course.level if course else '' }}"></label>
     <label>Expertise Area
