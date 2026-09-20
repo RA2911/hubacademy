@@ -79,11 +79,13 @@
 .resource-progress-track{width:min(340px,70%);height:10px;border-radius:999px;background:#dbe5f2;overflow:hidden;}
 .resource-progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#2480DC,#16A6AC);transition:width .25s linear;}
 
-/* ===== Per-module audio button in the nav strip ===== */
-.module-menu-cell{display:grid;gap:6px;align-content:start;}
-.module-audio-btn{display:flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:6px;padding:6px 8px;cursor:pointer;background:rgba(36,128,220,.12);color:#2480DC;font-size:.72rem;font-weight:800;line-height:1;transition:background .15s ease,color .15s ease;}
-.module-audio-btn i{font-size:.82rem;}
-.module-audio-btn:hover{background:#2480DC;color:#fff;}
+/* ===== Per-module audio button, now a filled pill inside each module card ===== */
+.module-menu-cell{display:grid;gap:8px;align-content:start;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;}
+.module-menu-cell > a{background:#f8fafc;}
+.module-audio-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:8px;padding:10px 10px;cursor:pointer;background:linear-gradient(135deg,#2480DC,#16A6AC);color:#fff;font-size:.82rem;font-weight:800;line-height:1.1;box-shadow:0 4px 12px rgba(36,128,220,.28);transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;}
+.module-audio-btn i{font-size:.95rem;}
+.module-audio-btn:hover{filter:brightness(1.07);transform:translateY(-1px);box-shadow:0 7px 18px rgba(36,128,220,.4);}
+.module-audio-btn:active{transform:translateY(0);}
 </style>
 <main class="module-studio module-color-{{ ((current_module_number - 1) % 5) + 1 }} lesson-workspace" data-lesson-id="{{ lesson.id }}">
     {% set hero_banners = {1:'banner1.jpg', 2:'banner2.jpg', 3:'banner3.jpg', 4:'banner4.jpg', 5:'banner5.jpg'} %}
