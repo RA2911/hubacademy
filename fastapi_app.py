@@ -7,6 +7,7 @@ import re
 import secrets
 import smtplib
 import uuid
+from urllib.parse import quote
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from html.parser import HTMLParser
@@ -1140,7 +1141,7 @@ def categories(db: Session):
     rows = db.query(Course.expertise_area, func.count(Course.id)).filter(Course.is_published.is_(True)).group_by(Course.expertise_area).all()
     counts = {name: count for name, count in rows if name}
     return [
-        {'name': area['name'], 'count': counts.get(area['name']), 'href': f"/courses?expertise={area['name']}"}
+        {'name': area['name'], 'count': counts.get(area['name']), 'href': f"/courses?expertise={quote(area['name'])}"}
         for area in list_expertise_areas(db)
     ]
 
