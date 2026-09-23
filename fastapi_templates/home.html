@@ -214,12 +214,16 @@
 <div class="promo-modal" id="promo-modal" hidden>
     <div class="promo-backdrop" data-promo-close></div>
     <div class="promo-pop" role="dialog" aria-modal="true" aria-labelledby="promo-title">
-        <button type="button" class="promo-close" data-promo-close aria-label="Close">&times;</button>
-        <span class="promo-badge">🎉 Limited-time offer</span>
-        <h2 id="promo-title">3 Courses for $99</h2>
-        <p>Choose any 3 courses and pay only <s>$189</s> <b>$99</b> &mdash; save up to 50%.</p>
-        <a class="btn primary" href="/courses">Browse courses <i class="fas fa-arrow-right"></i></a>
-        <button type="button" class="promo-dismiss" data-promo-close>No thanks</button>
+        <div class="promo-pop-shine" aria-hidden="true"></div>
+        <div class="promo-pop-content">
+            <button type="button" class="promo-close" data-promo-close aria-label="Close">&times;</button>
+            <span class="promo-badge"><i class="fas fa-bolt"></i> Limited-time offer</span>
+            <h2 id="promo-title">3 Courses for <span class="promo-pop-now">$99</span></h2>
+            <p class="promo-pop-sub">Pick any 3 courses of your choice &mdash; <s>$189</s> now just <b>$99</b>.</p>
+            <span class="promo-pop-save">Save up to 50%</span>
+            <a class="btn primary promo-pop-cta" href="/courses">Browse courses <i class="fas fa-arrow-right"></i></a>
+            <button type="button" class="promo-dismiss" data-promo-close>No thanks</button>
+        </div>
     </div>
 </div>
 
@@ -594,22 +598,41 @@
 .np-meta{font-size:.78rem;color:#6a7891;}
 .np-price{font-size:.95rem;font-weight:800;color:#16A6AC;margin-top:2px;}
 
-/* ===== Promotion pop-up ===== */
+/* ===== Promotion pop-up (flashy) ===== */
 .promo-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
 .promo-modal[hidden]{display:none;}
-.promo-backdrop{position:absolute;inset:0;background:rgba(9,20,45,.62);backdrop-filter:blur(2px);}
-.promo-pop{position:relative;z-index:1;background:#fff;border-radius:20px;padding:38px 34px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 30px 70px rgba(9,20,45,.4);animation:promoIn .25s ease;}
-@keyframes promoIn{from{opacity:0;transform:translateY(14px) scale(.97);}to{opacity:1;transform:none;}}
-.promo-close{position:absolute;top:12px;right:16px;background:none;border:0;font-size:1.7rem;line-height:1;color:#98a4bd;cursor:pointer;}
-.promo-close:hover{color:#0f2350;}
-.promo-badge{display:inline-block;background:#fff2d4;color:#a6741a;font-weight:800;font-size:.78rem;padding:6px 14px;border-radius:999px;margin-bottom:14px;}
-.promo-pop h2{margin:0 0 8px;color:#0f2350;font-size:1.9rem;}
-.promo-pop p{margin:0 0 20px;color:#4a5566;font-size:1.02rem;}
-.promo-pop p s{opacity:.6;}
-.promo-pop p b{color:#0f2350;font-size:1.2rem;}
-.promo-pop .btn.primary{width:100%;justify-content:center;}
-.promo-dismiss{display:block;margin:12px auto 0;background:none;border:0;color:#98a4bd;font-size:.9rem;cursor:pointer;text-decoration:underline;}
-@media(max-width:600px){.promo-band-inner{flex-direction:column;text-align:center;}.np-card{flex-basis:170px;}}
+.promo-backdrop{position:absolute;inset:0;background:rgba(9,20,45,.72);backdrop-filter:blur(4px);}
+.promo-pop{position:relative;z-index:1;border-radius:24px;max-width:440px;width:100%;overflow:hidden;
+    padding:3px;/* gradient border thickness */
+    background:linear-gradient(120deg,#ff4d6d,#ffd147,#16A6AC,#7b5bff,#ff4d6d);background-size:300% 300%;
+    animation:promoIn .3s ease, promoBorder 6s linear infinite;
+    box-shadow:0 30px 80px rgba(9,20,45,.55),0 0 60px rgba(123,91,255,.35);}
+@keyframes promoBorder{0%{background-position:0% 50%;}100%{background-position:300% 50%;}}
+@keyframes promoIn{from{opacity:0;transform:translateY(18px) scale(.94);}to{opacity:1;transform:none;}}
+.promo-pop-content{position:relative;z-index:2;border-radius:21px;padding:38px 34px 28px;text-align:center;color:#fff;
+    background:linear-gradient(135deg,#141a3a,#241a4d 45%,#0e2f4a);overflow:hidden;}
+.promo-pop-shine{position:absolute;top:0;left:-70%;width:55%;height:100%;z-index:3;transform:skewX(-22deg);pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:promoPopShine 2.2s ease-in-out infinite;}
+@keyframes promoPopShine{0%{left:-70%;}60%{left:150%;}100%{left:150%;}}
+.promo-close{position:absolute;top:10px;right:14px;z-index:4;background:none;border:0;font-size:1.8rem;line-height:1;color:rgba(255,255,255,.7);cursor:pointer;}
+.promo-close:hover{color:#fff;}
+.promo-badge{display:inline-flex;align-items:center;gap:7px;background:#ffd147;color:#5a3d00;font-weight:900;font-size:.78rem;
+    text-transform:uppercase;letter-spacing:.04em;padding:7px 16px;border-radius:999px;margin-bottom:16px;
+    box-shadow:0 6px 18px rgba(255,209,71,.5);animation:promoFlag 1.6s ease-in-out infinite;}
+.promo-pop h2{margin:0 0 10px;font-size:2rem;font-weight:900;color:#fff;}
+.promo-pop-now{color:#ffd147;text-shadow:0 3px 18px rgba(255,209,71,.55);animation:promoPop 2s ease-in-out infinite;display:inline-block;}
+.promo-pop-sub{margin:0 0 14px;color:rgba(255,255,255,.9);font-size:1.02rem;}
+.promo-pop-sub s{opacity:.6;}
+.promo-pop-sub b{color:#ffd147;font-size:1.25rem;}
+.promo-pop-save{display:inline-block;background:#ff4d6d;color:#fff;font-weight:900;font-size:.92rem;padding:8px 18px;border-radius:999px;
+    transform:rotate(-3deg);box-shadow:0 8px 22px rgba(255,77,109,.5);margin-bottom:22px;animation:promoPop 2.4s ease-in-out infinite;}
+.promo-pop .promo-pop-cta{width:100%;justify-content:center;font-weight:900;font-size:1.1rem;padding:16px;background:#fff;color:#141a3a;border:0;
+    box-shadow:0 12px 30px rgba(0,0,0,.3);animation:promoCta 1.6s ease-in-out infinite;}
+.promo-pop .promo-pop-cta:hover{background:#ffd147;transform:translateY(-2px) scale(1.02);}
+.promo-dismiss{display:block;margin:14px auto 0;background:none;border:0;color:rgba(255,255,255,.65);font-size:.9rem;cursor:pointer;text-decoration:underline;}
+.promo-dismiss:hover{color:#fff;}
+@media(max-width:600px){.np-card{flex-basis:170px;}.promo-pop h2{font-size:1.7rem;}}
+@media(prefers-reduced-motion:reduce){.promo-pop,.promo-pop-shine,.promo-badge,.promo-pop-now,.promo-pop-save,.promo-pop-cta{animation:none;}}
 
 .site-footer{background:#0b1c3f;color:#c8d3e8;margin-top:60px;}
 .footer-inner{max-width:1200px;margin:0 auto;padding:48px 24px 32px;display:grid;grid-template-columns:1.6fr 1fr 1fr 1.2fr;gap:32px;}
