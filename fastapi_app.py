@@ -1137,11 +1137,42 @@ def template(request: Request, name: str, db: Session, context=None):
     return templates.TemplateResponse(name, ctx)
 
 
+_EXPERTISE_IMG_BASE = 'https://images.unsplash.com/'
+_EXPERTISE_IMG_QUERY = '?auto=format&fit=crop&w=600&q=70'
+# Keyword -> curated Unsplash photo (all verified reachable). Order matters:
+# more specific topics first so 'Project/Aviation Management' don't fall into the generic management bucket.
+_EXPERTISE_IMG_MAP = [
+    (('ai', 'agent', 'generative', 'prompt', 'machine learning'), 'photo-1677442136019-21780ecad995'),
+    (('data', 'analytic', 'intelligence'), 'photo-1551288049-bebda4e38f71'),
+    (('cyber', 'security'), 'photo-1550751827-4bd374c3f58b'),
+    (('cloud', 'devops', 'infrastructure'), 'photo-1451187580459-43490279c0fa'),
+    (('automation', 'workflow'), 'photo-1518770660439-4636190af475'),
+    (('project',), 'photo-1531403009284-440f080d1e12'),
+    (('aviation', 'airline', 'operations'), 'photo-1436491865332-7a61a109cc05'),
+    (('sustainab', 'green', 'esg'), 'photo-1441974231531-c6227db76b6e'),
+    (('emotional', 'wellbeing', 'well-being', 'resilience', 'mindful'), 'photo-1506126613408-eca07ce68773'),
+    (('negotiation', 'communication', 'conversation'), 'photo-1521791136064-7986c2920216'),
+    (('finance', 'accounting', 'budget'), 'photo-1611974789855-9c2a0a7236a3'),
+    (('leadership', 'transformation', 'management', 'decision'), 'photo-1521737604893-d14cc237f11d'),
+    (('entrepreneur', 'business', 'marketing', 'startup', 'strategy'), 'photo-1556761175-b413da4baf72'),
+]
+_EXPERTISE_IMG_DEFAULT = 'photo-1522202176988-66273c2fd55f'
+
+
+def expertise_image(name: str) -> str:
+    low = (name or '').lower()
+    for keywords, photo in _EXPERTISE_IMG_MAP:
+        if any(word in low for word in keywords):
+            return f'{_EXPERTISE_IMG_BASE}{photo}{_EXPERTISE_IMG_QUERY}'
+    return f'{_EXPERTISE_IMG_BASE}{_EXPERTISE_IMG_DEFAULT}{_EXPERTISE_IMG_QUERY}'
+
+
 def categories(db: Session):
     rows = db.query(Course.expertise_area, func.count(Course.id)).filter(Course.is_published.is_(True)).group_by(Course.expertise_area).all()
     counts = {name: count for name, count in rows if name}
     return [
-        {'name': area['name'], 'count': counts.get(area['name']), 'href': f"/courses?expertise={quote(area['name'])}"}
+        {'name': area['name'], 'count': counts.get(area['name']), 'href': f"/courses?expertise={quote(area['name'])}",
+         'image': expertise_image(area['name'])}
         for area in list_expertise_areas(db)
     ]
 
