@@ -40,23 +40,34 @@
         </div>
     </section>
 
-    <section class="section popular-training">
+    <section class="promo-band" aria-label="Bundle offer">
+        <div class="promo-band-inner">
+            <p><i class="fas fa-fire"></i> <strong>Bundle offer:</strong> pick any 3 courses &mdash; <s>$189</s> <b>$99</b>. Save up to 50%.</p>
+            <a class="btn" href="/courses">Get the deal <i class="fas fa-arrow-right"></i></a>
+        </div>
+    </section>
+
+    <section class="section new-popular">
         <div class="section-head">
             <div>
                 <span class="eyebrow">Explore</span>
-                <h2>Most Popular Training</h2>
+                <h2>New &amp; Popular</h2>
             </div>
+            <a class="btn secondary" href="/courses">All Courses</a>
         </div>
-        <div class="popular-links">
-            <button type="button" class="popular-link" data-modal="topic-ai-leadership">
-                <span>AI Leadership &amp; AI Strategy</span><i class="fas fa-arrow-right"></i>
-            </button>
-            <button type="button" class="popular-link" data-modal="topic-engineering-leadership">
-                <span>AI-Driven Leadership</span><i class="fas fa-arrow-right"></i>
-            </button>
-            <button type="button" class="popular-link" data-modal="topic-ai-agents">
-                <span>AI Agents &amp; Agentic AI for Business</span><i class="fas fa-arrow-right"></i>
-            </button>
+        <div class="np-row">
+            {% for course in courses[:10] %}
+            <a class="np-card" href="/courses/{{ course_slug(course) }}">
+                <div class="np-thumb"><img src="{{ course_image(course) }}" alt="{{ course.title }}" loading="lazy"></div>
+                <div class="np-body">
+                    <strong>{{ course.title }}</strong>
+                    <span class="np-meta">{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1, 2, 3] %} &middot; Level {{ course.certificate_level }}{% endif %}</span>
+                    <span class="np-price">{{ course_price(course) }}</span>
+                </div>
+            </a>
+            {% else %}
+            <p class="muted-line">Publish courses to populate this section.</p>
+            {% endfor %}
         </div>
     </section>
 
@@ -186,6 +197,19 @@
         </span>
     </div>
 </footer>
+
+<!-- Promotion pop-up -->
+<div class="promo-modal" id="promo-modal" hidden>
+    <div class="promo-backdrop" data-promo-close></div>
+    <div class="promo-pop" role="dialog" aria-modal="true" aria-labelledby="promo-title">
+        <button type="button" class="promo-close" data-promo-close aria-label="Close">&times;</button>
+        <span class="promo-badge">🎉 Limited-time offer</span>
+        <h2 id="promo-title">3 Courses for $99</h2>
+        <p>Choose any 3 courses and pay only <s>$189</s> <b>$99</b> &mdash; save up to 50%.</p>
+        <a class="btn primary" href="/courses">Browse courses <i class="fas fa-arrow-right"></i></a>
+        <button type="button" class="promo-dismiss" data-promo-close>No thanks</button>
+    </div>
+</div>
 
 <!-- Progressive Journey modal -->
 <div class="journey-modal" id="journey-modal" hidden>
@@ -508,6 +532,43 @@
 </div>
 
 <style>
+/* ===== Bundle savings band ===== */
+.promo-band{max-width:1200px;margin:22px auto 0;padding:0 24px;}
+.promo-band-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;background:linear-gradient(135deg,#0f2350,#16A6AC);color:#fff;border-radius:14px;padding:16px 24px;box-shadow:0 12px 30px rgba(15,35,80,.18);}
+.promo-band-inner p{margin:0;font-size:1rem;font-weight:600;}
+.promo-band-inner s{opacity:.7;margin:0 2px;}
+.promo-band-inner b{font-size:1.25rem;color:#ffd76a;}
+.promo-band-inner .btn{background:#fff;color:#0f2350;border:0;font-weight:800;white-space:nowrap;}
+.promo-band-inner .btn:hover{background:#ffd76a;}
+
+/* ===== New & Popular course row ===== */
+.np-row{display:flex;gap:16px;overflow-x:auto;padding:6px 2px 14px;scroll-snap-type:x mandatory;}
+.np-card{flex:0 0 210px;scroll-snap-align:start;background:#fff;border:1px solid #e6ebf3;border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .15s ease,box-shadow .15s ease;display:flex;flex-direction:column;}
+.np-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(15,35,80,.14);}
+.np-thumb{aspect-ratio:16/9;background:#eef3fa;overflow:hidden;}
+.np-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.np-body{padding:12px 14px;display:flex;flex-direction:column;gap:5px;}
+.np-body strong{font-size:.95rem;line-height:1.3;color:#0f2350;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.np-meta{font-size:.78rem;color:#6a7891;}
+.np-price{font-size:.95rem;font-weight:800;color:#16A6AC;margin-top:2px;}
+
+/* ===== Promotion pop-up ===== */
+.promo-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.promo-modal[hidden]{display:none;}
+.promo-backdrop{position:absolute;inset:0;background:rgba(9,20,45,.62);backdrop-filter:blur(2px);}
+.promo-pop{position:relative;z-index:1;background:#fff;border-radius:20px;padding:38px 34px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 30px 70px rgba(9,20,45,.4);animation:promoIn .25s ease;}
+@keyframes promoIn{from{opacity:0;transform:translateY(14px) scale(.97);}to{opacity:1;transform:none;}}
+.promo-close{position:absolute;top:12px;right:16px;background:none;border:0;font-size:1.7rem;line-height:1;color:#98a4bd;cursor:pointer;}
+.promo-close:hover{color:#0f2350;}
+.promo-badge{display:inline-block;background:#fff2d4;color:#a6741a;font-weight:800;font-size:.78rem;padding:6px 14px;border-radius:999px;margin-bottom:14px;}
+.promo-pop h2{margin:0 0 8px;color:#0f2350;font-size:1.9rem;}
+.promo-pop p{margin:0 0 20px;color:#4a5566;font-size:1.02rem;}
+.promo-pop p s{opacity:.6;}
+.promo-pop p b{color:#0f2350;font-size:1.2rem;}
+.promo-pop .btn.primary{width:100%;justify-content:center;}
+.promo-dismiss{display:block;margin:12px auto 0;background:none;border:0;color:#98a4bd;font-size:.9rem;cursor:pointer;text-decoration:underline;}
+@media(max-width:600px){.promo-band-inner{flex-direction:column;text-align:center;}.np-card{flex-basis:170px;}}
+
 .site-footer{background:#0b1c3f;color:#c8d3e8;margin-top:60px;}
 .footer-inner{max-width:1200px;margin:0 auto;padding:48px 24px 32px;display:grid;grid-template-columns:1.6fr 1fr 1fr 1.2fr;gap:32px;}
 .footer-brand img{height:56px;width:auto;margin-bottom:14px;background:#fff;padding:7px 10px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.18);}
@@ -675,6 +736,19 @@
         const guide=document.getElementById('ai-guide');
         if(guide){guide.classList.add('open');const input=document.getElementById('ai-guide-input');if(input)input.focus();}
     }));
+
+    // ---- Promotion pop-up: show once per day, dismissible ----
+    const promo=document.getElementById('promo-modal');
+    if(promo){
+        const today=new Date().toISOString().slice(0,10);
+        const closePromo=()=>{promo.hidden=true;document.body.style.overflow='';try{localStorage.setItem('promoSeen',today);}catch(e){}};
+        let seen=null;try{seen=localStorage.getItem('promoSeen');}catch(e){}
+        if(seen!==today){
+            setTimeout(()=>{promo.hidden=false;},1200);
+        }
+        promo.querySelectorAll('[data-promo-close]').forEach(el=>el.addEventListener('click',closePromo));
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!promo.hidden)closePromo();});
+    }
 })();
 </script>
 {% endblock %}
