@@ -92,7 +92,7 @@
         </div>
         <div class="expertise-grid">
             {% for category in categories %}
-            <a class="expertise-card" href="{{ category.href }}" style="background-image:url('{{ category.image }}')">
+            <a class="expertise-card" href="{{ category.href }}"{% if category.image %} style="background-image:url('{{ category.image }}')"{% endif %}>
                 <strong>{{ category.name }}</strong>
                 <span>{{ category.count if category.count is not none else 'Explore' }}{% if category.count is not none %} courses{% endif %}</span>
             </a>
