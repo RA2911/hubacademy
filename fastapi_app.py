@@ -1160,7 +1160,7 @@ _EXPERTISE_IMAGES = {
 def expertise_image(name: str) -> str:
     """Local background image for an expertise area, or '' so the card falls back to its solid color."""
     filename = _EXPERTISE_IMAGES.get((name or '').strip())
-    return f'/static/images/expertise/{filename}' if filename else ''
+    return f'/static/images/expertise/{filename}?v=20260923' if filename else ''
 
 
 def categories(db: Session):
