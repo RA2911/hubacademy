@@ -779,15 +779,11 @@
         if(guide){guide.classList.add('open');const input=document.getElementById('ai-guide-input');if(input)input.focus();}
     }));
 
-    // ---- Promotion pop-up: show once per day, dismissible ----
+    // ---- Promotion pop-up: show on every landing-page visit, dismissible ----
     const promo=document.getElementById('promo-modal');
     if(promo){
-        const today=new Date().toISOString().slice(0,10);
-        const closePromo=()=>{promo.hidden=true;document.body.style.overflow='';try{localStorage.setItem('promoSeen',today);}catch(e){}};
-        let seen=null;try{seen=localStorage.getItem('promoSeen');}catch(e){}
-        if(seen!==today){
-            setTimeout(()=>{promo.hidden=false;},1200);
-        }
+        const closePromo=()=>{promo.hidden=true;document.body.style.overflow='';};
+        setTimeout(()=>{promo.hidden=false;},1200);
         promo.querySelectorAll('[data-promo-close]').forEach(el=>el.addEventListener('click',closePromo));
         document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!promo.hidden)closePromo();});
     }
