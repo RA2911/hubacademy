@@ -368,7 +368,8 @@ a {
 .expertise-card {
     position: relative;
     overflow: hidden;
-    min-height: 190px;
+    aspect-ratio: 8 / 5;
+    min-height: 150px;
     padding: 18px;
     border-radius: var(--radius);
     background-color: #0f2350;
