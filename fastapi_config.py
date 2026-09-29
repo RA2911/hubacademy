@@ -42,10 +42,15 @@ STRIPE_SECRET_KEY = _clean_secret('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = _clean_secret('STRIPE_WEBHOOK_SECRET')
 STRIPE_MONTHLY_PRICE_ID = _clean_secret('STRIPE_MONTHLY_PRICE_ID')
 STRIPE_ANNUAL_PRICE_ID = _clean_secret('STRIPE_ANNUAL_PRICE_ID')
-SUBSCRIPTION_MONTHLY_PRICE = os.environ.get('SUBSCRIPTION_MONTHLY_PRICE', '99')
+SUBSCRIPTION_MONTHLY_PRICE = os.environ.get('SUBSCRIPTION_MONTHLY_PRICE', '39')
 SUBSCRIPTION_ANNUAL_PRICE = os.environ.get('SUBSCRIPTION_ANNUAL_PRICE', '249')
-# How many courses a monthly subscriber can have unlocked at once.
-SUBSCRIPTION_COURSE_LIMIT = int(os.environ.get('SUBSCRIPTION_COURSE_LIMIT', '3'))
+# How many courses a monthly subscriber can have unlocked at once. 0 = unlimited.
+SUBSCRIPTION_COURSE_LIMIT = int(os.environ.get('SUBSCRIPTION_COURSE_LIMIT', '0'))
+
+# Google Sign-In (OAuth). When set, a "Continue with Google" button appears on the
+# login/register pages and POSTs the Google credential to /auth/google. Dormant
+# until this client ID is configured (same pattern as the dormant annual plan).
+GOOGLE_OAUTH_CLIENT_ID = _clean_secret('GOOGLE_OAUTH_CLIENT_ID')
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')

@@ -1,32 +1,176 @@
 {% extends 'base.html' %}
 {% block title %}Create Account - Hub Academy{% endblock %}
 {% block content %}
-<main class="auth-public">
-    <section class="market-panel auth-public-card">
-        <h1>Create your account</h1>
-        <p>Buy courses, subscribe, track progress, and access your learning dashboard.</p>
-        {% if terms_required %}
-        <p class="accept-terms-error" role="alert">You must read and accept the Terms of Service, Privacy &amp; Refund Policy to create an account.</p>
-        {% endif %}
-        <form method="POST" action="/register">
-            <input type="hidden" name="next" value="{{ next_page }}">
-            <label>Full name<input type="text" name="full_name" required autocomplete="name"></label>
-            <label>Email<input type="email" name="email" required autocomplete="email"></label>
-            <label>Password<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
-            <label>Confirm password<input type="password" name="confirm_password" required minlength="10" autocomplete="new-password"></label>
-            <label class="accept-terms">
-                <input type="checkbox" name="accept_terms" value="1" required>
-                <span>I have read and accept the <a href="/policies" target="_blank" rel="noopener">Terms of Service, Privacy &amp; Refund Policy</a>.</span>
-            </label>
-            <button class="market-btn primary" type="submit">Create Account</button>
-        </form>
-        <p>Already have an account? <a href="/login?next={{ next_page }}">Login</a></p>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<main class="portal portal-register">
+
+    <!-- ============ JOIN PORTAL ============ -->
+    <section class="portal-top">
+        <div class="portal-glow"></div>
+        <div class="portal-inner">
+            <div class="portal-welcome">
+                <span class="portal-kicker"><span class="line"></span>Hub Academy · Join the Academy</span>
+                <h1 class="portal-display">Create your account.<br><em>Start building skills that matter.</em></h1>
+                <p class="portal-lede">Join Hub Academy to unlock unlimited courses, guided levels, an AI learning guide, and verifiable certificates you can share with employers.</p>
+                <div class="portal-assurance">
+                    <span><i class="fas fa-infinity"></i> Unlimited courses</span>
+                    <span><i class="fas fa-certificate"></i> Verifiable certificates</span>
+                    <span><i class="fas fa-shield-halved"></i> Secure signup</span>
+                </div>
+            </div>
+
+            <aside class="portal-signin">
+                <div class="signin-card">
+                    <div class="signin-head">
+                        <span class="signin-seal"><i class="fas fa-user-plus"></i></span>
+                        <h2>Create account</h2>
+                        <p>Free to join — subscribe anytime.</p>
+                    </div>
+                    {% if terms_required %}
+                    <p class="signin-error">You must read and accept the Terms of Service, Privacy &amp; Refund Policy to create an account.</p>
+                    {% endif %}
+                    <form method="POST" action="/register" class="signin-form">
+                        <input type="hidden" name="next" value="{{ next_page }}">
+                        <label>Full name
+                            <input type="text" name="full_name" required autocomplete="name" placeholder="Your name">
+                        </label>
+                        <label>Email
+                            <input type="email" name="email" required autocomplete="email" placeholder="you@example.com">
+                        </label>
+                        <label>Password
+                            <input type="password" name="password" required minlength="10" autocomplete="new-password" placeholder="At least 10 characters">
+                        </label>
+                        <label>Confirm password
+                            <input type="password" name="confirm_password" required minlength="10" autocomplete="new-password" placeholder="Re-enter password">
+                        </label>
+                        <label class="accept-terms">
+                            <input type="checkbox" name="accept_terms" value="1" required>
+                            <span>I have read and accept the <a href="/policies" target="_blank" rel="noopener">Terms of Service, Privacy &amp; Refund Policy</a>.</span>
+                        </label>
+                        <button type="submit" class="portal-btn accent full">Create account <i class="fas fa-arrow-right"></i></button>
+                    </form>
+
+                    {% if google_client_id %}
+                    <div class="oauth-sep"><span>or</span></div>
+                    <script src="https://accounts.google.com/gsi/client" async></script>
+                    <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-callback="handleGoogleCredential" data-auto_prompt="false"></div>
+                    <div class="g_id_signin oauth-google" data-type="standard" data-theme="outline" data-size="large" data-text="continue_with" data-shape="rectangular" data-logo_alignment="left"></div>
+                    <form id="google-form" method="POST" action="/auth/google" style="display:none;">
+                        <input type="hidden" name="credential" id="google-credential">
+                        <input type="hidden" name="next" value="{{ next_page }}">
+                    </form>
+                    <script>function handleGoogleCredential(r){document.getElementById('google-credential').value=r.credential;document.getElementById('google-form').submit();}</script>
+                    {% endif %}
+
+                    <div class="signin-foot">
+                        <span>Already have an account? <a href="/login?next={{ next_page }}">Sign in</a></span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <!-- ============ SUPPORT STRIP ============ -->
+    <section class="portal-support">
+        <div class="portal-wrap support-inner">
+            <div class="support-item"><i class="fas fa-infinity"></i><div><strong>Unlimited learning</strong><span>One subscription, every course.</span></div></div>
+            <div class="support-item"><i class="fas fa-certificate"></i><div><strong>Earn certificates</strong><span>Verifiable credentials you keep forever.</span></div></div>
+            <div class="support-item"><i class="fas fa-mobile-screen"></i><div><strong>Study anywhere</strong><span>Install the portal on desktop or mobile.</span></div></div>
+        </div>
     </section>
 </main>
+
 <style>
-.accept-terms{display:flex;align-items:flex-start;gap:10px;margin:6px 0 4px;font-weight:400;font-size:.92rem;color:#4a5566;line-height:1.4;}
-.accept-terms input{width:auto;margin-top:2px;flex:none;}
-.accept-terms a{font-weight:600;}
-.accept-terms-error{background:#fdecec;border:1px solid #f5c2c2;color:#a12622;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:.9rem;line-height:1.4;}
+/* ================= HUB ACADEMY JOIN PORTAL (register) — TEAL theme ================= */
+.portal{
+    --navy:#082A34; --navy-2:#0B3B44; --navy-3:#0B7C77;
+    --ivory:#EAF6F4; --paper:#F5FBFA; --card:#ffffff;
+    --accent:#0FA79E; --accent-2:#0B7C77; --accent-soft:#A9E5DF;
+    --ink:#0B3B44; --muted:#4E6B68; --line:#D5E9E6;
+    --serif:'Fraunces',Georgia,'Times New Roman',serif;
+    font-family:'Inter',system-ui,sans-serif; color:var(--ink);
+}
+.portal-display{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;line-height:1.1;}
+body.app-shell{background:#05201f url("/static/images/login_bkgd2.jpg") center center / cover fixed no-repeat;}
+.topbar .nav-links{display:none!important;}
+
+/* kicker */
+.portal-kicker{display:inline-flex;align-items:center;gap:12px;text-transform:uppercase;letter-spacing:.2em;font-size:.72rem;font-weight:600;color:var(--accent-soft);}
+.portal-kicker .line{width:30px;height:1px;background:var(--accent);opacity:.8;display:inline-block;}
+
+/* buttons */
+.portal-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 26px;border-radius:2px;font-weight:600;font-size:.95rem;text-decoration:none;cursor:pointer;border:1px solid transparent;transition:transform .18s ease,box-shadow .18s ease,background .18s ease,color .18s ease;}
+.portal-btn i{font-size:.82rem;}
+.portal-btn.accent{background:var(--accent);color:#fff;box-shadow:0 10px 26px rgba(15,167,158,.34);}
+.portal-btn.accent:hover{background:#13bcb1;transform:translateY(-2px);box-shadow:0 16px 34px rgba(15,167,158,.48);}
+.portal-btn.full{width:100%;}
+
+/* ---- top / join ---- */
+.portal-top{position:relative;overflow:hidden;color:#EAF6F4;background:
+    linear-gradient(90deg,rgba(4,22,21,.86) 0%,rgba(6,40,38,.55) 48%,rgba(6,40,38,.12) 100%);
+    border-bottom:2px solid var(--accent);min-height:auto;display:flex;align-items:center;}
+.portal-glow{position:absolute;inset:0;background:radial-gradient(560px 280px at 10% 120%,rgba(15,167,158,.18),transparent 60%);pointer-events:none;}
+.portal-inner{position:relative;max-width:1180px;margin:0 auto;padding:52px 28px 66px;display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center;width:100%;}
+.portal-welcome .portal-kicker{margin-bottom:24px;}
+.portal-welcome h1{font-size:clamp(2.3rem,4.2vw,3.7rem);color:#fff;margin:0 0 20px;}
+.portal-welcome h1 em{font-style:italic;color:var(--accent-soft);font-weight:500;}
+.portal-lede{font-size:1.1rem;line-height:1.65;color:#cfe6e2;max-width:34em;margin:0 0 28px;}
+.portal-assurance{display:flex;gap:24px;flex-wrap:wrap;padding-top:22px;border-top:1px solid rgba(169,229,223,.24);}
+.portal-assurance span{display:inline-flex;align-items:center;gap:9px;font-size:.9rem;color:#cfe6e2;}
+.portal-assurance i{color:var(--accent-soft);}
+
+/* join card */
+.portal-signin{display:flex;justify-content:center;}
+.signin-card{width:100%;max-width:360px;background:#fff;border-radius:6px;border:1px solid rgba(169,229,223,.5);box-shadow:0 30px 70px rgba(0,0,0,.42);padding:26px 26px 22px;position:relative;}
+.signin-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent-2),var(--accent),var(--accent-soft));border-radius:6px 6px 0 0;}
+.signin-head{text-align:center;margin-bottom:16px;}
+.signin-seal{width:44px;height:44px;margin:0 auto 11px;border-radius:50%;display:grid;place-items:center;font-size:1.1rem;color:#fff;background:radial-gradient(circle at 34% 28%,#5fd3c9,var(--accent) 60%,var(--accent-2));box-shadow:0 8px 20px rgba(15,167,158,.42);}
+.signin-head h2{font-family:var(--serif);font-size:1.28rem;color:var(--navy);margin:0 0 4px;}
+.signin-head p{font-size:.82rem;color:var(--muted);margin:0;}
+.signin-error{background:#fdecec;color:#c0392b;border:1px solid #f3c6cb;border-radius:6px;padding:9px 12px;font-size:.85rem;margin:0 0 14px;text-align:center;line-height:1.4;}
+.signin-form{display:grid;gap:12px;}
+.signin-form label{display:grid;gap:6px;font-size:.72rem;font-weight:600;color:var(--navy);letter-spacing:.02em;text-transform:uppercase;}
+.signin-form input{padding:11px 12px;border:1px solid #d3e2df;border-radius:3px;font-size:.92rem;font-family:inherit;color:var(--ink);background:#fbfefe;transition:border-color .15s ease,box-shadow .15s ease;}
+.signin-form input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,167,158,.18);background:#fff;}
+.signin-form .portal-btn{margin-top:4px;}
+
+/* terms checkbox (normal-case, small) */
+.accept-terms{display:flex;align-items:flex-start;gap:10px;margin:2px 0;font-size:.8rem;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;line-height:1.45;}
+.accept-terms input{width:auto;margin-top:2px;flex:none;padding:0;}
+.accept-terms a{color:var(--accent-2);font-weight:600;}
+
+/* oauth divider + google button */
+.oauth-sep{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;}
+.oauth-sep::before,.oauth-sep::after{content:"";flex:1;height:1px;background:#e6efed;}
+.oauth-google{display:flex;justify-content:center;}
+
+.signin-foot{margin-top:20px;padding-top:18px;border-top:1px solid #eef4f3;text-align:center;display:grid;gap:8px;}
+.signin-foot a{color:var(--navy-3);font-weight:600;font-size:.9rem;text-decoration:none;}
+.signin-foot a:hover{color:var(--accent-2);text-decoration:underline;}
+.signin-foot span{font-size:.82rem;color:var(--muted);}
+
+/* ---- support strip ---- */
+.portal-support{background:rgba(5,25,24,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:52px 28px;border-top:1px solid rgba(169,229,223,.18);}
+.portal-wrap{max-width:1080px;margin:0 auto;}
+.support-inner{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;}
+.support-item{display:flex;align-items:flex-start;gap:14px;}
+.support-item i{font-size:1.3rem;color:var(--accent-soft);margin-top:3px;}
+.support-item strong{display:block;font-family:var(--serif);font-size:1.02rem;color:#fff;margin-bottom:3px;}
+.support-item span{font-size:.88rem;color:#bcd6d2;line-height:1.4;}
+
+/* ================= TEAL TOPBAR (register) ================= */
+.topbar{background:#082A34!important;border-bottom:1px solid rgba(15,167,158,.34)!important;}
+.topbar .brand span{color:#fff!important;font-family:'Fraunces',serif!important;letter-spacing:.01em;}
+.topbar .btn.ghost{color:#fff!important;border-color:rgba(255,255,255,.35)!important;}
+.topbar .btn.primary{background:#0FA79E!important;border-color:#0FA79E!important;color:#fff!important;}
+.topbar .btn.primary:hover{background:#13bcb1!important;}
+
+/* ================= RESPONSIVE ================= */
+@media(max-width:880px){
+    .portal-inner{grid-template-columns:1fr;gap:38px;padding:44px 22px;}
+    .portal-signin{order:2;}
+    .signin-card{max-width:460px;margin:0 auto;}
+    .support-inner{grid-template-columns:1fr;gap:22px;}
+}
 </style>
 {% endblock %}

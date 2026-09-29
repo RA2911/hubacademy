@@ -25,20 +25,22 @@
         {% if subscription %}
         <div class="sub-banner-text">
             <span class="eyebrow">Monthly Plan</span>
-            <strong>{{ sub_slots_used }} of {{ sub_slots_limit }} course slots used</strong>
+            <strong>{% if sub_slots_limit %}{{ sub_slots_used }} of {{ sub_slots_limit }} course slots used{% else %}Unlimited courses unlocked{% endif %}</strong>
             <span class="sub-banner-sub">
                 {% if subscription.status == 'canceled' and subscription.current_period_end %}
                     Plan ends {{ subscription.current_period_end.strftime('%b %d, %Y') }} — access continues until then.
-                {% else %}
+                {% elif sub_slots_limit %}
                     Active. Add up to {{ sub_slots_limit }} courses; remove one to swap.
+                {% else %}
+                    Active. Add any course, anytime — no limits.
                 {% endif %}
             </span>
         </div>
-        <a class="market-btn primary" href="/courses">{{ 'Add a course' if sub_slots_used < sub_slots_limit else 'Manage courses below' }}</a>
+        <a class="market-btn primary" href="/courses">{{ 'Add a course' if (not sub_slots_limit or sub_slots_used < sub_slots_limit) else 'Manage courses below' }}</a>
         {% else %}
         <div class="sub-banner-text">
             <span class="eyebrow">Monthly Plan</span>
-            <strong>Unlock {{ sub_slots_limit }} courses for ${{ plans[0].price }}/month</strong>
+            <strong>{% if sub_slots_limit %}Unlock {{ sub_slots_limit }} courses{% else %}Unlimited courses{% endif %} for ${{ plans[0].price }}/month</strong>
             <span class="sub-banner-sub">Cheaper than buying courses one by one. Cancel anytime.</span>
         </div>
         <form method="POST" action="/subscribe/monthly"><button class="market-btn primary" type="submit">Subscribe — ${{ plans[0].price }}/mo</button></form>

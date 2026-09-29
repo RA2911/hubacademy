@@ -1047,9 +1047,10 @@ def journey_for_course(db: Session, course: Course, student_id: int):
 
 def subscription_plans():
     limit = cfg.SUBSCRIPTION_COURSE_LIMIT
+    course_line = 'Unlimited courses' if not limit else f'{limit} courses per month'
     plans = [
         {'name': 'Monthly', 'price': cfg.SUBSCRIPTION_MONTHLY_PRICE, 'period': 'month', 'stripe_price_id': cfg.STRIPE_MONTHLY_PRICE_ID,
-         'features': [f'{limit} courses per month', 'AI learning guide', 'Progress tracking', 'Cancel anytime']},
+         'features': [course_line, 'AI learning guide', 'Progress tracking', 'Cancel anytime']},
     ]
     # Annual stays dormant until an annual Stripe price is configured.
     if cfg.STRIPE_ANNUAL_PRICE_ID:
@@ -1120,6 +1121,7 @@ def template(request: Request, name: str, db: Session, context=None):
         'certificate_levels': CERTIFICATE_LEVELS,
         'expertise_areas': list_expertise_areas(db),
         'plans': subscription_plans(),
+        'google_client_id': cfg.GOOGLE_OAUTH_CLIENT_ID,
     }
     _student = ctx['current_user']
     if _student:
@@ -1508,6 +1510,44 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     return RedirectResponse(next, status_code=303)
 
 
+@app.post('/auth/google')
+def auth_google(request: Request, credential: str = Form(''), next: str = Form('/learn/dashboard'),
+                db: Session = Depends(get_db)):
+    """Sign in / sign up with a Google ID token (Google Identity Services).
+    Dormant unless GOOGLE_OAUTH_CLIENT_ID is configured."""
+    if not cfg.GOOGLE_OAUTH_CLIENT_ID or not credential:
+        return RedirectResponse('/login?login=failed', status_code=303)
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        info = id_token.verify_oauth2_token(credential, google_requests.Request(), cfg.GOOGLE_OAUTH_CLIENT_ID)
+    except Exception:
+        return RedirectResponse('/login?login=failed', status_code=303)
+    email = (info.get('email') or '').strip().lower()
+    if not email or not info.get('email_verified', False):
+        return RedirectResponse('/login?login=failed', status_code=303)
+    student = db.query(Student).filter_by(email=email).first()
+    if student and not student.is_active:
+        return RedirectResponse('/login?login=failed', status_code=303)
+    if not student:
+        import secrets
+        student = Student(
+            username=username_from_email(db, email),
+            full_name=(info.get('name') or email.split('@')[0]).strip(),
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            is_active=True,
+            terms_accepted_at=datetime.utcnow(),
+        )
+        db.add(student)
+        db.commit()
+        db.refresh(student)
+    request.session['student_id'] = student.id
+    student.last_login = datetime.utcnow()
+    db.commit()
+    return RedirectResponse(next or '/learn/dashboard', status_code=303)
+
+
 @app.get('/forgot-password', response_class=HTMLResponse)
 def forgot_password_page(request: Request):
     with next_db_session() as db:
@@ -1646,7 +1686,7 @@ def plan_add(course_id: int, request: Request, db: Session = Depends(get_db)):
     if existing:
         return RedirectResponse(f'/learn/course/{course.id}', status_code=303)
     used, limit = subscription_slots(db, student.id)
-    if used >= limit:
+    if limit and used >= limit:  # limit == 0 means unlimited
         return RedirectResponse(f'{dest}?plan=full', status_code=303)
     enroll_student(db, student.id, course.id, source='subscription')
     db.commit()

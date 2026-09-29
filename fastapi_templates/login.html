@@ -48,6 +48,17 @@
                         </label>
                         <button type="submit" class="portal-btn gold full">Sign in <i class="fas fa-arrow-right"></i></button>
                     </form>
+                    {% if google_client_id %}
+                    <div class="oauth-sep"><span>or</span></div>
+                    <script src="https://accounts.google.com/gsi/client" async></script>
+                    <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-callback="handleGoogleCredential" data-auto_prompt="false"></div>
+                    <div class="g_id_signin oauth-google" data-type="standard" data-theme="outline" data-size="large" data-text="continue_with" data-shape="rectangular" data-logo_alignment="left"></div>
+                    <form id="google-form" method="POST" action="/auth/google" style="display:none;">
+                        <input type="hidden" name="credential" id="google-credential">
+                        <input type="hidden" name="next" value="{{ next_page }}">
+                    </form>
+                    <script>function handleGoogleCredential(r){document.getElementById('google-credential').value=r.credential;document.getElementById('google-form').submit();}</script>
+                    {% endif %}
                     <div class="signin-foot">
                         <a href="/forgot-password">Forgot your password?</a>
                         <span>New learner? <a href="/register?next={{ next_page }}">Create an account</a></span>
@@ -124,6 +135,9 @@ body.app-shell{background:#0a1026 url("/static/images/login_bkgd2.jpg") center c
 .signin-form input{padding:11px 12px;border:1px solid #d8dee9;border-radius:3px;font-size:.92rem;font-family:inherit;color:var(--ink);background:#fbfcfe;transition:border-color .15s ease,box-shadow .15s ease;}
 .signin-form input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(36,128,220,.18);background:#fff;}
 .signin-form .portal-btn{margin-top:4px;}
+.oauth-sep{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;}
+.oauth-sep::before,.oauth-sep::after{content:"";flex:1;height:1px;background:#e7eef7;}
+.oauth-google{display:flex;justify-content:center;}
 .signin-foot{margin-top:20px;padding-top:18px;border-top:1px solid #eef2f7;text-align:center;display:grid;gap:8px;}
 .signin-foot a{color:var(--navy-3);font-weight:600;font-size:.9rem;text-decoration:none;}
 .signin-foot a:hover{color:var(--gold-2);text-decoration:underline;}
