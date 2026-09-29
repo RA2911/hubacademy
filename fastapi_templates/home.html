@@ -7,13 +7,14 @@
         <h1 class="hero-title">Skill up. <span>Stand out.</span></h1>
     </div>
     <section class="hero hero-media reveal">
-        <div class="hero-video" aria-label="Introduction video">
-            <video class="hero-video-el" autoplay muted playsinline controls preload="auto">
-                <source src="/static/videos/hero.mp4" type="video/mp4">
-            </video>
+        <div class="hero-intro">
+            <h2 class="hero-intro-title">Welcome to Hub Academy</h2>
+            <p class="hero-intro-sub">Professional and Executive Education for What&rsquo;s Next</p>
+            <p class="hero-intro-body">Hub Academy helps professionals, managers, and executives build skills they can use at work. Our practical programs cover leadership, management, AI, data, and other areas shaping today&rsquo;s organizations. Learn from experienced practitioners, apply new ideas to real challenges, and move forward with confidence.</p>
         </div>
         <div class="hero-people-panel" aria-label="Happy learners">
             <img class="hero-people-img" src="/static/images/hero-people.png?v=3" alt="Happy learners at Hub Academy" loading="eager">
+            <button type="button" class="hero-watch-btn" data-modal="video" aria-label="Watch introduction video"><i class="fas fa-play"></i> Watch Video</button>
         </div>
     </section>
 
@@ -562,6 +563,17 @@
     </div>
 </div>
 
+<!-- Watch Video modal -->
+<div class="journey-modal video-modal" id="video-modal" hidden>
+    <div class="journey-backdrop" data-close></div>
+    <div class="video-modal-panel" role="dialog" aria-modal="true" aria-label="Introduction video">
+        <button type="button" class="journey-close" data-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        <video class="video-modal-el" controls playsinline preload="auto">
+            <source src="/static/videos/hero.mp4" type="video/mp4">
+        </video>
+    </div>
+</div>
+
 <style>
 /* ===== Bundle savings band (big + animated) ===== */
 .promo-band{max-width:1200px;margin:34px auto 0;padding:0 24px;}
@@ -736,7 +748,7 @@
 .hero-copy-band .eyebrow{font-size:19px;}
 .hero-copy-band .searchbar{width:100%;max-width:560px;}
 .hero-copy-band .hero-actions{justify-content:center;flex-wrap:wrap;}
-@media(max-width:880px){.hero-media{grid-template-columns:1fr;}}
+@media(max-width:880px){.hero-media{grid-template-columns:1fr;margin-top:40px;}}
 
 /* Professional Master Certificate card button + modal */
 .master-card{flex-wrap:wrap;}
@@ -800,9 +812,28 @@
 }
 
 /* ===== Human photos: hero, promo, levels ===== */
-.hero-people-panel{width:100%;display:flex;align-items:flex-end;justify-content:center;overflow:visible;}
+.hero-people-panel{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:visible;}
 .hero-people-img{width:100%;aspect-ratio:16/9;object-fit:contain;object-position:center bottom;display:block;
     background:transparent;transform:scale(1.35);transform-origin:center bottom;}
+
+/* Hero welcome text (left column) */
+.hero-intro{display:flex;flex-direction:column;justify-content:center;padding:8px 8px;}
+.hero-intro-title{margin:0 0 8px;color:#0f2350;font-weight:800;line-height:1.12;font-size:clamp(1.7rem,2.7vw,2.3rem);}
+.hero-intro-sub{margin:0 0 16px;color:#1b3f8f;font-weight:700;line-height:1.3;font-size:clamp(1.05rem,1.6vw,1.28rem);}
+.hero-intro-body{margin:0;color:#4a5a75;font-size:1.02rem;line-height:1.65;max-width:560px;}
+
+/* Watch Video button (below the 1500+ image) */
+.hero-watch-btn{margin-top:22px;display:inline-flex;align-items:center;gap:10px;background:#0f2350;color:#fff;border:none;
+    border-radius:999px;padding:13px 28px;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 10px 24px rgba(15,35,80,.22);
+    transition:transform .15s ease,box-shadow .15s ease,background .15s ease;}
+.hero-watch-btn:hover{transform:translateY(-2px);background:#16A6AC;box-shadow:0 14px 30px rgba(22,166,172,.32);}
+.hero-watch-btn i{font-size:.82rem;}
+
+/* Video modal */
+.video-modal-panel{position:relative;width:min(880px,100%);background:#000;border-radius:16px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(6,12,30,.5);animation:journeyPop .28s ease;}
+.video-modal-el{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000;}
+.video-modal .journey-close{background:rgba(255,255,255,.92);}
 
 .promo-with-photo{display:grid;grid-template-columns:.82fr 1.18fr;gap:24px;align-items:stretch;}
 .promo-people-panel{border-radius:24px;overflow:hidden;box-shadow:0 24px 60px rgba(15,35,80,.18);background:#eaf2fb;}
@@ -848,6 +879,18 @@
         const guide=document.getElementById('ai-guide');
         if(guide){guide.classList.add('open');const input=document.getElementById('ai-guide-input');if(input)input.focus();}
     }));
+
+    // ---- Watch Video modal: play on open, pause on close ----
+    const videoModal=document.getElementById('video-modal');
+    if(videoModal){
+        const vid=videoModal.querySelector('video');
+        document.querySelectorAll('[data-modal="video"]').forEach(btn=>btn.addEventListener('click',()=>{
+            if(vid){try{vid.currentTime=0;const p=vid.play();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+        }));
+        const pauseVid=()=>{if(vid)vid.pause();};
+        videoModal.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',pauseVid));
+        document.addEventListener('keydown',e=>{if(e.key==='Escape')pauseVid();});
+    }
 
     // ---- Gentle scroll-reveal for landing sections ----
     const revealEls=document.querySelectorAll('.reveal');
