@@ -7,13 +7,13 @@
         <h1 class="hero-title">Skill up. <span>Stand out.</span></h1>
     </div>
     <section class="hero hero-media reveal">
-        <div class="hero-people-panel" aria-label="Happy learners">
-            <img class="hero-people-img" src="/static/images/hero-people.png?v=2" alt="Happy learners at Hub Academy" loading="eager">
-        </div>
         <div class="hero-video" aria-label="Introduction video">
             <video class="hero-video-el" autoplay muted playsinline controls preload="auto">
                 <source src="/static/videos/hero.mp4" type="video/mp4">
             </video>
+        </div>
+        <div class="hero-people-panel" aria-label="Happy learners">
+            <img class="hero-people-img" src="/static/images/hero-people.png?v=3" alt="Happy learners at Hub Academy" loading="eager">
         </div>
     </section>
 
@@ -797,9 +797,9 @@
 }
 
 /* ===== Human photos: hero, promo, levels ===== */
-.hero-people-panel{width:100%;}
-.hero-people-img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:20px;display:block;
-    background:#eaf2fb;box-shadow:0 20px 50px rgba(15,35,80,.16);}
+.hero-people-panel{width:100%;display:flex;align-items:flex-end;justify-content:center;}
+.hero-people-img{width:100%;aspect-ratio:16/9;object-fit:contain;object-position:center bottom;display:block;
+    background:transparent;}
 
 .promo-with-photo{display:grid;grid-template-columns:.82fr 1.18fr;gap:24px;align-items:stretch;}
 .promo-people-panel{border-radius:24px;overflow:hidden;box-shadow:0 24px 60px rgba(15,35,80,.18);background:#eaf2fb;}
