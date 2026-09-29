@@ -13,14 +13,6 @@
                 <option value="">All levels</option>
                 {% for level in levels %}<option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>{{ level }}</option>{% endfor %}
             </select>
-            <select name="price">
-                <option value="">All prices</option>
-                <option value="free" {% if selected_price == 'free' %}selected{% endif %}>Free</option>
-                <option value="paid" {% if selected_price == 'paid' %}selected{% endif %}>Paid</option>
-                <option value="under-100" {% if selected_price == 'under-100' %}selected{% endif %}>Under USD 100</option>
-                <option value="100-500" {% if selected_price == '100-500' %}selected{% endif %}>USD 100-500</option>
-                <option value="500-plus" {% if selected_price == '500-plus' %}selected{% endif %}>USD 500+</option>
-            </select>
             <select name="duration">
                 <option value="">All durations</option>
                 <option value="short" {% if selected_duration == 'short' %}selected{% endif %}>Up to 5h</option>
@@ -74,7 +66,6 @@
             <input id="topic-search-input" type="search" placeholder="Search expertise areas...">
             <input type="hidden" name="q" value="{{ q or '' }}">
             <input type="hidden" name="level" value="{{ selected_level or '' }}">
-            <input type="hidden" name="price" value="{{ selected_price or '' }}">
             <input type="hidden" name="duration" value="{{ selected_duration or '' }}">
             <button class="btn primary" type="button" id="topic-search-button">Search</button>
         </form>

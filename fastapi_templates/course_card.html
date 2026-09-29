@@ -17,7 +17,6 @@
             <span><i class="fas fa-certificate"></i>{{ 'Certificate' if course.certificate_level in [1, 2, 3] else 'Course' }}</span>
         </div>
         <div class="card-bottom">
-            <strong>{{ course_price(course) }}</strong>
             <a class="btn primary" href="/courses/{{ course_slug(course) }}">View Course</a>
         </div>
     </div>

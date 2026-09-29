@@ -70,7 +70,6 @@
                 <div class="np-body">
                     <strong>{{ course.title }}</strong>
                     <span class="np-meta">{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1, 2, 3] %} &middot; Level {{ course.certificate_level }}{% endif %}</span>
-                    <span class="np-price">{{ course_price(course) }}</span>
                 </div>
             </a>
             {% else %}
@@ -430,7 +429,7 @@
                         {% for course in items %}
                         <li><a href="/courses/{{ course_slug(course) }}">
                             <span class="lc-title">{{ course.title }}</span>
-                            <span class="lc-meta">{{ course_price(course) }} <i class="fas fa-arrow-right"></i></span>
+                            <span class="lc-meta"><i class="fas fa-arrow-right"></i></span>
                         </a></li>
                         {% endfor %}
                     </ul>
