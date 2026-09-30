@@ -2,6 +2,7 @@
 {% block title %}Hub Academy - Progressive Professional Learning{% endblock %}
 {% block content %}
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Merriweather:wght@700&family=Montserrat:wght@700&family=Playfair+Display:wght@700&family=Space+Grotesk:wght@700&family=Oswald:wght@600&family=Roboto+Mono:wght@700&family=Lora:wght@700&display=swap" rel="stylesheet">
 <main>
     <div class="hero-title-band">
         <h1 class="hero-title">Skill up. <span>Stand out.</span></h1>
@@ -10,7 +11,7 @@
         <div class="hero-intro">
             <h2 class="hero-intro-title">Welcome to Hub Academy</h2>
             <p class="hero-intro-sub">Professional and Executive Education for What&rsquo;s Next</p>
-            <p class="hero-intro-body">Hub Academy helps professionals, managers, and executives build skills they can use at work. Our practical programs cover leadership, management, AI, data, and other areas shaping today&rsquo;s organizations. Learn from experienced practitioners, apply new ideas to real challenges, and move forward with confidence.</p>
+            <p class="hero-intro-body">Hub Academy equips professionals and executives with practical skills in <span class="t-lead">leadership</span>, <span class="t-mgmt">management</span>, <span class="t-strat">strategic thinking</span>, <span class="t-orgpsy">organizational psychology</span>, <span class="t-ai">AI</span>, <span class="t-data">data</span>, <span class="t-cyber">cybersecurity</span>, and <span class="t-bi">business intelligence</span> to drive results and advance their careers.</p>
         </div>
         <div class="hero-people-panel" aria-label="Happy learners">
             <img class="hero-people-img" src="/static/images/hero-people.png?v=3" alt="Happy learners at Hub Academy" loading="eager">
@@ -826,7 +827,16 @@
 .hero-intro{display:flex;flex-direction:column;justify-content:center;padding:8px 8px;}
 .hero-intro-title{margin:0 0 14px;color:#0f2350;font-weight:800;line-height:1.08;font-size:clamp(2.5rem,4.2vw,3.6rem);}
 .hero-intro-sub{margin:0 0 20px;color:#1b3f8f;font-weight:700;line-height:1.22;font-size:clamp(1.35rem,2.1vw,1.8rem);}
-.hero-intro-body{margin:0;color:#3f4d66;font-size:clamp(1.08rem,1.35vw,1.28rem);line-height:1.6;max-width:620px;}
+.hero-intro-body{margin:0;color:#3f4d66;font-size:clamp(1.08rem,1.35vw,1.28rem);line-height:1.75;max-width:620px;}
+.hero-intro-body span{font-weight:700;white-space:nowrap;}
+.hero-intro-body .t-lead{color:#1b3f8f;font-family:'Poppins',sans-serif;}
+.hero-intro-body .t-mgmt{color:#0f766e;font-family:'Merriweather',serif;}
+.hero-intro-body .t-strat{color:#6741d9;font-family:'Montserrat',sans-serif;}
+.hero-intro-body .t-orgpsy{color:#d6336c;font-family:'Playfair Display',serif;}
+.hero-intro-body .t-ai{color:#e8590c;font-family:'Space Grotesk',sans-serif;}
+.hero-intro-body .t-data{color:#2b8a3e;font-family:'Oswald',sans-serif;}
+.hero-intro-body .t-cyber{color:#e03131;font-family:'Roboto Mono',monospace;}
+.hero-intro-body .t-bi{color:#0f2350;font-family:'Lora',serif;}
 
 /* Watch Video button (below the 1500+ image) */
 .hero-watch-btn{margin-top:22px;display:inline-flex;align-items:center;gap:10px;background:#0f2350;color:#fff;border:none;
