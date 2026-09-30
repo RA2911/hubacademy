@@ -10,8 +10,11 @@
         <div class="hero-skills-panel">
             <h2 class="hero-skills-title">Welcome to Hub Academy</h2>
             <img class="hero-skills-img" src="/static/images/skills-wheel.png?v=2" alt="Hub Academy — strategy, ideas, and growth">
-            <p class="hero-skills-caption">Executive and professional education that turns strategy into results and ambition into achievement.</p>
-            <p class="hero-skills-tagline">Where ambition becomes expertise. Sharpen your edge and accelerate your career.</p>
+            <ul class="hero-skills-ticks">
+                <li class="tick-blue"><i class="fas fa-check"></i><span>Executive and professional education that turns strategy into results and ambition into achievement.</span></li>
+                <li class="tick-green"><i class="fas fa-check"></i><span>Where ambition becomes expertise. Sharpen your edge and accelerate your career.</span></li>
+                <li class="tick-gold"><i class="fas fa-check"></i><span>Real skills. Real results. Real careers.</span></li>
+            </ul>
         </div>
         <div class="hero-people-panel" aria-label="Happy learners">
             <img class="hero-people-img" src="/static/images/hero-people.png?v=3" alt="Happy learners at Hub Academy" loading="eager">
@@ -827,8 +830,12 @@
 .hero-skills-panel{width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
 .hero-skills-title{margin:0;color:#0f2350;font-weight:800;line-height:1.1;font-size:clamp(1.8rem,3vw,2.6rem);}
 .hero-skills-img{width:100%;height:auto;display:block;border-radius:14px;}
-.hero-skills-caption{margin:0;color:#111;font-weight:600;line-height:1.5;font-size:clamp(1.02rem,1.3vw,1.2rem);max-width:560px;}
-.hero-skills-tagline{margin:0;color:#0f2350;font-weight:800;line-height:1.35;font-size:clamp(1.12rem,1.5vw,1.4rem);max-width:560px;}
+.hero-skills-ticks{list-style:none;margin:0;padding:0;width:100%;display:grid;gap:12px;text-align:left;}
+.hero-skills-ticks li{display:flex;align-items:flex-start;gap:12px;color:#111;font-weight:600;line-height:1.45;font-size:clamp(1.02rem,1.3vw,1.2rem);}
+.hero-skills-ticks li i{flex:0 0 auto;margin-top:3px;font-size:1.05rem;}
+.hero-skills-ticks .tick-blue i{color:#2480DC;}
+.hero-skills-ticks .tick-green i{color:#2b8a3e;}
+.hero-skills-ticks .tick-gold i{color:#c9a227;}
 
 /* Watch Video button (below the 1500+ image) */
 .hero-watch-btn{margin-top:22px;display:inline-flex;align-items:center;gap:10px;background:#0f2350;color:#fff;border:none;
