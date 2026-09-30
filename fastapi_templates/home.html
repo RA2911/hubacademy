@@ -2,7 +2,6 @@
 {% block title %}Hub Academy - Progressive Professional Learning{% endblock %}
 {% block content %}
 {% set hero_course = (featured[0] if featured else (courses[0] if courses else None)) %}
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Merriweather:wght@700&family=Montserrat:wght@700&family=Playfair+Display:wght@700&family=Space+Grotesk:wght@700&family=Oswald:wght@600&family=Roboto+Mono:wght@700&family=Lora:wght@700&display=swap" rel="stylesheet">
 <main>
     <div class="hero-title-band">
         <h1 class="hero-title">Skill up. <span>Stand out.</span></h1>
@@ -743,7 +742,7 @@
 .hero-title span{background:linear-gradient(135deg,#2480DC,#16A6AC);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#16A6AC;}
 
 /* Split hero: image left, video right */
-.hero-media{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;padding:12px 28px 44px;}
+.hero-media{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;padding:12px 28px 44px;}
 .hero-image-side{max-width:none;width:100%;margin:0;}
 .hero-video{width:100%;}
 .hero-video .hero-video-el,.hero-video-placeholder{width:100%;aspect-ratio:16/9;border-radius:20px;display:block;object-fit:cover;background:#0f2350;box-shadow:0 20px 50px rgba(15,35,80,.16);}
@@ -827,16 +826,8 @@
 .hero-intro{display:flex;flex-direction:column;justify-content:center;padding:8px 8px;}
 .hero-intro-title{margin:0 0 14px;color:#0f2350;font-weight:800;line-height:1.08;font-size:clamp(2.5rem,4.2vw,3.6rem);}
 .hero-intro-sub{margin:0 0 20px;color:#1b3f8f;font-weight:700;line-height:1.22;font-size:clamp(1.35rem,2.1vw,1.8rem);}
-.hero-intro-body{margin:0;color:#3f4d66;font-size:clamp(1.08rem,1.35vw,1.28rem);line-height:1.75;max-width:620px;}
-.hero-intro-body span{font-weight:700;white-space:nowrap;}
-.hero-intro-body .t-lead{color:#1b3f8f;font-family:'Poppins',sans-serif;}
-.hero-intro-body .t-mgmt{color:#0f766e;font-family:'Merriweather',serif;}
-.hero-intro-body .t-strat{color:#6741d9;font-family:'Montserrat',sans-serif;}
-.hero-intro-body .t-orgpsy{color:#d6336c;font-family:'Playfair Display',serif;}
-.hero-intro-body .t-ai{color:#e8590c;font-family:'Space Grotesk',sans-serif;}
-.hero-intro-body .t-data{color:#2b8a3e;font-family:'Oswald',sans-serif;}
-.hero-intro-body .t-cyber{color:#e03131;font-family:'Roboto Mono',monospace;}
-.hero-intro-body .t-bi{color:#0f2350;font-family:'Lora',serif;}
+.hero-intro-body{margin:0;color:#111;font-size:clamp(1.08rem,1.35vw,1.28rem);line-height:1.7;max-width:620px;}
+.hero-intro-body span{font-weight:800;color:inherit;font-family:inherit;}
 
 /* Watch Video button (below the 1500+ image) */
 .hero-watch-btn{margin-top:22px;display:inline-flex;align-items:center;gap:10px;background:#0f2350;color:#fff;border:none;
