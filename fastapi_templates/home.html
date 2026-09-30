@@ -43,16 +43,23 @@
         </div>
         <div class="promo-hero">
             <div class="promo-shine" aria-hidden="true"></div>
-            <span class="promo-flag"><i class="fas fa-bolt"></i> Unlimited access</span>
-            <div class="promo-hero-main">
-                <div class="promo-hero-text">
-                    <h2>Unlimited courses. <span>One price.</span></h2>
-                    <div class="promo-price">
-                        <span class="promo-now">${{ plans[0].price }}</span>
-                        <span class="promo-save">per<br>month</span>
-                    </div>
-                    <p>Every course, every expertise area &mdash; unlimited access for one monthly price. Cancel anytime.</p>
+            <span class="promo-flag"><i class="fas fa-bolt"></i> 50% OFF &middot; Limited time</span>
+            <div class="promo-hero-text">
+                <h2>Unlimited courses. <span>One price.</span></h2>
+                <div class="promo-price">
+                    <span class="promo-was">$79</span>
+                    <span class="promo-now">${{ plans[0].price }}</span>
+                    <span class="promo-per">/mo</span>
+                    <span class="promo-save">Save<br>50%</span>
                 </div>
+                <p>Every course, every expertise area. Unlimited access for one monthly price. Cancel anytime.</p>
+                <ul class="promo-ticks">
+                    <li class="ptick-blue"><i class="fas fa-check"></i><span>Executive and professional education that turns strategy into results and ambition into achievement.</span></li>
+                    <li class="ptick-green"><i class="fas fa-check"></i><span>Where ambition becomes expertise. Sharpen your edge and accelerate your career.</span></li>
+                    <li class="ptick-gold"><i class="fas fa-check"></i><span>Real skills. Real results. Real careers.</span></li>
+                </ul>
+            </div>
+            <div class="promo-cta-wrap">
                 <a class="promo-cta" href="/courses">Start learning <i class="fas fa-arrow-right"></i></a>
             </div>
         </div>
@@ -585,8 +592,18 @@
 /* ===== Bundle savings band (big + animated) ===== */
 .promo-band{max-width:1200px;margin:34px auto 0;padding:0 24px;}
 .promo-hero{position:relative;overflow:hidden;border-radius:24px;padding:44px 48px;color:#fff;
+    display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
     background:linear-gradient(120deg,#0f2350,#1b3f8f,#16A6AC,#0f2350);background-size:300% 300%;
     animation:promoGradient 9s ease infinite;box-shadow:0 24px 60px rgba(15,35,80,.32);}
+.promo-hero .promo-hero-text{width:100%;}
+.promo-per{font-size:1.4rem;font-weight:800;opacity:.9;align-self:flex-end;margin-bottom:8px;}
+.promo-ticks{list-style:none;margin:18px 0 0;padding:0;width:100%;display:grid;gap:9px;text-align:left;}
+.promo-ticks li{display:flex;align-items:flex-start;gap:10px;color:#fff;font-weight:600;line-height:1.4;font-size:.98rem;}
+.promo-ticks li i{flex:0 0 auto;margin-top:3px;font-size:.95rem;}
+.promo-ticks .ptick-blue i{color:#4ea1f0;}
+.promo-ticks .ptick-green i{color:#51cf66;}
+.promo-ticks .ptick-gold i{color:#ffd147;}
+.promo-cta-wrap{display:flex;justify-content:center;width:100%;margin-top:22px;}
 @keyframes promoGradient{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
 .promo-shine{position:absolute;top:0;left:-60%;width:45%;height:100%;transform:skewX(-20deg);
     background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:promoShine 5s ease-in-out infinite;pointer-events:none;}
