@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics · Hub Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f8fb;color:#101828;}
+        .stats-top{display:flex;align-items:center;justify-content:space-between;background:#0f2350;color:#fff;padding:14px 24px;}
+        .stats-top strong{font-size:1.05rem;display:inline-flex;align-items:center;gap:9px;}
+        .stats-top a{color:#c7d3e8;text-decoration:none;font-size:.88rem;font-weight:600;display:inline-flex;align-items:center;gap:7px;}
+        .stats-top a:hover{color:#fff;}
+        .stats-wrap{max-width:1120px;margin:0 auto;padding:24px;}
+    </style>
+</head>
+<body>
+    <div class="stats-top">
+        <strong><i class="fas fa-chart-line"></i> Hub Academy — Analytics</strong>
+        <a href="/stats/logout"><i class="fas fa-right-from-bracket"></i> Log out</a>
+    </div>
+    <div class="stats-wrap">
+        {% include '_analytics_body.html' %}
+    </div>
+</body>
+</html>

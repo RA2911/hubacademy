@@ -1,0 +1,78 @@
+<style>
+.an-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:4px 0 22px;}
+.an-card{background:#fff;border:1px solid #e6ebf3;border-radius:12px;padding:16px 18px;}
+.an-card .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#6a7891;font-weight:700;}
+.an-card .v{font-size:1.9rem;font-weight:800;color:#0f2350;line-height:1.1;margin-top:4px;}
+.an-card .s{font-size:.78rem;color:#8a97ab;margin-top:2px;}
+.an-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:8px;}
+.an-panel{background:#fff;border:1px solid #e6ebf3;border-radius:12px;padding:18px 20px;}
+.an-panel h3{margin:0 0 14px;font-size:1rem;color:#0f2350;}
+.an-chart{display:flex;align-items:flex-end;gap:3px;height:140px;}
+.an-chart .bar{flex:1;background:linear-gradient(180deg,#2480DC,#16A6AC);border-radius:3px 3px 0 0;min-height:2px;transition:height .3s ease;}
+.an-chart .bar[data-z="1"]{background:#e6ebf3;}
+.an-chart-x{display:flex;justify-content:space-between;font-size:.7rem;color:#8a97ab;margin-top:6px;}
+.an-list{list-style:none;margin:0;padding:0;display:grid;gap:8px;}
+.an-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.9rem;color:#1f2733;}
+.an-list .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:78%;}
+.an-list .cnt{font-weight:800;color:#0f2350;}
+.an-events{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
+.an-ev{background:#f6f9ff;border:1px solid #e6ebf3;border-radius:10px;padding:12px 14px;text-align:center;}
+.an-ev .n{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#6a7891;font-weight:700;}
+.an-ev .c{font-size:1.5rem;font-weight:800;color:#16A6AC;margin-top:3px;}
+.an-note{font-size:.8rem;color:#8a97ab;margin:18px 0 0;}
+.an-empty{color:#8a97ab;font-size:.88rem;}
+.an-topbar{display:flex;justify-content:flex-end;margin:0 0 14px;}
+.an-download{display:inline-flex;align-items:center;gap:8px;background:#0f2350;color:#fff;text-decoration:none;font-weight:700;font-size:.9rem;padding:10px 18px;border-radius:8px;transition:background .15s ease,transform .15s ease;}
+.an-download:hover{background:#16A6AC;transform:translateY(-1px);}
+</style>
+
+<div class="an-topbar">
+    <a class="an-download" href="{{ report_url }}" target="_blank" rel="noopener"><i class="fas fa-file-arrow-down"></i> Download PDF report</a>
+</div>
+
+<div class="an-cards">
+    <div class="an-card"><div class="k">Views · today</div><div class="v">{{ stats.views_today }}</div><div class="s">{{ stats.uniq_today }} unique</div></div>
+    <div class="an-card"><div class="k">Views · 7 days</div><div class="v">{{ stats.views_7d }}</div><div class="s">{{ stats.uniq_7d }} unique</div></div>
+    <div class="an-card"><div class="k">Views · 30 days</div><div class="v">{{ stats.views_30d }}</div><div class="s">{{ stats.uniq_30d }} unique</div></div>
+    <div class="an-card"><div class="k">Views · all time</div><div class="v">{{ stats.total_views }}</div><div class="s">since tracking began</div></div>
+</div>
+
+<div class="an-panel" style="margin-bottom:18px;">
+    <h3>Views — last 30 days</h3>
+    <div class="an-chart">
+        {% for d in series %}<div class="bar" style="height:{{ d.pct }}%" data-z="{{ 1 if d.count == 0 else 0 }}" title="{{ d.date }}: {{ d.count }}"></div>{% endfor %}
+    </div>
+    <div class="an-chart-x"><span>{{ series[0].date }}</span><span>{{ series[-1].date }}</span></div>
+</div>
+
+<div class="an-panel" style="margin-bottom:18px;">
+    <h3>Events — last 30 days</h3>
+    {% if event_counts %}
+    <div class="an-events">
+        {% for name, count in event_counts.items() %}
+        <div class="an-ev"><div class="n">{{ name.replace('_',' ') }}</div><div class="c">{{ count }}</div></div>
+        {% endfor %}
+    </div>
+    {% else %}<p class="an-empty">No events recorded yet.</p>{% endif %}
+</div>
+
+<div class="an-grid">
+    <div class="an-panel">
+        <h3>Top pages</h3>
+        {% if top_pages %}<ul class="an-list">{% for r in top_pages %}<li><span class="lbl">{{ r.label }}</span><span class="cnt">{{ r.count }}</span></li>{% endfor %}</ul>{% else %}<p class="an-empty">No data yet.</p>{% endif %}
+    </div>
+    <div class="an-panel">
+        <h3>Top referrers</h3>
+        {% if top_referrers %}<ul class="an-list">{% for r in top_referrers %}<li><span class="lbl">{{ r.label }}</span><span class="cnt">{{ r.count }}</span></li>{% endfor %}</ul>{% else %}<p class="an-empty">No data yet.</p>{% endif %}
+    </div>
+    <div class="an-panel">
+        <h3>Countries</h3>
+        {% if countries %}<ul class="an-list">{% for r in countries %}<li><span class="lbl">{{ r.label }}</span><span class="cnt">{{ r.count }}</span></li>{% endfor %}</ul>{% else %}<p class="an-empty">No data yet.</p>{% endif %}
+    </div>
+    <div class="an-panel">
+        <h3>Devices</h3>
+        {% if devices %}<ul class="an-list">{% for r in devices %}<li><span class="lbl">{{ r.label }}</span><span class="cnt">{{ r.count }}</span></li>{% endfor %}</ul>{% else %}<p class="an-empty">No data yet.</p>{% endif %}
+    </div>
+</div>
+
+<p class="an-note">Private &amp; self-hosted — data lives in your own database. Auto-pruned after {{ retention_days }} days. Bots excluded. Country via offline IP lookup (no external calls).</p>

@@ -55,6 +55,8 @@ ANALYTICS_RETENTION_DAYS = int(os.environ.get('ANALYTICS_RETENTION_DAYS', '90'))
 # and the recipient address.
 REPORT_KEY = _clean_secret('REPORT_KEY')
 REPORT_EMAIL = os.environ.get('REPORT_EMAIL', 'support@hubacademy.ai')
+# Password for the standalone, analytics-only viewer at /stats (separate from admin).
+ANALYTICS_VIEWER_PASSWORD = os.environ.get('ANALYTICS_VIEWER_PASSWORD', '').strip()
 
 # Google Sign-In (OAuth). When set, a "Continue with Google" button appears on the
 # login/register pages and POSTs the Google credential to /auth/google. Dormant

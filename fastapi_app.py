@@ -117,7 +117,8 @@ app.include_router(certificate_verify.router)
 import analytics as analytics_mod  # noqa: E402
 
 _ANALYTICS_SKIP = ('/static', '/admin', '/assistant', '/analytics', '/stripe', '/auth',
-                   '/api', '/service-worker', '/manifest', '/favicon', '/healthz', '/logout', '/robots')
+                   '/api', '/service-worker', '/manifest', '/favicon', '/healthz', '/logout',
+                   '/robots', '/stats', '/tasks')
 
 
 def _track(request, name, student_id=None, detail=None):
@@ -4332,12 +4333,63 @@ def admin_analytics(request: Request, db: Session = Depends(get_db)):
     analytics_mod.prune(cfg.ANALYTICS_RETENTION_DAYS)
     ctx = analytics_mod.collect_stats(db)
     ctx['admin'] = admin
+    ctx['report_url'] = '/admin/analytics/report.pdf'
     return template(request, 'admin/analytics.html', db, ctx)
 
 
 @app.get('/admin/analytics/report.pdf')
 def admin_analytics_pdf(request: Request, db: Session = Depends(get_db)):
     require_admin(request, db)
+    data = analytics_mod.collect_stats(db)
+    pdf = analytics_mod.build_report_pdf(data)
+    return Response(content=pdf, media_type='application/pdf',
+                    headers={'Content-Disposition': 'attachment; filename="hub-academy-analytics-report.pdf"'})
+
+
+# --- Standalone analytics-only viewer (/stats): separate password, no admin access ---
+def analytics_viewer_ok(request: Request, db: Session) -> bool:
+    if request.session.get('analytics_viewer'):
+        return True
+    return bool(admin_from_request(request, db))
+
+
+@app.get('/stats', response_class=HTMLResponse)
+def stats_page(request: Request, db: Session = Depends(get_db)):
+    if not analytics_viewer_ok(request, db):
+        return RedirectResponse('/stats/login', status_code=303)
+    analytics_mod.prune(cfg.ANALYTICS_RETENTION_DAYS)
+    ctx = analytics_mod.collect_stats(db)
+    ctx['request'] = request
+    ctx['report_url'] = '/stats/report.pdf'
+    return templates.TemplateResponse('stats.html', ctx)
+
+
+@app.get('/stats/login', response_class=HTMLResponse)
+def stats_login_page(request: Request):
+    return templates.TemplateResponse('stats_login.html', {
+        'request': request, 'failed': request.query_params.get('e') == '1'})
+
+
+@app.post('/stats/login')
+def stats_login(request: Request, password: str = Form('')):
+    import secrets as _secrets
+    pw = cfg.ANALYTICS_VIEWER_PASSWORD
+    if pw and _secrets.compare_digest(password, pw):
+        request.session['analytics_viewer'] = True
+        return RedirectResponse('/stats', status_code=303)
+    return RedirectResponse('/stats/login?e=1', status_code=303)
+
+
+@app.get('/stats/logout')
+def stats_logout(request: Request):
+    request.session.pop('analytics_viewer', None)
+    return RedirectResponse('/stats/login', status_code=303)
+
+
+@app.get('/stats/report.pdf')
+def stats_report_pdf(request: Request, db: Session = Depends(get_db)):
+    if not analytics_viewer_ok(request, db):
+        return RedirectResponse('/stats/login', status_code=303)
     data = analytics_mod.collect_stats(db)
     pdf = analytics_mod.build_report_pdf(data)
     return Response(content=pdf, media_type='application/pdf',
