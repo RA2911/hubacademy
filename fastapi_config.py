@@ -51,6 +51,10 @@ SUBSCRIPTION_COURSE_LIMIT = int(os.environ.get('SUBSCRIPTION_COURSE_LIMIT', '0')
 # "Unknown" until the file is present). Page views/events auto-prune after N days.
 GEOIP_DB_PATH = os.environ.get('GEOIP_DB_PATH', os.path.join(BASE_DIR, 'GeoLite2-Country.mmdb'))
 ANALYTICS_RETENTION_DAYS = int(os.environ.get('ANALYTICS_RETENTION_DAYS', '90'))
+# Weekly emailed PDF report: secret that protects the /tasks/weekly-report URL,
+# and the recipient address.
+REPORT_KEY = _clean_secret('REPORT_KEY')
+REPORT_EMAIL = os.environ.get('REPORT_EMAIL', 'support@hubacademy.ai')
 
 # Google Sign-In (OAuth). When set, a "Continue with Google" button appears on the
 # login/register pages and POSTs the Google credential to /auth/google. Dormant

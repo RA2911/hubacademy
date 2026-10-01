@@ -171,6 +171,25 @@ def analytics_event(request: Request, name: str = Form('')):
     return Response(status_code=204)
 
 
+@app.api_route('/tasks/weekly-report', methods=['GET', 'POST'])
+def weekly_report(request: Request, key: str = '', db: Session = Depends(get_db)):
+    """Build the analytics PDF and email it. Called weekly by Cloud Scheduler.
+    Protected by the REPORT_KEY secret passed as ?key=."""
+    if not cfg.REPORT_KEY or key != cfg.REPORT_KEY:
+        return JSONResponse({'error': 'forbidden'}, status_code=403)
+    try:
+        data = analytics_mod.collect_stats(db)
+        pdf = analytics_mod.build_report_pdf(data)
+        sent = send_email_with_pdf(
+            cfg.REPORT_EMAIL, 'Hub Academy — Weekly Analytics Report',
+            'Attached is your weekly Hub Academy analytics report.',
+            pdf, 'hub-academy-weekly-report.pdf')
+        return JSONResponse({'sent': bool(sent), 'to': cfg.REPORT_EMAIL})
+    except Exception:
+        logger.exception('weekly report failed')
+        return JSONResponse({'error': 'report failed'}, status_code=500)
+
+
 def seed_expertise_areas(db: Session):
     """Populate the expertise_areas table with the defaults on first run only."""
     if db.query(ExpertiseArea).first():
@@ -1319,6 +1338,33 @@ def send_email(to_email: str, subject: str, text_body: str):
             smtp.starttls()
         smtp.login(cfg.MAIL_USERNAME, cfg.MAIL_PASSWORD)
         smtp.send_message(message)
+
+
+def send_email_with_pdf(to_email: str, subject: str, text_body: str, pdf_bytes: bytes, filename: str) -> bool:
+    """Send an email with a PDF attachment. Returns True on success, False otherwise."""
+    if not mail_configured():
+        return False
+    message = EmailMessage()
+    message['Subject'] = subject
+    message['From'] = cfg.MAIL_DEFAULT_SENDER
+    message['To'] = to_email
+    message.set_content(text_body)
+    message.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename=filename)
+    try:
+        if cfg.MAIL_USE_SSL:
+            with smtplib.SMTP_SSL(cfg.MAIL_SERVER, cfg.MAIL_PORT, timeout=30) as smtp:
+                smtp.login(cfg.MAIL_USERNAME, cfg.MAIL_PASSWORD)
+                smtp.send_message(message)
+        else:
+            with smtplib.SMTP(cfg.MAIL_SERVER, cfg.MAIL_PORT, timeout=30) as smtp:
+                if cfg.MAIL_USE_TLS:
+                    smtp.starttls()
+                smtp.login(cfg.MAIL_USERNAME, cfg.MAIL_PASSWORD)
+                smtp.send_message(message)
+        return True
+    except Exception:
+        logger.exception('weekly report email failed')
+        return False
 
 
 def create_password_reset(db: Session, student: Student) -> str:
@@ -4283,62 +4329,10 @@ def admin_progression(request: Request, db: Session = Depends(get_db)):
 @app.get('/admin/analytics')
 def admin_analytics(request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
-    from sqlalchemy import func, distinct
-    from datetime import timedelta
-    from collections import Counter
     analytics_mod.prune(cfg.ANALYTICS_RETENTION_DAYS)
-    now = datetime.utcnow()
-
-    def _since(days):
-        return now - timedelta(days=days)
-
-    def _views(days):
-        return db.query(func.count(PageView.id)).filter(PageView.created_at >= _since(days)).scalar() or 0
-
-    def _uniques(days):
-        return db.query(func.count(distinct(PageView.visitor_id))).filter(PageView.created_at >= _since(days)).scalar() or 0
-
-    stats = {
-        'views_today': _views(1), 'views_7d': _views(7), 'views_30d': _views(30),
-        'uniq_today': _uniques(1), 'uniq_7d': _uniques(7), 'uniq_30d': _uniques(30),
-        'total_views': db.query(func.count(PageView.id)).scalar() or 0,
-    }
-
-    rows = db.query(PageView.created_at).filter(PageView.created_at >= _since(30)).all()
-    daily = Counter()
-    for (ts,) in rows:
-        if ts:
-            daily[ts.strftime('%Y-%m-%d')] += 1
-    series = []
-    for i in range(29, -1, -1):
-        d = (now - timedelta(days=i)).strftime('%Y-%m-%d')
-        series.append({'date': d, 'count': daily.get(d, 0)})
-    maxc = max([s['count'] for s in series] + [1])
-    for s in series:
-        s['pct'] = int(round(s['count'] * 100 / maxc))
-
-    def _top(col, limit=8, fallback='Unknown'):
-        q = (db.query(col, func.count(PageView.id))
-               .filter(PageView.created_at >= _since(30))
-               .group_by(col).order_by(func.count(PageView.id).desc()).limit(limit))
-        return [{'label': (r[0] or fallback), 'count': r[1]} for r in q.all()]
-
-    top_pages = _top(PageView.path)
-    top_referrers = _top(PageView.referrer, fallback='Direct / none')
-    countries = _top(PageView.country)
-    devices = _top(PageView.device, limit=5)
-
-    ev = (db.query(AnalyticsEvent.name, func.count(AnalyticsEvent.id))
-            .filter(AnalyticsEvent.created_at >= _since(30))
-            .group_by(AnalyticsEvent.name).all())
-    event_counts = {name: cnt for name, cnt in ev}
-
-    return template(request, 'admin/analytics.html', db, {
-        'admin': admin, 'stats': stats, 'series': series,
-        'top_pages': top_pages, 'top_referrers': top_referrers,
-        'countries': countries, 'devices': devices,
-        'event_counts': event_counts, 'retention_days': cfg.ANALYTICS_RETENTION_DAYS,
-    })
+    ctx = analytics_mod.collect_stats(db)
+    ctx['admin'] = admin
+    return template(request, 'admin/analytics.html', db, ctx)
 
 
 @app.get('/admin/settings')
