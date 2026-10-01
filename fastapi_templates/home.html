@@ -9,7 +9,7 @@
     <section class="hero hero-media reveal">
         <div class="hero-skills-panel">
             <h2 class="hero-skills-title">Welcome to Hub Academy</h2>
-            <img class="hero-skills-img" src="/static/images/skills-wheel.png?v=2" alt="Hub Academy — strategy, ideas, and growth">
+            <img class="hero-skills-img" src="/static/images/skills-wheel.png?v=3" alt="Hub Academy outcomes: Practical Skills, Confident Decisions, Career Growth, Stronger Teams, Better Performance">
             <ul class="hero-skills-ticks">
                 <li class="tick-blue"><i class="fas fa-check"></i><span>Executive and professional education that turns strategy into results and ambition into achievement.</span></li>
                 <li class="tick-green"><i class="fas fa-check"></i><span>Where ambition becomes expertise. Sharpen your edge and accelerate your career.</span></li>
@@ -17,6 +17,7 @@
             </ul>
         </div>
         <div class="hero-people-panel" aria-label="Happy learners">
+            <div class="hero-people-rings" aria-hidden="true"></div>
             <img class="hero-people-img" src="/static/images/hero-people.png?v=3" alt="Happy learners at Hub Academy" loading="eager">
             <button type="button" class="hero-watch-btn" data-modal="video" aria-label="Watch introduction video"><i class="fas fa-play"></i> Watch Video</button>
         </div>
@@ -839,9 +840,17 @@
 }
 
 /* ===== Human photos: hero, promo, levels ===== */
-.hero-people-panel{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:visible;}
+.hero-people-panel{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:visible;position:relative;}
 .hero-people-img{width:100%;max-width:480px;height:auto;object-fit:contain;object-position:center bottom;display:block;
-    background:transparent;}
+    background:transparent;position:relative;z-index:1;}
+.hero-people-panel .hero-watch-btn{position:relative;z-index:1;}
+.hero-people-rings{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:min(135%,600px);aspect-ratio:1;
+    border-radius:50%;z-index:0;pointer-events:none;
+    background:repeating-radial-gradient(circle at center, rgba(36,128,220,.16) 0 1.5px, transparent 1.5px 46px);
+    -webkit-mask-image:radial-gradient(circle,#000 40%,transparent 72%);mask-image:radial-gradient(circle,#000 40%,transparent 72%);
+    animation:heroRingsPulse 6s ease-in-out infinite;}
+@keyframes heroRingsPulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.85;}50%{transform:translate(-50%,-50%) scale(1.04);opacity:1;}}
+@media(prefers-reduced-motion:reduce){.hero-people-rings{animation:none;}}
 
 /* Hero skills image (left column) */
 .hero-skills-panel{width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
