@@ -23,8 +23,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import fastapi_config as cfg
 from fastapi_auth import admin_from_request, hash_password, username_from_email, verify_password
-from fastapi_db import (Admin, CertificateAward, Company, Course, Enrollment, ExpertiseArea, Lesson, LessonMaterial,
-                        LessonProgress, LearnerProfile, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt,
+from fastapi_db import (Admin, AnalyticsEvent, CertificateAward, Company, Course, Enrollment, ExpertiseArea, Lesson, LessonMaterial,
+                        LessonProgress, LearnerProfile, PageView, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt,
                         SessionObjective, Settings, Student, Subscription, db_session as next_db_session, ensure_schema, get_db)
 from fastapi_storage import (delete_object, guess_content_type, list_objects, object_bytes, object_key,
                              package_object_key, presigned_download_url, presigned_upload_url, r2_enabled,
@@ -112,6 +112,63 @@ logger = logging.getLogger(__name__)
 # Additive: certificate PDF download + public verification (self-contained module).
 import certificate_verify  # noqa: E402
 app.include_router(certificate_verify.router)
+
+# --- Private, self-hosted analytics (best-effort; never breaks a request) ---
+import analytics as analytics_mod  # noqa: E402
+
+_ANALYTICS_SKIP = ('/static', '/admin', '/assistant', '/analytics', '/stripe', '/auth',
+                   '/api', '/service-worker', '/manifest', '/favicon', '/healthz', '/logout', '/robots')
+
+
+def _track(request, name, student_id=None, detail=None):
+    try:
+        analytics_mod.log_event(name, visitor_id=request.cookies.get('vid'),
+                                student_id=student_id, detail=detail)
+    except Exception:
+        pass
+
+
+@app.middleware('http')
+async def _analytics_middleware(request: Request, call_next):
+    response = await call_next(request)
+    try:
+        path = request.url.path
+        if (request.method == 'GET'
+                and not any(path.startswith(p) for p in _ANALYTICS_SKIP)
+                and 'text/html' in response.headers.get('content-type', '')):
+            ua = request.headers.get('user-agent', '')
+            if not analytics_mod.is_bot(ua):
+                vid = request.cookies.get('vid')
+                set_vid = None
+                if not vid:
+                    import secrets as _secrets
+                    vid = _secrets.token_hex(16)
+                    set_vid = vid
+                try:
+                    sid = request.session.get('student_id')
+                except Exception:
+                    sid = None
+                analytics_mod.log_pageview(
+                    path, vid, sid, request.headers.get('referer', ''),
+                    analytics_mod.country_from_ip(analytics_mod.client_ip(request)),
+                    analytics_mod.device_from_ua(ua),
+                )
+                if set_vid:
+                    response.set_cookie('vid', set_vid, max_age=31536000, httponly=True, samesite='lax')
+    except Exception:
+        pass
+    return response
+
+
+@app.post('/analytics/event')
+def analytics_event(request: Request, name: str = Form('')):
+    if name in ('watch_video',):
+        try:
+            sid = request.session.get('student_id')
+        except Exception:
+            sid = None
+        _track(request, name, student_id=sid)
+    return Response(status_code=204)
 
 
 def seed_expertise_areas(db: Session):
@@ -1451,6 +1508,7 @@ def course_detail(identifier: str, request: Request, db: Session = Depends(get_d
     student = student_from_request(request, db)
     enrolled = bool(student and db.query(Enrollment).filter_by(student_id=student.id, course_id=course.id, is_active=True).first())
     lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
+    _track(request, 'course_view', student_id=(student.id if student else None), detail=course_slug(course))
     return template(request, 'course_detail.html', db, {'course': course, 'lessons': lessons, 'enrolled': enrolled})
 
 
@@ -1490,6 +1548,7 @@ def register(request: Request, full_name: str = Form(...), email: str = Form(...
     db.commit()
     db.refresh(student)
     request.session['student_id'] = student.id
+    _track(request, 'signup', student_id=student.id)
     return RedirectResponse(next, status_code=303)
 
 
@@ -1507,6 +1566,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     request.session['student_id'] = student.id
     student.last_login = datetime.utcnow()
     db.commit()
+    _track(request, 'login', student_id=student.id)
     return RedirectResponse(next, status_code=303)
 
 
@@ -1545,6 +1605,7 @@ def auth_google(request: Request, credential: str = Form(''), next: str = Form('
     request.session['student_id'] = student.id
     student.last_login = datetime.utcnow()
     db.commit()
+    _track(request, 'login', student_id=student.id)
     return RedirectResponse(next or '/learn/dashboard', status_code=303)
 
 
@@ -1652,6 +1713,7 @@ def subscribe(plan: str, request: Request):
     selected = {p['name'].lower(): p for p in subscription_plans()}.get(plan.lower())
     if not selected or not cfg.STRIPE_SECRET_KEY or not selected['stripe_price_id']:
         return RedirectResponse('/#pricing', status_code=303)
+    _track(request, 'subscribe_click', student_id=student.id)
     import stripe
     stripe.api_key = cfg.STRIPE_SECRET_KEY
     session = stripe.checkout.Session.create(
@@ -1690,6 +1752,7 @@ def plan_add(course_id: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(f'{dest}?plan=full', status_code=303)
     enroll_student(db, student.id, course.id, source='subscription')
     db.commit()
+    _track(request, 'plan_add', student_id=student.id, detail=str(course.id))
     return RedirectResponse(f'/learn/course/{course.id}', status_code=303)
 
 
@@ -4215,6 +4278,67 @@ def admin_progression(request: Request, db: Session = Depends(get_db)):
         ).count()
         rows.append({'enrollment': enrollment, 'done': done, 'total': total, 'pct': int(done / total * 100) if total else 0})
     return template(request, 'admin/progression.html', db, {'admin': admin, 'rows': rows})
+
+
+@app.get('/admin/analytics')
+def admin_analytics(request: Request, db: Session = Depends(get_db)):
+    admin = require_admin(request, db)
+    from sqlalchemy import func, distinct
+    from datetime import timedelta
+    from collections import Counter
+    analytics_mod.prune(cfg.ANALYTICS_RETENTION_DAYS)
+    now = datetime.utcnow()
+
+    def _since(days):
+        return now - timedelta(days=days)
+
+    def _views(days):
+        return db.query(func.count(PageView.id)).filter(PageView.created_at >= _since(days)).scalar() or 0
+
+    def _uniques(days):
+        return db.query(func.count(distinct(PageView.visitor_id))).filter(PageView.created_at >= _since(days)).scalar() or 0
+
+    stats = {
+        'views_today': _views(1), 'views_7d': _views(7), 'views_30d': _views(30),
+        'uniq_today': _uniques(1), 'uniq_7d': _uniques(7), 'uniq_30d': _uniques(30),
+        'total_views': db.query(func.count(PageView.id)).scalar() or 0,
+    }
+
+    rows = db.query(PageView.created_at).filter(PageView.created_at >= _since(30)).all()
+    daily = Counter()
+    for (ts,) in rows:
+        if ts:
+            daily[ts.strftime('%Y-%m-%d')] += 1
+    series = []
+    for i in range(29, -1, -1):
+        d = (now - timedelta(days=i)).strftime('%Y-%m-%d')
+        series.append({'date': d, 'count': daily.get(d, 0)})
+    maxc = max([s['count'] for s in series] + [1])
+    for s in series:
+        s['pct'] = int(round(s['count'] * 100 / maxc))
+
+    def _top(col, limit=8, fallback='Unknown'):
+        q = (db.query(col, func.count(PageView.id))
+               .filter(PageView.created_at >= _since(30))
+               .group_by(col).order_by(func.count(PageView.id).desc()).limit(limit))
+        return [{'label': (r[0] or fallback), 'count': r[1]} for r in q.all()]
+
+    top_pages = _top(PageView.path)
+    top_referrers = _top(PageView.referrer, fallback='Direct / none')
+    countries = _top(PageView.country)
+    devices = _top(PageView.device, limit=5)
+
+    ev = (db.query(AnalyticsEvent.name, func.count(AnalyticsEvent.id))
+            .filter(AnalyticsEvent.created_at >= _since(30))
+            .group_by(AnalyticsEvent.name).all())
+    event_counts = {name: cnt for name, cnt in ev}
+
+    return template(request, 'admin/analytics.html', db, {
+        'admin': admin, 'stats': stats, 'series': series,
+        'top_pages': top_pages, 'top_referrers': top_referrers,
+        'countries': countries, 'devices': devices,
+        'event_counts': event_counts, 'retention_days': cfg.ANALYTICS_RETENTION_DAYS,
+    })
 
 
 @app.get('/admin/settings')

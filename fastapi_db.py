@@ -416,6 +416,30 @@ ENROLLMENT_COLUMNS = {
     'source': "VARCHAR(30) NOT NULL DEFAULT 'enroll'",
 }
 
+class PageView(Base):
+    __tablename__ = 'page_views'
+
+    id = Column(Integer, primary_key=True)
+    path = Column(String(300), index=True)
+    visitor_id = Column(String(40), index=True)
+    student_id = Column(Integer, index=True)
+    referrer = Column(String(300))
+    country = Column(String(80))
+    device = Column(String(20))
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AnalyticsEvent(Base):
+    __tablename__ = 'analytics_events'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(40), index=True)
+    visitor_id = Column(String(40), index=True)
+    student_id = Column(Integer, index=True)
+    detail = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 STUDENT_COLUMNS = {
     'terms_accepted_at': "TIMESTAMP",
 }

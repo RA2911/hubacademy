@@ -47,6 +47,11 @@ SUBSCRIPTION_ANNUAL_PRICE = os.environ.get('SUBSCRIPTION_ANNUAL_PRICE', '249')
 # How many courses a monthly subscriber can have unlocked at once. 0 = unlimited.
 SUBSCRIPTION_COURSE_LIMIT = int(os.environ.get('SUBSCRIPTION_COURSE_LIMIT', '0'))
 
+# Private analytics. Local MaxMind GeoLite2 country DB (optional — country shows
+# "Unknown" until the file is present). Page views/events auto-prune after N days.
+GEOIP_DB_PATH = os.environ.get('GEOIP_DB_PATH', os.path.join(BASE_DIR, 'GeoLite2-Country.mmdb'))
+ANALYTICS_RETENTION_DAYS = int(os.environ.get('ANALYTICS_RETENTION_DAYS', '90'))
+
 # Google Sign-In (OAuth). When set, a "Continue with Google" button appears on the
 # login/register pages and POSTs the Google credential to /auth/google. Dormant
 # until this client ID is configured (same pattern as the dormant annual plan).

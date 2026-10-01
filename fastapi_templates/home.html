@@ -933,6 +933,7 @@
         const vid=videoModal.querySelector('video');
         document.querySelectorAll('[data-modal="video"]').forEach(btn=>btn.addEventListener('click',()=>{
             if(vid){try{vid.currentTime=0;const p=vid.play();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+            try{fetch('/analytics/event',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'name=watch_video',keepalive:true});}catch(e){}
         }));
         const pauseVid=()=>{if(vid)vid.pause();};
         videoModal.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',pauseVid));
