@@ -46,22 +46,26 @@ _geo = {'reader': None, 'tried': False}
 
 
 def country_from_ip(ip: str) -> str:
+    """Offline country lookup via geoip2fast (data bundled in the package — no
+    account, no external calls). Returns 'Unknown' on anything unexpected."""
     if not ip:
         return 'Unknown'
     if not _geo['tried']:
         _geo['tried'] = True
         try:
-            import geoip2.database
-            path = getattr(cfg, 'GEOIP_DB_PATH', '')
-            if path and os.path.exists(path):
-                _geo['reader'] = geoip2.database.Reader(path)
+            from geoip2fast import GeoIP2Fast
+            _geo['reader'] = GeoIP2Fast()
         except Exception:
             _geo['reader'] = None
     reader = _geo['reader']
     if not reader:
         return 'Unknown'
     try:
-        return reader.country(ip).country.name or 'Unknown'
+        name = (getattr(reader.lookup(ip), 'country_name', '') or '').strip()
+        low = name.lower()
+        if not name or low.startswith(('reserved', 'private', 'unknown', '<')):
+            return 'Unknown'
+        return name
     except Exception:
         return 'Unknown'
 

@@ -17,4 +17,4 @@ openpyxl==3.1.2
 pypdf==4.3.1
 python-pptx>=0.6.23,<2.0.0
 google-auth==2.34.0
-geoip2==4.8.0
+geoip2fast
