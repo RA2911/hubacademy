@@ -4335,6 +4335,15 @@ def admin_analytics(request: Request, db: Session = Depends(get_db)):
     return template(request, 'admin/analytics.html', db, ctx)
 
 
+@app.get('/admin/analytics/report.pdf')
+def admin_analytics_pdf(request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    data = analytics_mod.collect_stats(db)
+    pdf = analytics_mod.build_report_pdf(data)
+    return Response(content=pdf, media_type='application/pdf',
+                    headers={'Content-Disposition': 'attachment; filename="hub-academy-analytics-report.pdf"'})
+
+
 @app.get('/admin/settings')
 def admin_settings(request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
