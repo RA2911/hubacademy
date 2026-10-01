@@ -844,13 +844,19 @@
 .hero-people-img{width:100%;max-width:480px;height:auto;object-fit:contain;object-position:center bottom;display:block;
     background:transparent;position:relative;z-index:1;}
 .hero-people-panel .hero-watch-btn{position:relative;z-index:1;}
-.hero-people-rings{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:min(135%,600px);aspect-ratio:1;
-    border-radius:50%;z-index:0;pointer-events:none;
-    background:repeating-radial-gradient(circle at center, rgba(36,128,220,.16) 0 1.5px, transparent 1.5px 46px);
-    -webkit-mask-image:radial-gradient(circle,#000 40%,transparent 72%);mask-image:radial-gradient(circle,#000 40%,transparent 72%);
-    animation:heroRingsPulse 6s ease-in-out infinite;}
-@keyframes heroRingsPulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.85;}50%{transform:translate(-50%,-50%) scale(1.04);opacity:1;}}
-@media(prefers-reduced-motion:reduce){.hero-people-rings{animation:none;}}
+.hero-people-rings{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:min(140%,620px);aspect-ratio:1;
+    z-index:0;pointer-events:none;}
+.hero-people-rings::before,
+.hero-people-rings::after{content:"";position:absolute;inset:0;border-radius:50%;transform-origin:center;
+    background:repeating-radial-gradient(circle at center, rgba(36,128,220,.34) 0 2px, transparent 2px 42px);
+    -webkit-mask-image:radial-gradient(circle,#000 38%,transparent 74%);mask-image:radial-gradient(circle,#000 38%,transparent 74%);
+    animation:heroRingsWave 5.5s ease-out infinite;}
+.hero-people-rings::after{animation-delay:-2.75s;}
+@keyframes heroRingsWave{0%{transform:scale(.7);opacity:0;}18%{opacity:1;}100%{transform:scale(1.32);opacity:0;}}
+@media(prefers-reduced-motion:reduce){
+    .hero-people-rings::before{animation:none;transform:none;opacity:.55;}
+    .hero-people-rings::after{display:none;}
+}
 
 /* Hero skills image (left column) */
 .hero-skills-panel{width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
