@@ -11,7 +11,8 @@
 #avatar-modal{display:flex;align-items:center;justify-content:center;}
 #avatar-modal[hidden]{display:none;}
 .avatar-modal-panel{width:min(560px,94vw);height:min(80vh,680px);}
-#avatar-frame{width:100%;height:100%;border:0;background:#0b1220;}
+#avatar-mount{width:100%;height:100%;border:0;background:#0b1220;overflow:hidden;}
+#avatar-mount > *{width:100%;height:100%;}
 #quiz-modal{display:flex;align-items:center;justify-content:center;}
 #quiz-modal[hidden]{display:none;}
 .quiz-modal-panel{width:min(720px,94vw);height:min(88vh,860px);grid-template-rows:auto minmax(0,1fr);border-radius:16px;overflow:hidden;}
@@ -300,7 +301,7 @@
                 <button class="icon-link" type="button" id="avatar-close" title="Close"><i class="fas fa-xmark"></i></button>
             </div>
         </header>
-        <iframe id="avatar-frame" title="Course video avatar" allow="camera; microphone; autoplay; fullscreen"></iframe>
+        <div id="avatar-mount" title="Course video avatar"></div>
     </section>
 </div>
 
@@ -586,23 +587,39 @@
         });
     });
 
-    /* ===== Video Avatar (D-ID agent, sandboxed in an iframe modal) ===== */
+    /* ===== Video Avatar (D-ID agent embed, full mode, rendered into the modal) =====
+       The old /agents/share link sends X-Frame-Options: SAMEORIGIN + CSP frame-ancestors 'self',
+       so browsers refuse to load it in a cross-origin iframe. The supported embed script below
+       mounts the agent directly into #avatar-mount (data-mode="full" + data-target-id). It only
+       runs on domains allowlisted on the client key in D-ID Studio. */
     const avatarBtn = document.getElementById('avatar-btn');
     const avatarModal = document.getElementById('avatar-modal');
-    const avatarFrame = document.getElementById('avatar-frame');
+    const avatarMount = document.getElementById('avatar-mount');
     const avatarCloseBtn = document.getElementById('avatar-close');
-    const AVATAR_URL = 'https://studio.d-id.com/agents/share?id=v2_agt_V-Xrep2q&utm_source=copy&key=Y2tfS3IzdFBtNkttTnNOSHFzTkJobXRK';
-    if (avatarBtn && avatarModal && avatarFrame) {
+    const DID_AGENT_ID = 'v2_agt_V-Xrep2q';
+    const DID_CLIENT_KEY = 'ck_Kr3tPm6KmNsNHqsNBhmtJ';
+    const AVATAR_SHARE_URL = 'https://studio.d-id.com/agents/share?id=' + DID_AGENT_ID + '&utm_source=copy&key=Y2tfS3IzdFBtNkttTnNOSHFzTkJobXRK';
+    if (avatarBtn && avatarModal && avatarMount) {
         const newTab = document.getElementById('avatar-newtab');
-        if (newTab) newTab.href = AVATAR_URL;
-        const openAvatar = () => {
-            if (!avatarFrame.getAttribute('src')) avatarFrame.src = AVATAR_URL;
-            avatarModal.hidden = false;
+        if (newTab) newTab.href = AVATAR_SHARE_URL;
+        let agentLoaded = false;
+        const loadAgent = () => {
+            if (agentLoaded) return;
+            agentLoaded = true;
+            const s = document.createElement('script');
+            s.type = 'module';
+            s.src = 'https://agent.d-id.com/v2/index.js';
+            s.dataset.mode = 'full';
+            s.dataset.clientKey = DID_CLIENT_KEY;
+            s.dataset.agentId = DID_AGENT_ID;
+            s.dataset.name = 'did-agent';
+            s.dataset.targetId = 'avatar-mount';
+            s.dataset.orientation = 'vertical';
+            s.dataset.autoConnect = 'true';
+            document.body.appendChild(s);
         };
-        const closeAvatar = () => {
-            avatarModal.hidden = true;
-            avatarFrame.src = '';
-        };
+        const openAvatar = () => { loadAgent(); avatarModal.hidden = false; };
+        const closeAvatar = () => { avatarModal.hidden = true; };
         avatarBtn.addEventListener('click', openAvatar);
         avatarCloseBtn.addEventListener('click', closeAvatar);
         avatarModal.addEventListener('click', (event) => { if (event.target === avatarModal) closeAvatar(); });
