@@ -61,7 +61,11 @@
         <p>{{ (course.description or course.sales_copy or '')|truncate(90) }}</p>
         <div class="acourse-actions">
             <a class="market-btn" href="/admin/courses/{{ course.id }}/edit">Edit</a>
+            {% if course.course_type == 'certification' %}
+            <a class="market-btn" href="/admin/courses/{{ course.id }}/cert">Bundle</a>
+            {% else %}
             <a class="market-btn" href="/admin/courses/{{ course.id }}/lessons">Lessons</a>
+            {% endif %}
             <a class="market-btn" href="/courses/{{ course_slug(course) }}" target="_blank">Public</a>
             <form method="POST" action="/admin/courses/{{ course.id }}/delete" onsubmit="return confirm('Delete &quot;{{ course.title }}&quot; and ALL its lessons, materials, quizzes, enrollments and certificates? This cannot be undone.');" style="display:inline">
                 <button class="market-btn danger" type="submit">Delete</button>

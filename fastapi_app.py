@@ -3639,6 +3639,13 @@ def admin_courses(request: Request, db: Session = Depends(get_db)):
         .group_by(Lesson.course_id)
         .all()
     )
+    # Certification courses store content as an uploaded bundle (manifest_json),
+    # not lesson materials — count their bundle files so they aren't flagged empty.
+    for course in courses:
+        if course.course_type == 'certification' and not material_counts.get(course.id):
+            _, files = cert_record(course)
+            if files:
+                material_counts[course.id] = len(files)
     return template(request, 'admin/courses.html', db,
                     {'admin': admin, 'courses': courses, 'programs': programs, 'material_counts': material_counts})
 
@@ -3988,6 +3995,18 @@ def admin_lessons(course_id: int, request: Request, db: Session = Depends(get_db
     course = db.get(Course, course_id)
     if not course:
         raise HTTPException(status_code=404)
+    if course.course_type == 'certification':
+        # Certification courses use their uploaded bundle, not module/session lesson
+        # rows. Never scaffold modules here; remove any empty scaffold rows a prior
+        # visit may have created, then send the admin to the bundle page.
+        for stray in db.query(Lesson).filter_by(course_id=course_id).all():
+            has_materials = db.query(LessonMaterial).filter_by(lesson_id=stray.id).first()
+            if not has_materials and not (stray.content_html or '').strip():
+                db.query(LessonProgress).filter_by(lesson_id=stray.id).delete(synchronize_session=False)
+                db.query(Quiz).filter_by(lesson_id=stray.id).delete(synchronize_session=False)
+                db.delete(stray)
+        db.commit()
+        return RedirectResponse(f'/admin/courses/{course_id}/cert', status_code=303)
     module_count = course_module_count(course)
     blocked_extras = normalize_course_modules(db, course, module_count)
     if not blocked_extras:
