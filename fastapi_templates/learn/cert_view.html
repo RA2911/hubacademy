@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ asset_label }} — {{ cert.title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/cert.css">
+</head>
+<body class="cert">
+
+<header class="cert-topbar">
+  <div class="cert-wrap cert-topbar-in">
+    <a class="cert-brand" href="/learn/cert/{{ course.id }}">
+      <span class="cert-logo">H</span>
+      <span>{{ cert.title }}<small>Certification Track</small></span>
+    </a>
+    <div class="cert-top-actions">
+      <a class="cert-btn" href="/learn/cert/{{ course.id }}">← Back to course</a>
+    </div>
+  </div>
+</header>
+
+<div class="cert-solo">
+  <div class="cert-solo-head">
+    <span class="tag" style="padding:5px 11px;border-radius:999px;background:rgba(245,181,68,.12);border:1px solid rgba(245,181,68,.3);color:var(--c-gold);font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em">{{ asset_label }}</span>
+    <h1>{{ asset_label }}</h1>
+  </div>
+  {% if asset_kind == 'video' %}
+  <div class="cert-solo-body video">
+    <video controls preload="metadata" src="/learn/cert/{{ course.id }}/asset/{{ asset_path }}"></video>
+  </div>
+  {% else %}
+  <div class="cert-solo-body">
+    <iframe title="{{ asset_label }}" src="/learn/cert/{{ course.id }}/asset/{{ asset_path }}"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>

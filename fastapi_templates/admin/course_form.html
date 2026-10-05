@@ -12,6 +12,12 @@
             {% for program in programs %}<option value="{{ program.id }}" {% if course and course.program_id == program.id %}selected{% endif %}>{{ program.name }}</option>{% endfor %}
         </select>
     </label>
+    <label>Course type
+        <select name="course_type" id="course-type-select">
+            <option value="standard" {% if not course or course.course_type != 'certification' %}selected{% endif %}>Standard course (normal lesson page)</option>
+            <option value="certification" {% if course and course.course_type == 'certification' %}selected{% endif %}>Certification course (uploaded exam-prep bundle)</option>
+        </select>
+    </label>
     <label>Title<input name="title" required value="{{ course.title if course else '' }}"></label>
     <label>Description<textarea name="description" rows="4" placeholder="Shown on the landing page and course page.">{{ course.description if course and course.description and course.description != 'None' else '' }}</textarea></label>
     <label>Cover image URL <span class="form-hint" style="text-transform:none;font-weight:400">(optional — or upload an image file below)</span><input name="thumbnail_url" value="{{ course.thumbnail_url if course and course.thumbnail_url and (course.thumbnail_url.startswith('http') or course.thumbnail_url.startswith('/')) else '' }}" placeholder="https://..."></label>
@@ -47,6 +53,18 @@
     <button class="market-btn primary" type="submit">Save Course</button>
 </form>
 </section>
+
+{% if course and course.course_type == 'certification' %}
+<section class="detail-block">
+    <div class="band-head compact"><div><span class="eyebrow">Certification</span><h2>Exam-Prep Bundle</h2></div></div>
+    <p class="muted-line">Certification courses are powered by an uploaded bundle (a <code>manifest.json</code> + module/session folders). Upload or replace the whole course folder on the dedicated page.</p>
+    {% if cert %}<p class="sync-result">Bundle loaded: {{ cert.modules|length }} module(s){% if cert.exam_prep %}, {{ cert.exam_prep|length }} exam-prep item(s){% endif %}.</p>{% endif %}
+    <div class="upload-actions" style="margin-top:10px">
+        <a class="market-btn primary" href="/admin/courses/{{ course.id }}/cert">{{ 'Replace bundle' if cert else 'Upload bundle' }}</a>
+        {% if cert %}<a class="market-btn" href="/learn/cert/{{ course.id }}" target="_blank">Preview course</a>{% endif %}
+    </div>
+</section>
+{% endif %}
 
 {% if course %}
 <section class="detail-block">

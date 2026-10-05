@@ -26,7 +26,7 @@ from fastapi_auth import admin_from_request, hash_password, username_from_email,
 from fastapi_db import (Admin, AnalyticsEvent, CertificateAward, Company, Course, Enrollment, ExpertiseArea, Lesson, LessonMaterial,
                         LessonProgress, LearnerProfile, PageView, PasswordResetToken, Program, Purchase, Quiz, QuizAttempt,
                         SessionObjective, Settings, Student, Subscription, db_session as next_db_session, ensure_schema, get_db)
-from fastapi_storage import (delete_object, guess_content_type, list_objects, object_bytes, object_key,
+from fastapi_storage import (cert_object_key, delete_object, guess_content_type, list_objects, object_bytes, object_key,
                              package_object_key, presigned_download_url, presigned_upload_url, r2_enabled,
                              upload_fileobj)
 
@@ -2048,6 +2048,9 @@ def learner_course(course_id: int, request: Request, db: Session = Depends(get_d
     if not enrollment:
         return RedirectResponse('/learn/dashboard', status_code=303)
     course = db.get(Course, course_id)
+    # Certification courses have their own standalone UI and no module/session rows.
+    if course and course.course_type == 'certification':
+        return RedirectResponse(f'/learn/cert/{course_id}', status_code=303)
     journey = journey_for_course(db, course, student.id)
     lessons = [session['lesson'] for module in journey['modules'] for session in module['sessions']]
     return template(request, 'learn/course.html', db, {'student': student, 'course': course, 'lessons': lessons, 'journey': journey, 'progress': journey['progress']})
@@ -2110,6 +2113,188 @@ def learner_lesson(lesson_id: int, request: Request, db: Session = Depends(get_d
         'previous_lesson': previous_lesson,
         'next_lesson': next_lesson,
     })
+
+
+# ============================================================================
+#  Certification courses — a standalone track with its own UI and manifest-driven
+#  bundle (uploaded whole). Nothing here touches the normal lesson/module model.
+# ============================================================================
+
+# Per-session artifacts, in learner order. (key, label, file-extension, kind)
+CERT_SESSION_PARTS = [
+    ('deck', 'Lesson', 'html', 'html'),
+    ('cram', 'Cram Sheet', 'html', 'html'),
+    ('drill', 'Drill', 'html', 'html'),
+    ('simulation', 'Simulation', 'html', 'html'),
+    ('application', 'Application', 'html', 'html'),
+    ('case', 'Case Study', 'html', 'html'),
+    ('summary', 'Video Recap', 'mp4', 'video'),
+]
+CERT_MODULE_PARTS = [
+    ('module_video', 'Module Video', 'mp4', 'video'),
+    ('module_case', 'Module Case', 'html', 'html'),
+    ('module_exam', 'Module Exam', 'html', 'html'),
+]
+CERT_EXAM_PREP = [
+    ('diagnostic.html', 'Diagnostic Test', 'Place yourself before you start'),
+    ('blueprint_map.html', 'Blueprint Map', 'See how topics map to the real exam'),
+    ('flashcards.html', 'Flashcards', 'Rapid recall practice'),
+    ('mock_exam_1.html', 'Mock Exam 1', 'Full timed practice exam'),
+    ('mock_exam_2.html', 'Mock Exam 2', 'Full timed practice exam'),
+    ('mock_exam_3.html', 'Mock Exam 3', 'Full timed practice exam'),
+]
+
+
+def cert_record(course):
+    """Parse the stored certification record: {'manifest': {...}, 'files': [...]}.
+    Tolerates a bare manifest for forward safety."""
+    try:
+        raw = json.loads(course.manifest_json or '{}')
+    except (TypeError, ValueError):
+        raw = {}
+    manifest = raw.get('manifest') if isinstance(raw.get('manifest'), dict) else raw
+    files = raw.get('files') if isinstance(raw.get('files'), list) else []
+    return manifest or {}, {str(f).replace('\\', '/') for f in files}
+
+
+def cert_view(course):
+    """Build the learner view-model for a certification course from its manifest +
+    the set of files actually uploaded (so we only show artifacts that exist)."""
+    manifest, files = cert_record(course)
+
+    def has(path):
+        return path in files
+
+    modules = []
+    for module in manifest.get('modules', []) or []:
+        mnum = module.get('number')
+        sessions = []
+        for session in module.get('sessions', []) or []:
+            snum = session.get('number')
+            base = f'module_{mnum}/session_{snum}'
+            parts = [
+                {'key': key, 'label': label, 'path': f'{base}/{key}.{ext}', 'kind': kind}
+                for key, label, ext, kind in CERT_SESSION_PARTS
+                if has(f'{base}/{key}.{ext}')
+            ]
+            sessions.append({
+                'number': snum,
+                'title': session.get('title') or f'Session {snum}',
+                'topic': session.get('topic') or '',
+                'parts': parts,
+            })
+        extras = [
+            {'key': key, 'label': label, 'path': f'module_{mnum}/{key}.{ext}', 'kind': kind}
+            for key, label, ext, kind in CERT_MODULE_PARTS
+            if has(f'module_{mnum}/{key}.{ext}')
+        ]
+        modules.append({
+            'number': mnum,
+            'title': module.get('title') or f'Module {mnum}',
+            'company': module.get('company') or '',
+            'sessions': sessions,
+            'extras': extras,
+        })
+
+    exam_prep = [
+        {'path': path, 'label': label, 'blurb': blurb}
+        for path, label, blurb in CERT_EXAM_PREP if has(path)
+    ]
+    return {
+        'title': manifest.get('title') or course.title,
+        'level': manifest.get('level') or '',
+        'modules': modules,
+        'exam_prep': exam_prep,
+    }
+
+
+def cert_student_or_redirect(course_id: int, request: Request, db: Session, next_path: str):
+    """Returns (student, course) if the student is enrolled in this certification
+    course, else a RedirectResponse to send back to the caller."""
+    student = student_from_request(request, db)
+    if not student:
+        return None, None, RedirectResponse(f'/login?next={next_path}', status_code=303)
+    course = db.get(Course, course_id)
+    if not course or course.course_type != 'certification':
+        return None, None, RedirectResponse('/learn/dashboard', status_code=303)
+    enrollment = db.query(Enrollment).filter_by(student_id=student.id, course_id=course_id, is_active=True).first()
+    if not enrollment:
+        return None, None, RedirectResponse('/learn/dashboard', status_code=303)
+    return student, course, None
+
+
+@app.get('/learn/cert/{course_id}', response_class=HTMLResponse)
+def learner_cert_hub(course_id: int, request: Request, db: Session = Depends(get_db)):
+    student, course, redirect = cert_student_or_redirect(course_id, request, db, f'/learn/cert/{course_id}')
+    if redirect:
+        return redirect
+    return template(request, 'learn/cert_hub.html', db, {
+        'student': student, 'course': course, 'cert': cert_view(course),
+    })
+
+
+@app.get('/learn/cert/{course_id}/m/{module_number}/s/{session_number}', response_class=HTMLResponse)
+def learner_cert_session(course_id: int, module_number: int, session_number: int,
+                         request: Request, part: str = '', db: Session = Depends(get_db)):
+    next_path = f'/learn/cert/{course_id}/m/{module_number}/s/{session_number}'
+    student, course, redirect = cert_student_or_redirect(course_id, request, db, next_path)
+    if redirect:
+        return redirect
+    cert = cert_view(course)
+    module = next((m for m in cert['modules'] if m['number'] == module_number), None)
+    session = next((s for s in module['sessions'] if s['number'] == session_number), None) if module else None
+    if not session or not session['parts']:
+        return RedirectResponse(f'/learn/cert/{course_id}', status_code=303)
+    active = next((p for p in session['parts'] if p['key'] == part), session['parts'][0])
+    return template(request, 'learn/cert_session.html', db, {
+        'student': student, 'course': course, 'cert': cert,
+        'module': module, 'session': session, 'active': active,
+    })
+
+
+@app.get('/learn/cert/{course_id}/view/{asset_path:path}', response_class=HTMLResponse)
+def learner_cert_view(course_id: int, asset_path: str, request: Request, db: Session = Depends(get_db)):
+    """Full-screen viewer for a single standalone artifact (mock exam, diagnostic,
+    blueprint, flashcards, module case/exam)."""
+    next_path = f'/learn/cert/{course_id}/view/{asset_path}'
+    student, course, redirect = cert_student_or_redirect(course_id, request, db, next_path)
+    if redirect:
+        return redirect
+    _, files = cert_record(course)
+    normalized = posixpath.normpath(asset_path.replace('\\', '/')).lstrip('/')
+    if normalized not in files:
+        return RedirectResponse(f'/learn/cert/{course_id}', status_code=303)
+    label = next((lbl for p, lbl, _ in CERT_EXAM_PREP if p == normalized), None)
+    if not label:
+        stem = posixpath.splitext(posixpath.basename(normalized))[0]
+        label = stem.replace('_', ' ').replace('-', ' ').title()
+    kind = 'video' if normalized.lower().endswith(('.mp4', '.webm', '.mov')) else 'html'
+    return template(request, 'learn/cert_view.html', db, {
+        'student': student, 'course': course, 'cert': cert_view(course),
+        'asset_path': normalized, 'asset_label': label, 'asset_kind': kind,
+    })
+
+
+@app.get('/learn/cert/{course_id}/asset/{asset_path:path}')
+def learner_cert_asset(course_id: int, asset_path: str, request: Request, db: Session = Depends(get_db)):
+    """Serve one file from a certification bundle: HTML inline (so it renders in an
+    iframe), everything else via a presigned R2 URL. Access-controlled by enrollment,
+    and restricted to files listed in the course's manifest record."""
+    student, course, redirect = cert_student_or_redirect(course_id, request, db, f'/learn/cert/{course_id}')
+    if redirect:
+        return redirect
+    _, files = cert_record(course)
+    normalized = posixpath.normpath(asset_path.replace('\\', '/')).lstrip('/')
+    if normalized.startswith('../') or normalized not in files:
+        raise HTTPException(status_code=404)
+    key = cert_object_key(course_id, normalized)
+    if normalized.lower().endswith(('.html', '.htm')):
+        try:
+            return HTMLResponse(object_bytes(key).decode('utf-8', errors='replace'))
+        except Exception as exc:
+            logger.exception('Cert HTML asset load failed: %s', exc)
+            raise HTTPException(status_code=502)
+    return RedirectResponse(presigned_download_url(key, posixpath.basename(normalized)), status_code=303)
 
 
 @app.post('/learn/lesson/{lesson_id}/ai/flashcards')
@@ -3447,6 +3632,60 @@ def admin_edit_course(course_id: int, request: Request, db: Session = Depends(ge
     return template(request, 'admin/course_form.html', db, {'admin': admin, 'course': course, 'programs': programs, 'r2_ready': r2_enabled()})
 
 
+@app.get('/admin/courses/{course_id}/cert')
+def admin_cert_bundle(course_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = require_admin(request, db)
+    course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    return template(request, 'admin/cert_bundle.html', db, {
+        'admin': admin, 'course': course, 'r2_ready': r2_enabled(),
+        'cert': cert_view(course) if course.manifest_json else None,
+    })
+
+
+@app.post('/admin/courses/{course_id}/cert/presign')
+async def admin_cert_presign(course_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    if not r2_enabled():
+        return JSONResponse({'error': 'Cloudflare R2 is not configured.'}, status_code=400)
+    data = await request.json()
+    relative_path = (data.get('relative_path') or '').strip()
+    if not relative_path:
+        return JSONResponse({'error': 'relative_path is required'}, status_code=400)
+    content_type = (data.get('content_type') or guess_content_type(relative_path)).strip()
+    key = cert_object_key(course_id, relative_path)
+    return {
+        'upload_url': presigned_upload_url(key, content_type),
+        'object_key': key,
+        'content_type': content_type,
+        'expires_in': cfg.R2_PRESIGN_EXPIRES_SECONDS,
+    }
+
+
+@app.post('/admin/courses/{course_id}/cert/finalize')
+async def admin_cert_finalize(course_id: int, request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    course = db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404)
+    data = await request.json()
+    manifest = data.get('manifest')
+    files = data.get('files')
+    if not isinstance(manifest, dict) or not isinstance(files, list):
+        return JSONResponse({'error': 'A manifest object and a files array are required.'}, status_code=400)
+    clean_files = sorted({str(f).replace('\\', '/').strip().lstrip('/') for f in files if str(f).strip()})
+    course.manifest_json = json.dumps({'manifest': manifest, 'files': clean_files})
+    course.course_type = 'certification'
+    if manifest.get('title') and not (course.title or '').strip():
+        course.title = str(manifest['title']).strip()
+    db.commit()
+    return {'ok': True, 'files': len(clean_files), 'modules': len(manifest.get('modules') or [])}
+
+
 def price_cents(value):
     try:
         return max(0, int(round(float(value or 0) * 100)))
@@ -3470,10 +3709,12 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
                       currency: str = Form('USD'), num_lessons: int = Form(0), is_published: str = Form(''),
                       is_featured: str = Form(''), allow_free_enrollment: str = Form(''),
                       expertise_area: str = Form(''), certificate_level: int = Form(0), learning_hours: int = Form(0),
+                      course_type: str = Form('standard'),
                       db: Session = Depends(get_db)):
     require_admin(request, db)
     course = db.get(Course, course_id) if course_id else Course(created_at=datetime.utcnow())
     course.program_id = program_id
+    course.course_type = 'certification' if course_type == 'certification' else 'standard'
     course.title = title.strip()
     course.description = _clean_optional_text(description)
     course.level = level.strip() or None
@@ -3489,9 +3730,11 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     course.certificate_level = certificate_level if certificate_level in (0, 1, 2, 3) else 0
     if course.certificate_level and not learning_hours:
         learning_hours = CERTIFICATE_LEVEL_HOURS
-    # Only two shapes are supported: 3 modules (3x3) or 5 modules (5x5).
-    num_lessons = 3 if num_lessons == 3 else 5
-    course.num_lessons = num_lessons
+    is_certification = course.course_type == 'certification'
+    if not is_certification:
+        # Only two shapes are supported: 3 modules (3x3) or 5 modules (5x5).
+        num_lessons = 3 if num_lessons == 3 else 5
+        course.num_lessons = num_lessons
     course.learning_hours = max(0, learning_hours or 0)
     course.is_published = bool(is_published)
     course.is_featured = bool(is_featured)
@@ -3500,13 +3743,16 @@ def admin_save_course(request: Request, course_id: int = Form(0), program_id: in
     if is_new:
         db.add(course)
         db.flush()
-    blocked_extras = normalize_course_modules(db, course, num_lessons)
-    if blocked_extras:
-        db.rollback()
-        return JSONResponse({
-            'error': 'Extra lesson rows contain content and could not be removed automatically.',
-            'extras': blocked_extras,
-        }, status_code=409)
+    # Certification courses carry their content as an uploaded bundle (manifest_json),
+    # not as module/session lesson rows — so skip the standard slot normalization.
+    if not is_certification:
+        blocked_extras = normalize_course_modules(db, course, num_lessons)
+        if blocked_extras:
+            db.rollback()
+            return JSONResponse({
+                'error': 'Extra lesson rows contain content and could not be removed automatically.',
+                'extras': blocked_extras,
+            }, status_code=409)
     db.commit()
     # Send a freshly-created course to its edit page so the admin can upload a
     # cover image and documents right away; edits go back to the course list.

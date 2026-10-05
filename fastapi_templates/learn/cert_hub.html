@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ cert.title }} — Certification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/cert.css">
+</head>
+<body class="cert">
+
+<header class="cert-topbar">
+  <div class="cert-wrap cert-topbar-in">
+    <a class="cert-brand" href="/learn/dashboard">
+      <span class="cert-logo">H</span>
+      <span>Hub Academy<small>Certification Track</small></span>
+    </a>
+    <div class="cert-top-actions">
+      {% if cert.level %}<span class="cert-chip">Level · {{ cert.level|title }}</span>{% endif %}
+      <a class="cert-btn" href="/learn/dashboard">Exit</a>
+    </div>
+  </div>
+</header>
+
+<section class="cert-hero">
+  <div class="cert-wrap">
+    <div class="cert-eyebrow"><span class="dot"></span> Exam-Prep Certification</div>
+    <h1>{{ cert.title }}</h1>
+    <p class="lede">A complete, self-paced exam-prep track — study decks, drills, simulations, case work, timed mock exams and a blueprint map, all in one place.</p>
+    <div class="cert-hero-meta">
+      <span class="cert-badge"><b>{{ cert.modules|length }}</b>&nbsp;Modules</span>
+      {% set session_count = namespace(n=0) %}
+      {% for m in cert.modules %}{% set session_count.n = session_count.n + m.sessions|length %}{% endfor %}
+      <span class="cert-badge"><b>{{ session_count.n }}</b>&nbsp;Sessions</span>
+      {% if cert.exam_prep %}<span class="cert-badge"><b>{{ cert.exam_prep|length }}</b>&nbsp;Exam-Prep Tools</span>{% endif %}
+    </div>
+  </div>
+</section>
+
+{% if cert.exam_prep %}
+<section class="cert-section">
+  <div class="cert-wrap">
+    <div class="cert-section-head"><h2>Exam Prep</h2><span>Assess, map and rehearse for the real exam</span></div>
+    <div class="cert-prep-grid">
+      {% for item in cert.exam_prep %}
+      <a class="cert-prep-card" href="/learn/cert/{{ course.id }}/view/{{ item.path }}">
+        <span class="go">→</span>
+        <div class="ic">
+          {% if 'mock' in item.path %}📝{% elif 'diagnostic' in item.path %}🧭{% elif 'blueprint' in item.path %}🗺️{% elif 'flashcard' in item.path %}🃏{% else %}★{% endif %}
+        </div>
+        <h3>{{ item.label }}</h3>
+        <p>{{ item.blurb }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="cert-section">
+  <div class="cert-wrap">
+    <div class="cert-section-head"><h2>Curriculum</h2><span>Work through each module and its sessions</span></div>
+
+    {% if not cert.modules %}
+    <div class="cert-empty">This certification course has no content yet. Check back soon.</div>
+    {% endif %}
+
+    {% for m in cert.modules %}
+    <div class="cert-module {% if loop.first %}open{% endif %}">
+      <div class="cert-module-head" onclick="this.parentElement.classList.toggle('open')">
+        <span class="cert-module-no">{{ m.number }}</span>
+        <div class="mt">
+          <h3>{{ m.title }}</h3>
+          <p>{{ m.sessions|length }} session(s){% if m.company %} · scenario company <b>{{ m.company }}</b>{% endif %}</p>
+        </div>
+        <span class="cert-caret">▾</span>
+      </div>
+      <div class="cert-module-body">
+        {% for s in m.sessions %}
+        <div class="cert-session">
+          <div class="cert-session-top">
+            <span class="cert-session-no">{{ s.number }}</span>
+            <h4>{{ s.title }}</h4>
+          </div>
+          <div class="cert-parts">
+            {% for p in s.parts %}
+            <a class="cert-part {{ 'video' if p.kind == 'video' else '' }}"
+               href="/learn/cert/{{ course.id }}/m/{{ m.number }}/s/{{ s.number }}?part={{ p.key }}">
+              <span class="pdot"></span>{{ p.label }}
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        {% if m.extras %}
+        <div class="cert-module-extras">
+          {% for e in m.extras %}
+          <a class="cert-part {{ 'video' if e.kind == 'video' else '' }}" href="/learn/cert/{{ course.id }}/view/{{ e.path }}">
+            <span class="pdot"></span>{{ e.label }}
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div style="height:60px"></div>
+</body>
+</html>

@@ -1,0 +1,164 @@
+{% extends 'admin/base.html' %}
+{% block admin_title %}Certification Bundle{% endblock %}
+{% block admin_content %}
+<section class="detail-block">
+    <div class="band-head compact"><div><span class="eyebrow">{{ course.title }}</span><h2>Upload Exam-Prep Bundle</h2></div></div>
+    <p class="muted-line">
+        Pick the whole course folder (the one that contains <code>manifest.json</code>). Every file is uploaded to
+        storage and the course is marked as a certification course automatically. Re-uploading replaces the bundle.
+    </p>
+    {% if not r2_ready %}
+    <p class="sync-result" style="background:#fbeaea;color:#b23b3b;padding:8px 12px;border-radius:8px">
+        Storage (R2) is not configured, so bundle upload is disabled.
+    </p>
+    {% endif %}
+    {% if cert %}
+    <p class="sync-result">Current bundle: {{ cert.modules|length }} module(s){% if cert.exam_prep %}, {{ cert.exam_prep|length }} exam-prep item(s){% endif %}. Preview: <a href="/learn/cert/{{ course.id }}" target="_blank">open course</a>.</p>
+    {% endif %}
+
+    <div class="auth-public-card" style="margin-top:14px">
+        <label>Course folder
+            <input type="file" id="cert-folder" webkitdirectory directory multiple {% if not r2_ready %}disabled{% endif %}>
+        </label>
+        <div id="cert-summary" class="form-hint" style="margin:8px 0"></div>
+        <div class="upload-actions">
+            <button class="market-btn primary" id="cert-upload-btn" type="button" disabled>Upload bundle</button>
+            <a class="market-btn" href="/admin/courses/{{ course.id }}/edit">Back to course</a>
+        </div>
+        <div id="cert-progress" style="margin-top:12px;display:none">
+            <div style="height:10px;background:#e8edf3;border-radius:99px;overflow:hidden">
+                <div id="cert-bar" style="height:100%;width:0;background:linear-gradient(90deg,#2563eb,#15803d);transition:width .2s"></div>
+            </div>
+            <p id="cert-status" class="form-hint" style="margin-top:8px"></p>
+        </div>
+    </div>
+</section>
+
+<script>
+(function () {
+    const courseId = {{ course.id }};
+    const folderInput = document.getElementById('cert-folder');
+    const uploadBtn = document.getElementById('cert-upload-btn');
+    const summary = document.getElementById('cert-summary');
+    const progress = document.getElementById('cert-progress');
+    const bar = document.getElementById('cert-bar');
+    const status = document.getElementById('cert-status');
+
+    let picked = [];        // { file, relPath }
+    let manifestFile = null;
+
+    // Strip the top-level folder name so paths match the manifest (module_1/session_1/deck.html).
+    function relPathOf(file) {
+        const full = (file.webkitRelativePath || file.name).replace(/\\/g, '/');
+        const parts = full.split('/');
+        return parts.length > 1 ? parts.slice(1).join('/') : full;
+    }
+
+    folderInput.addEventListener('change', () => {
+        picked = [];
+        manifestFile = null;
+        const files = Array.from(folderInput.files || []);
+        files.forEach((file) => {
+            const rel = relPathOf(file);
+            if (!rel) return;
+            if (rel.toLowerCase() === 'manifest.json') manifestFile = file;
+            picked.push({ file, relPath: rel });
+        });
+        if (!picked.length) {
+            summary.textContent = 'No files found in that folder.';
+            uploadBtn.disabled = true;
+            return;
+        }
+        if (!manifestFile) {
+            summary.textContent = `Selected ${picked.length} file(s), but no manifest.json was found at the top of the folder. Pick the folder that directly contains manifest.json.`;
+            uploadBtn.disabled = true;
+            return;
+        }
+        const totalMb = picked.reduce((sum, p) => sum + p.file.size, 0) / 1048576;
+        summary.textContent = `Ready: ${picked.length} file(s), ${totalMb.toFixed(1)} MB total. manifest.json detected.`;
+        uploadBtn.disabled = false;
+    });
+
+    function readManifest() {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                try { resolve(JSON.parse(reader.result)); }
+                catch (e) { reject(new Error('manifest.json is not valid JSON.')); }
+            };
+            reader.onerror = () => reject(new Error('Could not read manifest.json.'));
+            reader.readAsText(manifestFile);
+        });
+    }
+
+    async function uploadOne(entry) {
+        // 1) presign
+        const presignResp = await fetch(`/admin/courses/${courseId}/cert/presign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ relative_path: entry.relPath, content_type: entry.file.type || '' })
+        });
+        let presign = {};
+        try { presign = await presignResp.json(); } catch (e) { presign = {}; }
+        if (!presignResp.ok || !presign.upload_url) throw new Error(presign.error || `Presign failed (HTTP ${presignResp.status})`);
+        // 2) PUT bytes straight to R2 (bypasses the 32 MB request limit)
+        const putResp = await fetch(presign.upload_url, {
+            method: 'PUT',
+            headers: { 'Content-Type': presign.content_type || 'application/octet-stream' },
+            body: entry.file
+        });
+        if (!putResp.ok) throw new Error(`Storage upload failed for ${entry.relPath} (HTTP ${putResp.status})`);
+        return presign.object_key;
+    }
+
+    // Small concurrency pool so large bundles finish in reasonable time.
+    async function runPool(items, worker, size, onProgress) {
+        let done = 0, cursor = 0, failed = null;
+        async function next() {
+            if (failed) return;
+            const i = cursor++;
+            if (i >= items.length) return;
+            try { await worker(items[i]); }
+            catch (e) { failed = e; throw e; }
+            done++; onProgress(done);
+            return next();
+        }
+        await Promise.all(Array.from({ length: Math.min(size, items.length) }, next));
+        if (failed) throw failed;
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+        uploadBtn.disabled = true;
+        folderInput.disabled = true;
+        progress.style.display = 'block';
+        bar.style.width = '0';
+        status.textContent = 'Reading manifest...';
+        try {
+            const manifest = await readManifest();
+            const total = picked.length;
+            status.textContent = `Uploading 0 / ${total}...`;
+            await runPool(picked, uploadOne, 4, (done) => {
+                bar.style.width = `${Math.round((done / total) * 100)}%`;
+                status.textContent = `Uploading ${done} / ${total}...`;
+            });
+            status.textContent = 'Saving course...';
+            const files = picked.map((p) => p.relPath);
+            const finResp = await fetch(`/admin/courses/${courseId}/cert/finalize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ manifest, files })
+            });
+            let fin = {};
+            try { fin = await finResp.json(); } catch (e) { fin = {}; }
+            if (!finResp.ok || !fin.ok) throw new Error(fin.error || `Finalize failed (HTTP ${finResp.status})`);
+            bar.style.width = '100%';
+            status.innerHTML = `Done — ${fin.files} file(s), ${fin.modules} module(s) saved. <a href="/learn/cert/${courseId}" target="_blank">Preview the course</a>.`;
+        } catch (e) {
+            status.innerHTML = `<span style="color:#b23b3b">Error: ${e.message}</span>`;
+            uploadBtn.disabled = false;
+            folderInput.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

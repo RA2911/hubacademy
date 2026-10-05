@@ -68,6 +68,10 @@ class Course(Base):
     openai_api_key_override = Column(String(200))
     created_at = Column(DateTime, default=datetime.utcnow)
     is_published = Column(Boolean, default=False)
+    # Course track: 'standard' (normal lesson page) or 'certification' (standalone
+    # exam-prep bundle rendered by the separate cert UI, driven by manifest_json).
+    course_type = Column(String(20), default='standard', index=True)
+    manifest_json = Column(Text)   # certification bundle manifest (modules/sessions/file paths)
     # AI Course Factory
     is_ai_generated = Column(Boolean, default=False, index=True)
     generation_status = Column(String(30))   # building / ready / failed
@@ -383,6 +387,8 @@ COURSE_COLUMNS = {
     'source_level': "VARCHAR(30)",
     'source_profile': "VARCHAR(50)",
     'generation_brief': "TEXT",
+    'course_type': "VARCHAR(20) DEFAULT 'standard'",
+    'manifest_json': "TEXT",
 }
 
 MATERIAL_COLUMNS = {

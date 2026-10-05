@@ -48,6 +48,19 @@ def package_object_key(relative_path, lesson_id, material_type, package_id):
     return posixpath.join(f'lessons/{lesson_id}', safe_type, safe_package, filename)
 
 
+def cert_object_key(course_id, relative_path):
+    """R2 key for a certification bundle file, preserving the manifest's own folder
+    layout under cert/{course_id}/. Used for BOTH upload and serving, so the same
+    relative_path always resolves to the same key."""
+    parts = []
+    for part in (relative_path or '').replace('\\', '/').split('/'):
+        safe = ''.join(ch if ch.isalnum() or ch in '.-_' else '-' for ch in part).strip('-')
+        if safe and safe not in ('.', '..'):
+            parts.append(safe)
+    filename = '/'.join(parts) or 'file'
+    return posixpath.join('cert', str(int(course_id)), filename)
+
+
 def guess_content_type(filename, fallback='application/octet-stream'):
     return mimetypes.guess_type(filename)[0] or fallback
 

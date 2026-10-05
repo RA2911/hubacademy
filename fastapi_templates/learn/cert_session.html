@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ session.title }} — {{ cert.title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/cert.css">
+</head>
+<body class="cert">
+
+<header class="cert-topbar">
+  <div class="cert-wrap cert-topbar-in">
+    <a class="cert-brand" href="/learn/cert/{{ course.id }}">
+      <span class="cert-logo">H</span>
+      <span>{{ cert.title }}<small>Module {{ module.number }} · Session {{ session.number }}</small></span>
+    </a>
+    <div class="cert-top-actions">
+      <a class="cert-btn" href="/learn/cert/{{ course.id }}">All sessions</a>
+    </div>
+  </div>
+</header>
+
+<div class="cert-viewer">
+  <aside class="cert-rail">
+    <a class="back" href="/learn/cert/{{ course.id }}">← Back to course</a>
+    <div class="r-eyebrow">Session {{ session.number }}</div>
+    <h2>{{ session.title }}</h2>
+    {% if session.topic %}<p class="r-topic">{{ session.topic|title }}</p>{% endif %}
+
+    <div class="cert-rail-list">
+      {% for p in session.parts %}
+      <a class="cert-rail-item {% if p.key == active.key %}active{% endif %}"
+         href="/learn/cert/{{ course.id }}/m/{{ module.number }}/s/{{ session.number }}?part={{ p.key }}">
+        <span class="num">{{ loop.index }}</span>{{ p.label }}
+      </a>
+      {% endfor %}
+    </div>
+
+    {% if module.sessions|length > 1 %}
+    <div class="cert-sessions-mini">
+      <div class="r-eyebrow">Module {{ module.number }} sessions</div>
+      {% for s in module.sessions %}
+      <a class="cert-mini-item {% if s.number == session.number %}active{% endif %}"
+         href="/learn/cert/{{ course.id }}/m/{{ module.number }}/s/{{ s.number }}">
+        {{ s.number }}. {{ s.title }}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </aside>
+
+  <main class="cert-stage">
+    <div class="cert-stage-head">
+      <span class="tag">{{ active.label }}</span>
+      <h1>{{ session.title }}</h1>
+      <div class="cert-stage-nav">
+        {% for p in session.parts %}{% if p.key == active.key %}
+          {% if not loop.first %}<a class="cert-btn" href="/learn/cert/{{ course.id }}/m/{{ module.number }}/s/{{ session.number }}?part={{ session.parts[loop.index0 - 1].key }}">← {{ session.parts[loop.index0 - 1].label }}</a>{% endif %}
+          {% if not loop.last %}<a class="cert-btn gold" href="/learn/cert/{{ course.id }}/m/{{ module.number }}/s/{{ session.number }}?part={{ session.parts[loop.index0 + 1].key }}">{{ session.parts[loop.index0 + 1].label }} →</a>{% endif %}
+        {% endif %}{% endfor %}
+      </div>
+    </div>
+    {% if active.kind == 'video' %}
+    <div class="cert-video-holder">
+      <video controls preload="metadata" src="/learn/cert/{{ course.id }}/asset/{{ active.path }}"></video>
+    </div>
+    {% else %}
+    <div class="cert-frame-holder">
+      <iframe title="{{ active.label }}" src="/learn/cert/{{ course.id }}/asset/{{ active.path }}"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+    </div>
+    {% endif %}
+  </main>
+</div>
+</body>
+</html>
