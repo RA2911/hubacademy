@@ -75,19 +75,33 @@
             </div>
             <a class="btn secondary" href="/courses">All Courses</a>
         </div>
-        <div class="np-row">
-            {% for course in courses[:10] %}
-            <a class="np-card" href="/courses/{{ course_slug(course) }}">
-                <div class="np-thumb"><img src="{{ course_image(course) }}" alt="{{ course.title }}" loading="lazy"></div>
-                <div class="np-body">
-                    <strong>{{ course.title }}</strong>
-                    <span class="np-meta">{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1, 2, 3] %} &middot; Level {{ course.certificate_level }}{% endif %}</span>
-                </div>
-            </a>
-            {% else %}
-            <p class="muted-line">Publish courses to populate this section.</p>
-            {% endfor %}
+        {% if courses %}
+        <div class="np-marquee">
+            <div class="np-track">
+                {% for course in courses[:10] %}
+                <a class="np-card" href="/courses/{{ course_slug(course) }}">
+                    <div class="np-thumb"><img src="{{ course_image(course) }}" alt="{{ course.title }}" loading="lazy"></div>
+                    <div class="np-body">
+                        <strong>{{ course.title }}</strong>
+                        <span class="np-meta">{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1, 2, 3] %} &middot; Level {{ course.certificate_level }}{% endif %}</span>
+                    </div>
+                </a>
+                {% endfor %}
+                {# duplicate set so the slide loops seamlessly #}
+                {% for course in courses[:10] %}
+                <a class="np-card" href="/courses/{{ course_slug(course) }}" aria-hidden="true" tabindex="-1">
+                    <div class="np-thumb"><img src="{{ course_image(course) }}" alt="" loading="lazy"></div>
+                    <div class="np-body">
+                        <strong>{{ course.title }}</strong>
+                        <span class="np-meta">{{ course.expertise_area or course.level or 'Course' }}{% if course.certificate_level in [1, 2, 3] %} &middot; Level {{ course.certificate_level }}{% endif %}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
         </div>
+        {% else %}
+        <p class="muted-line">Publish courses to populate this section.</p>
+        {% endif %}
     </section>
 
     <section class="section levels-showcase reveal" aria-label="Learning levels">
@@ -640,9 +654,15 @@
 }
 
 /* ===== New & Popular course row ===== */
-.np-row{display:flex;gap:16px;overflow-x:auto;padding:6px 2px 14px;scroll-snap-type:x mandatory;}
-.np-card{flex:0 0 210px;scroll-snap-align:start;background:#fff;border:1px solid #e6ebf3;border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .15s ease,box-shadow .15s ease;display:flex;flex-direction:column;}
+/* Trending Courses — continuous auto-slide marquee that pauses on hover */
+.np-marquee{overflow:hidden;padding:6px 0 14px;}
+.np-track{display:flex;width:max-content;animation:np-scroll 45s linear infinite;will-change:transform;}
+.np-marquee:hover .np-track{animation-play-state:paused;}
+.np-card{flex:0 0 210px;margin-right:16px;background:#fff;border:1px solid #e6ebf3;border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .15s ease,box-shadow .15s ease;display:flex;flex-direction:column;}
 .np-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(15,35,80,.14);}
+/* The track holds two identical sets, so moving by exactly half loops seamlessly. */
+@keyframes np-scroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@media(prefers-reduced-motion:reduce){.np-track{animation:none;flex-wrap:wrap;}}
 .np-thumb{aspect-ratio:16/9;background:#eef3fa;overflow:hidden;}
 .np-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
 .np-body{padding:12px 14px;display:flex;flex-direction:column;gap:5px;}
