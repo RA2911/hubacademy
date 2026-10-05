@@ -1557,7 +1557,8 @@ def course_detail(identifier: str, request: Request, db: Session = Depends(get_d
     enrolled = bool(student and db.query(Enrollment).filter_by(student_id=student.id, course_id=course.id, is_active=True).first())
     lessons = db.query(Lesson).filter_by(course_id=course.id).order_by(Lesson.lesson_number).all()
     _track(request, 'course_view', student_id=(student.id if student else None), detail=course_slug(course))
-    return template(request, 'course_detail.html', db, {'course': course, 'lessons': lessons, 'enrolled': enrolled})
+    cert = cert_view(course) if course.course_type == 'certification' else None
+    return template(request, 'course_detail.html', db, {'course': course, 'lessons': lessons, 'enrolled': enrolled, 'cert': cert})
 
 
 POLICY_TERMS_KEY = 'policy_terms_privacy'

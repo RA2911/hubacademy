@@ -53,13 +53,24 @@
             {% endif %}
             <article class="panel">
                 <span class="eyebrow">Curriculum</span>
-                <h2>{{ lessons|length }} sessions</h2>
+                <h2>{{ course_session_count(course) }} sessions</h2>
                 <div class="session-list">
-                    {% for lesson in lessons %}
-                    <div class="session-row"><span>{{ '%02d'|format(loop.index) }}</span><div><strong>{{ lesson.title }}</strong><p>{{ lesson.description or 'Guided session with learning, practice, and validation.' }}</p></div></div>
+                    {% if cert %}
+                        {% for m in cert.modules %}
+                        <div class="session-row module-row"><span>M{{ m.number }}</span><div><strong>{{ m.title }}</strong>{% if m.description %}<p>{{ m.description }}</p>{% endif %}</div></div>
+                            {% for s in m.sessions %}
+                            <div class="session-row"><span>{{ '%02d'|format(s.number) }}</span><div><strong>{{ s.title }}</strong><p>{{ s.objective or (s.topic|title if s.topic else 'Guided session with lesson, drills, simulation, and case study.') }}</p></div></div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="session-row"><span>01</span><div><strong>Sessions coming soon</strong><p>This course is being prepared.</p></div></div>
+                        {% endfor %}
                     {% else %}
-                    <div class="session-row"><span>01</span><div><strong>Sessions coming soon</strong><p>This course is being prepared.</p></div></div>
-                    {% endfor %}
+                        {% for lesson in lessons %}
+                        <div class="session-row"><span>{{ '%02d'|format(loop.index) }}</span><div><strong>{{ lesson.title }}</strong><p>{{ lesson.description or 'Guided session with learning, practice, and validation.' }}</p></div></div>
+                        {% else %}
+                        <div class="session-row"><span>01</span><div><strong>Sessions coming soon</strong><p>This course is being prepared.</p></div></div>
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </article>
         </div>
