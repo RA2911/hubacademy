@@ -46,6 +46,7 @@
 
     let picked = [];        // { file, relPath }
     let manifestFile = null;
+    let descFiles = {};     // module number -> descriptions.json File
 
     // Strip the top-level folder name so paths match the manifest (module_1/session_1/deck.html).
     function relPathOf(file) {
@@ -57,11 +58,15 @@
     folderInput.addEventListener('change', () => {
         picked = [];
         manifestFile = null;
+        descFiles = {};
         const files = Array.from(folderInput.files || []);
         files.forEach((file) => {
             const rel = relPathOf(file);
             if (!rel) return;
-            if (rel.toLowerCase() === 'manifest.json') manifestFile = file;
+            const low = rel.toLowerCase();
+            if (low === 'manifest.json') manifestFile = file;
+            const m = low.match(/^module_(\d+)\/descriptions\.json$/);
+            if (m) descFiles[parseInt(m[1], 10)] = file;
             picked.push({ file, relPath: rel });
         });
         if (!picked.length) {
@@ -79,16 +84,35 @@
         uploadBtn.disabled = false;
     });
 
-    function readManifest() {
+    function readJson(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => {
                 try { resolve(JSON.parse(reader.result)); }
-                catch (e) { reject(new Error('manifest.json is not valid JSON.')); }
+                catch (e) { reject(new Error(`${file.name} is not valid JSON.`)); }
             };
-            reader.onerror = () => reject(new Error('Could not read manifest.json.'));
-            reader.readAsText(manifestFile);
+            reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+            reader.readAsText(file);
         });
+    }
+
+    // Merge each module's descriptions.json (module description + session objectives)
+    // into the manifest, so the course page shows them just like standard courses.
+    async function mergeDescriptions(manifest) {
+        for (const module of (manifest.modules || [])) {
+            const file = descFiles[module.number];
+            if (!file) continue;
+            let desc;
+            try { desc = await readJson(file); } catch (e) { continue; }
+            if (desc.module_description) module.description = desc.module_description;
+            const sessionDescs = desc.sessions || {};
+            for (const session of (module.sessions || [])) {
+                const entry = sessionDescs[String(session.number)] || sessionDescs[session.number];
+                if (!entry) continue;
+                if (entry.objective) session.objective = entry.objective;
+                if (entry.title && !session.title) session.title = entry.title;
+            }
+        }
     }
 
     async function uploadOne(entry) {
@@ -134,7 +158,8 @@
         bar.style.width = '0';
         status.textContent = 'Reading manifest...';
         try {
-            const manifest = await readManifest();
+            const manifest = await readJson(manifestFile);
+            await mergeDescriptions(manifest);
             const total = picked.length;
             status.textContent = `Uploading 0 / ${total}...`;
             await runPool(picked, uploadOne, 4, (done) => {

@@ -2181,6 +2181,7 @@ def cert_view(course):
                 'number': snum,
                 'title': session.get('title') or f'Session {snum}',
                 'topic': session.get('topic') or '',
+                'objective': session.get('objective') or '',
                 'parts': parts,
             })
         extras = [
@@ -2192,6 +2193,7 @@ def cert_view(course):
             'number': mnum,
             'title': module.get('title') or f'Module {mnum}',
             'company': module.get('company') or '',
+            'description': module.get('description') or '',
             'sessions': sessions,
             'extras': extras,
         })

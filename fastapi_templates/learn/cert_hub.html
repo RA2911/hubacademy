@@ -77,12 +77,14 @@
         <span class="cert-caret">▾</span>
       </div>
       <div class="cert-module-body">
+        {% if m.description %}<p class="cert-module-desc">{{ m.description }}</p>{% endif %}
         {% for s in m.sessions %}
         <div class="cert-session">
           <div class="cert-session-top">
             <span class="cert-session-no">{{ s.number }}</span>
             <h4>{{ s.title }}</h4>
           </div>
+          {% if s.objective %}<p class="cert-session-obj">{{ s.objective }}</p>{% endif %}
           <div class="cert-parts">
             {% for p in s.parts %}
             <a class="cert-part {{ 'video' if p.kind == 'video' else '' }}"

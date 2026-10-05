@@ -27,7 +27,7 @@
     <a class="back" href="/learn/cert/{{ course.id }}">← Back to course</a>
     <div class="r-eyebrow">Session {{ session.number }}</div>
     <h2>{{ session.title }}</h2>
-    {% if session.topic %}<p class="r-topic">{{ session.topic|title }}</p>{% endif %}
+    {% if session.objective %}<p class="r-topic">{{ session.objective }}</p>{% elif session.topic %}<p class="r-topic">{{ session.topic|title }}</p>{% endif %}
 
     <div class="cert-rail-list">
       {% for p in session.parts %}
