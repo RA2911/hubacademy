@@ -2202,11 +2202,24 @@ def cert_view(course):
         {'path': path, 'label': label, 'blurb': blurb}
         for path, label, blurb in CERT_EXAM_PREP if has(path)
     ]
+    # Course documents live in the bundle's Syllabus/ folder (filenames are prefixed
+    # with the course name, so classify by keyword rather than a fixed name).
+    syllabus = clos = None
+    for f in files:
+        low = f.lower()
+        if not (low.startswith('syllabus/') and low.endswith('.pdf')):
+            continue
+        if 'clo' in low or 'cbo' in low:
+            clos = f
+        elif 'syllabus' in low and not syllabus:
+            syllabus = f
     return {
         'title': manifest.get('title') or course.title,
         'level': manifest.get('level') or '',
         'modules': modules,
         'exam_prep': exam_prep,
+        'syllabus': syllabus,
+        'clos': clos,
     }
 
 

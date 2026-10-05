@@ -35,6 +35,12 @@
       <span class="cert-badge"><b>{{ session_count.n }}</b>&nbsp;Sessions</span>
       {% if cert.exam_prep %}<span class="cert-badge"><b>{{ cert.exam_prep|length }}</b>&nbsp;Exam-Prep Tools</span>{% endif %}
     </div>
+    {% if cert.syllabus or cert.clos %}
+    <div class="cert-hero-meta" style="margin-top:14px">
+      {% if cert.syllabus %}<a class="cert-btn" href="/learn/cert/{{ course.id }}/asset/{{ cert.syllabus }}" target="_blank" rel="noopener">📄 Syllabus</a>{% endif %}
+      {% if cert.clos %}<a class="cert-btn" href="/learn/cert/{{ course.id }}/asset/{{ cert.clos }}" target="_blank" rel="noopener">🎯 Learning Outcomes (CLOs)</a>{% endif %}
+    </div>
+    {% endif %}
   </div>
 </section>
 
