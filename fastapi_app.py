@@ -1192,6 +1192,7 @@ def template(request: Request, name: str, db: Session, context=None):
         'course_price': course_price,
         'course_image': course_image,
         'certificate_badge': certificate_badge,
+        'course_session_count': course_session_count,
         'lesson_module_number': lesson_module_number,
         'lesson_session_number': lesson_session_number,
         'lesson_duration_minutes': lesson_duration_minutes,
@@ -2221,6 +2222,18 @@ def cert_view(course):
         'syllabus': syllabus,
         'clos': clos,
     }
+
+
+def course_session_count(course):
+    """Session count for cards/detail. Certification courses carry no lesson rows
+    (their content is in the manifest), so count sessions from the manifest."""
+    if getattr(course, 'course_type', '') == 'certification':
+        manifest, _ = cert_record(course)
+        return sum(len(m.get('sessions') or []) for m in (manifest.get('modules') or []))
+    try:
+        return len(course.lessons)
+    except Exception:
+        return 0
 
 
 def cert_student_or_redirect(course_id: int, request: Request, db: Session, next_path: str):

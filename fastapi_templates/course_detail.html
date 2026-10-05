@@ -9,7 +9,7 @@
             {% set _ds = course.description if course.description and course.description != 'None' else '' %}
             <p>{{ _ds or 'A practical course built around structured sessions, practice, validation, and progress tracking.' }}</p>
             <div class="meta-pills">
-                <span>{{ lessons|length }} sessions</span>
+                <span>{{ course_session_count(course) }} sessions</span>
                 <span>{{ course.learning_hours or 15 }} hours</span>
                 <span>{{ certificate_badge(course) }}</span>
             </div>

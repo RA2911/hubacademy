@@ -12,7 +12,7 @@
         {% set _ds = course.description if course.description and course.description != 'None' else '' %}
         <p>{{ _ds or 'A practical online course from Hub Academy.' }}</p>
         <div class="course-facts">
-            <span><i class="fas fa-book-open"></i>{{ course.lessons|length }} sessions</span>
+            <span><i class="fas fa-book-open"></i>{{ course_session_count(course) }} sessions</span>
             <span><i class="fas fa-clock"></i>{{ course.learning_hours or 15 }}h</span>
             <span><i class="fas fa-certificate"></i>{{ 'Certificate' if course.certificate_level in [1, 2, 3] else 'Course' }}</span>
         </div>
