@@ -9,7 +9,17 @@
     <section class="hero hero-media reveal">
         <div class="hero-skills-panel">
             <h2 class="hero-skills-title">Welcome to Hub Academy</h2>
-            <img class="hero-skills-img" src="/static/images/landing-outcomes.png?v=2" alt="Hub Academy outcomes: Certification Exam Preparation, AI Literacy, Business Intelligence, Career Growth, Practical Skills, Stronger Teams">
+            <div class="hero-skills-imgwrap">
+                <img class="hero-skills-img" src="/static/images/landing-outcomes.png?v=2" alt="Hub Academy outcomes: Certification Exam Preparation, AI Literacy, Business Intelligence, Career Growth, Practical Skills, Stronger Teams">
+                <div class="hero-skills-overlay" aria-label="Explore by outcome">
+                    <a href="/courses/pmp-certification-exam-prep" aria-label="Certification Exam Preparation"></a>
+                    <a href="/courses/applied-generative-ai-for-business" aria-label="AI Literacy"></a>
+                    <a href="/courses/data-analysis-and-business-intelligence-foundations" aria-label="Business Intelligence"></a>
+                    <a href="/courses/engineering-leadership-for-future-leaders" aria-label="Career Growth"></a>
+                    <a href="/courses/principles-of-management-advanced-practice" aria-label="Practical Skills"></a>
+                    <a href="/courses/managing-teams" aria-label="Stronger Teams"></a>
+                </div>
+            </div>
             <ul class="hero-skills-ticks">
                 <li class="tick-blue"><i class="fas fa-check"></i><span>Executive and professional education that turns strategy into results and ambition into achievement.</span></li>
                 <li class="tick-green"><i class="fas fa-check"></i><span>Where ambition becomes expertise. Sharpen your edge and accelerate your career.</span></li>
@@ -882,6 +892,11 @@
 .hero-skills-panel{width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
 .hero-skills-title{margin:0;color:#0f2350;font-weight:800;line-height:1.1;font-size:clamp(1.8rem,3vw,2.6rem);}
 .hero-skills-img{width:100%;height:auto;display:block;border-radius:14px;}
+/* Clickable tiles overlaid on the single outcomes image (3 cols x 2 rows). */
+.hero-skills-imgwrap{position:relative;width:100%;}
+.hero-skills-overlay{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:0;}
+.hero-skills-overlay a{display:block;border-radius:14px;transition:background .15s ease;}
+.hero-skills-overlay a:hover,.hero-skills-overlay a:focus-visible{background:rgba(36,128,220,.14);outline:none;}
 .hero-skills-ticks{list-style:none;margin:0;padding:0;width:100%;display:grid;gap:12px;text-align:left;}
 .hero-skills-ticks li{display:flex;align-items:flex-start;gap:12px;color:#111;font-weight:600;line-height:1.45;font-size:clamp(1.02rem,1.3vw,1.2rem);}
 .hero-skills-ticks li i{flex:0 0 auto;margin-top:3px;font-size:1.05rem;}
